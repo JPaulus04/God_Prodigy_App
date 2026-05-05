@@ -1,451 +1,392 @@
 import Phaser from 'phaser';
-import { Player } from '../entities/Player';
-import { Enemy } from '../entities/Enemy';
+import { Player }      from '../entities/Player';
+import { Enemy }       from '../entities/Enemy';
+import { InputState }  from '../systems/InputState';
 import { useGameStore } from '../../store/useGameStore';
 
-const WORLD_W = 1600;
-const WORLD_H = 2400;
-const TILE = 32;
+const TS = 32;
+const MW = 50;
+const MH = 50;
 
 export class WorldScene extends Phaser.Scene {
   constructor() {
     super({ key: 'WorldScene' });
-    this.player = null;
-    this.enemies = null;
-    this.resourceNodes = null;
-    this.checkpointGroup = null;
-    this.npcGroup = null;
-    this.joystickData = { dx: 0, dy: 0 };
-    this.npcDialogueIndex = {};
-    this.dialogueObjects = [];
-    this.tutorialMessageObjects = [];
+    this.player          = null;
+    this.enemies         = [];
+    this.resourceNodes   = [];
+    this.checkpointObjs  = [];
+    this.itemPickups     = [];
+    this._justInteracted = false;
+    this._dialogueOpen   = false;
+    this._dialogueIndex  = 0;
+    this._prevHP         = 100;
   }
 
   create() {
-    this._buildWorld();
+    this._buildMap();
     this._spawnPlayer();
+    this._spawnResources();
     this._spawnEnemies();
-    this._placeResources();
-    this._placeCheckpoints();
-    this._placeNPCs();
-    this._placeDungeon();
+    this._spawnCheckpoints();
+    this._spawnNPC();
+    this._spawnStrongholdPortal();
+    this._spawnDungeonEntrance();
+    this._spawnItemPickups();
     this._setupCamera();
     this._setupInput();
-    this._startTutorial();
+    this._setupCollisions();
+    this._showTutorialHint();
   }
 
-  // ─── World Build ────────────────────────────────────────────
+  // ── Map ────────────────────────────────────────────────────
 
-  _buildWorld() {
-    for (let y = 0; y < WORLD_H; y += TILE) {
-      for (let x = 0; x < WORLD_W; x += TILE) {
-        let key = 'tile_grass';
-        if (x < 64 || x > WORLD_W - 96 || y < 64 || y > WORLD_H - 96) {
-          key = 'tile_water';
-        } else if (x > 950 && y < 850) {
-          key = 'tile_forest';
-        } else if (x < 580 && y > 1650) {
-          key = 'tile_stone';
-        } else if ((x > 375 && x < 415) || (y > 575 && y < 615)) {
-          key = 'tile_dirt';
-        }
-        this.add.image(x + 16, y + 16, key).setDepth(0);
+  _buildMap() {
+    for (let y = 0; y < MH; y++) {
+      for (let x = 0; x < MW; x++) {
+        this.add.image(x * TS + TS / 2, y * TS + TS / 2, this._tileAt(x, y)).setDepth(0);
       }
     }
-    this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
+    this.physics.world.setBounds(0, 0, MW * TS, MH * TS);
   }
 
-  // ─── Spawn Player ───────────────────────────────────────────
+  _tileAt(x, y) {
+    if (x < 2 || x >= MW - 2 || y < 2 || y >= MH - 2) return 'tile_water';
+    if (y < 14 && x > 4 && x < MW - 4)                 return 'tile_forest';
+    if (x > 34 && y > 8 && y < 42)                     return 'tile_stone';
+    if (x === 25 || y === 25)                           return 'tile_dirt';
+    return 'tile_grass';
+  }
+
+  // ── Spawns ─────────────────────────────────────────────────
 
   _spawnPlayer() {
-    const store = useGameStore.getState();
-    const x = store.position?.x || 400;
-    const y = store.position?.y || 320;
-    this.player = new Player(this, x, y);
+    const store  = useGameStore.getState();
+    const sx     = store.position?.x || 25 * TS;
+    const sy     = store.position?.y || 30 * TS;
+    this.player  = new Player(this, sx, sy);
+    this._prevHP = store.playerHP;
   }
 
-  // ─── Enemies ────────────────────────────────────────────────
+  _spawnResources() {
+    const defs = [
+      { key: 'tree',     res: 'wood',  amt: 2, x:  8*TS, y:  7*TS },
+      { key: 'tree',     res: 'wood',  amt: 2, x: 12*TS, y:  9*TS },
+      { key: 'tree',     res: 'wood',  amt: 2, x: 16*TS, y:  6*TS },
+      { key: 'tree',     res: 'wood',  amt: 2, x: 20*TS, y:  8*TS },
+      { key: 'tree',     res: 'wood',  amt: 2, x: 24*TS, y: 11*TS },
+      { key: 'tree',     res: 'wood',  amt: 2, x: 30*TS, y:  7*TS },
+      { key: 'rock',     res: 'stone', amt: 2, x: 14*TS, y: 22*TS },
+      { key: 'rock',     res: 'stone', amt: 2, x: 20*TS, y: 38*TS },
+      { key: 'rock',     res: 'stone', amt: 2, x: 10*TS, y: 30*TS },
+      { key: 'rock',     res: 'stone', amt: 2, x: 32*TS, y: 40*TS },
+      { key: 'ore_node', res: 'ore',   amt: 1, x: 37*TS, y: 16*TS },
+      { key: 'ore_node', res: 'ore',   amt: 1, x: 41*TS, y: 24*TS },
+      { key: 'ore_node', res: 'ore',   amt: 1, x: 38*TS, y: 34*TS },
+    ];
+    this.resourceNodes = defs.map(d => {
+      const node = this.physics.add.staticImage(d.x, d.y, d.key);
+      node.setData('res', d.res);
+      node.setData('amt', d.amt);
+      node.setData('depleted', false);
+      return node;
+    });
+  }
 
   _spawnEnemies() {
-    this.enemies = this.physics.add.group();
-
-    const spawns = [
-      { type: 'goblin', x: 620,  y: 420  },
-      { type: 'goblin', x: 760,  y: 360  },
-      { type: 'goblin', x: 510,  y: 620  },
-      { type: 'goblin', x: 300,  y: 920  },
-      { type: 'goblin', x: 1210, y: 310  },
-      { type: 'golem',  x: 920,  y: 720  },
-      { type: 'golem',  x: 1110, y: 510  },
-      { type: 'golem',  x: 820,  y: 1220 },
+    const defs = [
+      { type: 'goblin', x: 12*TS, y: 18*TS },
+      { type: 'goblin', x: 18*TS, y: 15*TS },
+      { type: 'goblin', x: 22*TS, y: 20*TS },
+      { type: 'goblin', x:  8*TS, y: 22*TS },
+      { type: 'golem',  x: 38*TS, y: 20*TS },
+      { type: 'golem',  x: 42*TS, y: 30*TS },
     ];
+    this.enemies = defs.map(d => new Enemy(this, d.x, d.y, d.type));
+  }
 
-    spawns.forEach(({ type, x, y }) => {
-      const e = new Enemy(this, x, y, type);
-      this.enemies.add(e);
+  _spawnCheckpoints() {
+    const defs = [
+      { id: 'cp_center', x: 25*TS, y: 25*TS },
+      { id: 'cp_forest', x: 15*TS, y: 10*TS },
+      { id: 'cp_east',   x: 40*TS, y: 18*TS },
+    ];
+    this.checkpointObjs = defs.map(d => {
+      const cp = this.physics.add.staticImage(d.x, d.y, 'checkpoint').setDepth(2);
+      cp.setData('id', d.id);
+      this.tweens.add({ targets: cp, alpha: 0.4, duration: 900, yoyo: true, repeat: -1 });
+      return cp;
     });
   }
 
-  // ─── Resources ──────────────────────────────────────────────
+  _spawnNPC() {
+    this.npcSprite = this.physics.add.staticImage(23*TS, 28*TS, 'npc').setDepth(5);
+    this.add.text(23*TS, 28*TS - 22, 'Elder Kael', {
+      fontSize: '9px', color: '#1abc9c', stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(6);
 
-  _placeResources() {
-    this.resourceNodes = this.physics.add.staticGroup();
-
-    const nodes = [
-      { key: 'tree',     type: 'wood',  amt: 3, x: 250,  y: 300  },
-      { key: 'tree',     type: 'wood',  amt: 3, x: 330,  y: 240  },
-      { key: 'tree',     type: 'wood',  amt: 2, x: 460,  y: 175  },
-      { key: 'tree',     type: 'wood',  amt: 3, x: 920,  y: 190  },
-      { key: 'tree',     type: 'wood',  amt: 3, x: 1110, y: 145  },
-      { key: 'tree',     type: 'wood',  amt: 2, x: 1210, y: 410  },
-      { key: 'rock',     type: 'stone', amt: 2, x: 710,  y: 810  },
-      { key: 'rock',     type: 'stone', amt: 2, x: 860,  y: 910  },
-      { key: 'rock',     type: 'stone', amt: 3, x: 210,  y: 1710 },
-      { key: 'rock',     type: 'stone', amt: 2, x: 360,  y: 1820 },
-      { key: 'ore_node', type: 'ore',   amt: 1, x: 1010, y: 1010 },
-      { key: 'ore_node', type: 'ore',   amt: 1, x: 1210, y: 1210 },
-      { key: 'ore_node', type: 'ore',   amt: 2, x: 410,  y: 1910 },
+    this._dialogues = [
+      '"Welcome, warrior. Ten elemental gods rule this realm. Defeat them all and ascend."',
+      '"Start by gathering resources — wood in the north forest, stone scattered around, ore in the rocky east."',
+      '"Goblins lurk in the forest. Weak alone, but they move in packs."',
+      '"The stone golems in the east are far more dangerous. Gear up before facing them."',
+      '"Your Stronghold is to the south — the glowing golden gate. Return there to upgrade your structures."',
+      '"The Dungeon entrance is to the northeast, marked in purple. Only the prepared should enter."',
+      '"Upgrade your Forge first. It unlocks weapon crafting — you will need it for the bosses ahead."',
+      '"Safe travels. The path to godhood is long — but you have already begun."',
     ];
-
-    nodes.forEach(({ key, type, amt, x, y }) => {
-      const node = this.resourceNodes.create(x, y, key);
-      node.resourceType = type;
-      node.resourceAmount = amt;
-      node.depleted = false;
-      node.setDepth(2);
-    });
   }
 
-  // ─── Checkpoints ────────────────────────────────────────────
+  _spawnStrongholdPortal() {
+    // Stronghold portal — south of center, easy to find from spawn
+    const portal = this.physics.add.staticImage(25*TS, 44*TS, 'dungeon_door').setDepth(5);
+    portal.setTint(0xd4af37);
 
-  _placeCheckpoints() {
-    this.checkpointGroup = this.physics.add.staticGroup();
+    this.add.text(25*TS, 44*TS - 34, '🏰 STRONGHOLD', {
+      fontSize: '10px', color: '#d4af37', stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(6);
 
-    const cps = [
-      { id: 'cp_crossroads', x: 510,  y: 510  },
-      { id: 'cp_forest',     x: 1010, y: 410  },
-      { id: 'cp_ruins',      x: 810,  y: 1110 },
-    ];
+    this.add.text(25*TS, 44*TS + 30, '[E] Enter', {
+      fontSize: '9px', color: '#d4af3799', stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(6);
 
-    cps.forEach(({ id, x, y }) => {
-      const cp = this.checkpointGroup.create(x, y, 'checkpoint');
-      cp.checkpointId = id;
-      cp.setDepth(3);
+    // Pulse glow
+    this.tweens.add({ targets: portal, alpha: 0.6, duration: 800, yoyo: true, repeat: -1 });
 
-      this.add.text(x, y - 28, '⚑ Checkpoint', {
-        fontSize: '9px', color: '#f1c40f',
-        backgroundColor: '#00000099', padding: { x: 3, y: 2 },
-      }).setOrigin(0.5).setDepth(4);
-    });
-
-    // Player overlaps checkpoint
-    this.physics.add.overlap(this.player, this.checkpointGroup, (player, cp) => {
-      this._activateCheckpoint(cp.checkpointId);
-    });
+    this.strongholdPortal = portal;
   }
 
-  // ─── NPCs ───────────────────────────────────────────────────
+  _spawnDungeonEntrance() {
+    const door = this.physics.add.staticImage(43*TS, 10*TS, 'dungeon_door').setDepth(5);
+    door.setTint(0x8e44ad);
 
-  _placeNPCs() {
-    this.npcGroup = this.physics.add.staticGroup();
+    this.add.text(43*TS, 10*TS - 34, '⚠ DUNGEON', {
+      fontSize: '10px', color: '#cc88ff', stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(6);
 
-    const npcs = [
-      {
-        id: 'elder',
-        x: 430, y: 345,
-        name: 'Elder Vorn',
-        dialogues: [
-          'Welcome, young warrior. This world holds great power — and great danger.',
-          'Gather wood and stone to build your stronghold. It is your foundation.',
-          'The forest to the northeast hides goblins. Approach with caution.',
-          'Stone golems guard the mountain paths. They hit hard — upgrade first.',
-          'Find the checkpoints across the land. They will save your life on death.',
-          'The Fire God stirs in the volcanic peaks far to the south. Not yet.',
-          'Ten gods stand between you and ascension. Defeat them all to become one.',
-        ],
-      },
-    ];
+    this.add.text(43*TS, 10*TS + 30, '[E] Enter', {
+      fontSize: '9px', color: '#cc88ff99', stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(6);
 
-    npcs.forEach(({ id, x, y, name, dialogues }) => {
-      const npc = this.npcGroup.create(x, y, 'npc');
-      npc.npcId = id;
-      npc.npcName = name;
-      npc.dialogues = dialogues;
-      npc.setDepth(3);
-      this.npcDialogueIndex[id] = 0;
-
-      this.add.text(x, y - 30, name, {
-        fontSize: '10px', color: '#1abc9c',
-        backgroundColor: '#00000099', padding: { x: 4, y: 2 },
-      }).setOrigin(0.5).setDepth(4);
-
-      // Interact hint ring
-      this.add.circle(x, y, 18, 0x1abc9c, 0.15).setDepth(2);
-    });
+    this.dungeonEntrance = door;
   }
 
-  // ─── Dungeon Door ───────────────────────────────────────────
+  _spawnItemPickups() {
+    // Iron sword — on the ground near the center, easy to find
+    const sword = this.physics.add.staticImage(27*TS, 27*TS, 'iron_sword').setDepth(3);
+    sword.setData('itemId', 'iron_sword');
+    sword.setData('collected', false);
 
-  _placeDungeon() {
-    this.dungeonDoorGroup = this.physics.add.staticGroup();
-    const door = this.dungeonDoorGroup.create(1410, 1410, 'dungeon_door');
-    door.setDepth(3);
+    // Glow tween
+    this.tweens.add({ targets: sword, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 });
 
-    this.add.text(1410, 1370, '⚠ DUNGEON', {
-      fontSize: '10px', color: '#8e44ad',
-      backgroundColor: '#00000099', padding: { x: 4, y: 2 },
+    // Label
+    this.add.text(27*TS, 27*TS - 20, 'Iron Sword', {
+      fontSize: '9px', color: '#bdc3c7', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(4);
+
+    this.itemPickups = [sword];
   }
 
-  // ─── Camera ─────────────────────────────────────────────────
+  // ── Camera / Input ─────────────────────────────────────────
 
   _setupCamera() {
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    this.cameras.main.setZoom(1.6);
+    this.cameras.main.setBounds(0, 0, MW * TS, MH * TS);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.09, 0.09);
   }
-
-  // ─── Input ──────────────────────────────────────────────────
 
   _setupInput() {
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys({
-      up:    Phaser.Input.Keyboard.KeyCodes.W,
-      down:  Phaser.Input.Keyboard.KeyCodes.S,
-      left:  Phaser.Input.Keyboard.KeyCodes.A,
-      right: Phaser.Input.Keyboard.KeyCodes.D,
-    });
-    this.attackKey   = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-
-    // Receive joystick data from UIScene
-    this.events.on('joystick', (data) => { this.joystickData = data; });
-    this.events.on('actionButton',   () => { this._performAttack(); });
-    this.events.on('interactButton', () => { this._tryInteract(); });
+    this.cursors  = this.input.keyboard.createCursorKeys();
+    this.wasd = {
+      up:    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down:  this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left:  this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+    };
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.eKey     = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.iKey     = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
   }
 
-  // ─── Tutorial ───────────────────────────────────────────────
+  _setupCollisions() {
+    this.physics.add.overlap(this.player.sprite, this.resourceNodes,
+      (_, node) => this._onResourceOverlap(node));
 
-  _startTutorial() {
-    const store = useGameStore.getState();
-    if (store.tutorialStep === 0) {
-      this.time.delayedCall(800, () => {
-        this._showMessage('Use WASD or the joystick to move. Press E or tap INTERACT near objects.');
-        store.advanceTutorial();
-      });
-    }
+    this.physics.add.overlap(this.player.sprite, this.checkpointObjs,
+      (_, cp) => this._onCheckpointOverlap(cp));
+
+    this.physics.add.overlap(this.player.sprite, this.npcSprite,
+      () => this._onNPCOverlap());
+
+    this.physics.add.overlap(this.player.sprite, this.strongholdPortal,
+      () => this._onStrongholdOverlap());
+
+    this.physics.add.overlap(this.player.sprite, this.dungeonEntrance,
+      () => this._onDungeonOverlap());
+
+    this.physics.add.overlap(this.player.sprite, this.itemPickups,
+      (_, item) => this._onItemOverlap(item));
   }
 
-  // ─── Message Display ────────────────────────────────────────
+  // ── Overlap Handlers ───────────────────────────────────────
 
-  _showMessage(text, duration = 3500) {
-    // Remove any existing message
-    this.tutorialMessageObjects.forEach(o => o.destroy());
-    this.tutorialMessageObjects = [];
-
-    const { width, height } = this.scale;
-
-    const bg = this.add.rectangle(width / 2, height - 130, width - 32, 56, 0x000000, 0.82)
-      .setScrollFactor(0).setDepth(50).setStrokeStyle(1, 0xd4af37, 0.5);
-
-    const txt = this.add.text(width / 2, height - 130, text, {
-      fontSize: '12px', color: '#ffffff',
-      wordWrap: { width: width - 52 }, align: 'center',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
-
-    this.tutorialMessageObjects = [bg, txt];
-
-    this.time.delayedCall(duration, () => {
-      this.tutorialMessageObjects.forEach(o => o.destroy());
-      this.tutorialMessageObjects = [];
-    });
-  }
-
-  // ─── Checkpoint ─────────────────────────────────────────────
-
-  _activateCheckpoint(id) {
-    const store = useGameStore.getState();
-    if (!store.checkpoints.includes(id)) {
-      store.activateCheckpoint(id);
-      this._showMessage('⚑ Checkpoint activated! You can respawn here if you fall.');
-    }
-  }
-
-  // ─── Interact ───────────────────────────────────────────────
-
-  _tryInteract() {
-    if (!this.player) return;
-    const range = 85;
-
-    // NPCs
-    this.npcGroup.getChildren().forEach((npc) => {
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y) < range) {
-        this._showNPCDialogue(npc);
-      }
-    });
-
-    // Resources
-    this.resourceNodes.getChildren().forEach((node) => {
-      if (
-        !node.depleted &&
-        Phaser.Math.Distance.Between(this.player.x, this.player.y, node.x, node.y) < range
-      ) {
-        this._gatherResource(node);
-      }
-    });
-
-    // Dungeon door
-    this.dungeonDoorGroup?.getChildren().forEach((door) => {
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, door.x, door.y) < range) {
-        this._showMessage('Dungeon unlocked in Phase 2. Build your stronghold first!');
-      }
-    });
-  }
-
-  // ─── NPC Dialogue ───────────────────────────────────────────
-
-  _showNPCDialogue(npc) {
-    const idx = this.npcDialogueIndex[npc.npcId] || 0;
-    const line = npc.dialogues[idx];
-    this.npcDialogueIndex[npc.npcId] = (idx + 1) % npc.dialogues.length;
-
-    const { width, height } = this.scale;
-
-    this.dialogueObjects.forEach(o => o.destroy());
-    this.dialogueObjects = [];
-
-    const bg = this.add.rectangle(width / 2, height - 90, width - 28, 88, 0x0d0d1a, 0.94)
-      .setScrollFactor(0).setDepth(50).setStrokeStyle(1, 0x1abc9c, 0.8);
-
-    const nameTag = this.add.text(20, height - 128, npc.npcName, {
-      fontSize: '11px', color: '#1abc9c', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(51);
-
-    const lineTxt = this.add.text(width / 2, height - 90, `"${line}"`, {
-      fontSize: '12px', color: '#eeeeee',
-      wordWrap: { width: width - 44 }, align: 'center',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
-
-    this.dialogueObjects = [bg, nameTag, lineTxt];
-
-    this.time.delayedCall(4500, () => {
-      this.dialogueObjects.forEach(o => o.destroy());
-      this.dialogueObjects = [];
-    });
-  }
-
-  // ─── Gather Resource ────────────────────────────────────────
-
-  _gatherResource(node) {
-    const store = useGameStore.getState();
-    store.addResource(node.resourceType, node.resourceAmount);
-
-    this._showMessage(`+${node.resourceAmount} ${node.resourceType} gathered!`, 2000);
-
-    // Flash
-    this.tweens.add({
-      targets: node, alpha: 0.25, duration: 100, yoyo: true,
-    });
-
-    node.depleted = true;
-    node.setAlpha(0.3);
-
-    // Respawn node after 30s
+  _onResourceOverlap(node) {
+    if (!this._justInteracted || node.getData('depleted')) return;
+    const res = node.getData('res');
+    const amt = node.getData('amt');
+    useGameStore.getState().addResource(res, amt);
+    node.setAlpha(0.3).setData('depleted', true);
+    this.showFloatText(node.x, node.y - 10, `+${amt} ${res}`, '#7ed321');
     this.time.delayedCall(30000, () => {
-      node.depleted = false;
-      node.setAlpha(1);
+      node.setAlpha(1).setData('depleted', false);
     });
-
-    // Tutorial step
-    if (store.tutorialStep === 1) {
-      this.time.delayedCall(600, () => {
-        this._showMessage('Good! Gather more resources then visit your stronghold to build.');
-        store.advanceTutorial();
-      });
-    }
   }
 
-  // ─── Attack ─────────────────────────────────────────────────
-
-  _performAttack() {
-    if (!this.player) return;
+  _onCheckpointOverlap(cp) {
+    const id    = cp.getData('id');
     const store = useGameStore.getState();
-    const atk = store.playerATK;
-    const range = 85;
-    let hit = false;
+    if (store.lastCheckpoint === id) return;
+    store.activateCheckpoint(id);
+    this.showFloatText(cp.x, cp.y - 24, '✓ Checkpoint', '#f1c40f');
+    cp.setTint(0x00ff88);
+  }
 
-    this.enemies.getChildren().forEach((enemy) => {
-      if (enemy.isDead) return;
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y) < range) {
-        enemy.takeDamage(atk);
-        hit = true;
+  _onNPCOverlap() {
+    if (!this._justInteracted || this._dialogueOpen) return;
+    this._openDialogue();
+  }
 
-        // Damage number
-        const dmg = this.add.text(enemy.x, enemy.y - 24, `-${atk}`, {
-          fontSize: '14px', color: '#ff4444', fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(20);
-        this.tweens.add({
-          targets: dmg, y: enemy.y - 56, alpha: 0, duration: 700,
-          onComplete: () => dmg.destroy(),
-        });
-      }
-    });
+  _onStrongholdOverlap() {
+    if (!this._justInteracted) return;
+    // Stop player, open stronghold menu via React
+    this.player.sprite.setVelocity(0, 0);
+    useGameStore.getState().setGamePhase('stronghold');
+  }
 
-    // Player swing animation
-    if (hit) {
-      this.tweens.add({
-        targets: this.player,
-        scaleX: 1.35, scaleY: 1.35, duration: 70, yoyo: true,
-      });
-    }
+  _onDungeonOverlap() {
+    if (!this._justInteracted) return;
+    this.player.sprite.setVelocity(0, 0);
+    // Transition to DungeonScene
+    this.scene.start('DungeonScene');
+  }
 
-    // Tutorial step
-    const tutStep = store.tutorialStep;
-    if (tutStep === 2 && hit) {
-      this.time.delayedCall(400, () => {
-        this._showMessage('Enemies drop resources and sometimes gear. Keep fighting!');
-        store.advanceTutorial();
-      });
+  _onItemOverlap(item) {
+    if (!this._justInteracted || item.getData('collected')) return;
+    const itemId = item.getData('itemId');
+    const store  = useGameStore.getState();
+    const added  = store.addItem({ id: itemId, slot: 'weapon', atk: 6 });
+    if (added) {
+      item.setData('collected', true);
+      item.setVisible(false);
+      this.showFloatText(item.x, item.y - 10, '⚔ Iron Sword picked up!', '#bdc3c7');
     }
   }
 
-  // ─── Update Loop ────────────────────────────────────────────
+  // ── Dialogue ──────────────────────────────────────────────
 
-  update() {
-    if (!this.player) return;
+  _openDialogue() {
+    this._dialogueOpen = true;
+    const { width, height } = this.scale;
+    const text = this._dialogues[this._dialogueIndex % this._dialogues.length];
+    this._dialogueIndex++;
 
-    const speed = 130;
-    let vx = 0;
-    let vy = 0;
+    const pad  = 20;
+    const boxH = 110;
+    const boxY = height - boxH - pad;
 
-    // Keyboard
-    if (this.wasd.left.isDown  || this.cursors.left.isDown)  vx = -speed;
-    else if (this.wasd.right.isDown || this.cursors.right.isDown) vx = speed;
-    if (this.wasd.up.isDown    || this.cursors.up.isDown)    vy = -speed;
-    else if (this.wasd.down.isDown  || this.cursors.down.isDown)  vy = speed;
+    this._dlgBg   = this.add.rectangle(width / 2, boxY + boxH / 2, width - pad * 2, boxH, 0x000000, 0.88)
+      .setScrollFactor(0).setDepth(200).setStrokeStyle(2, 0xd4af37);
 
-    // Joystick overrides keyboard if active
-    const { dx, dy } = this.joystickData;
-    if (Math.abs(dx) > 0.08 || Math.abs(dy) > 0.08) {
-      vx = dx * speed;
-      vy = dy * speed;
+    this._dlgText = this.add.text(pad + 10, boxY + 10,
+      `Elder Kael:\n${text}`,
+      { fontSize: '12px', color: '#ffffff', wordWrap: { width: width - pad * 2 - 20 }, lineSpacing: 4 }
+    ).setScrollFactor(0).setDepth(201);
+
+    this._dlgHint = this.add.text(width - pad - 8, boxY + boxH - 18, '[E] Close', {
+      fontSize: '10px', color: '#d4af37',
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(201);
+
+    this.time.delayedCall(220, () => {
+      this.input.keyboard.once('keydown-E', () => this._closeDialogue());
+    });
+  }
+
+  _closeDialogue() {
+    this._dialogueOpen = false;
+    [this._dlgBg, this._dlgText, this._dlgHint].forEach(o => o?.destroy());
+    this._dlgBg = this._dlgText = this._dlgHint = null;
+  }
+
+  // ── Tutorial hint ──────────────────────────────────────────
+
+  _showTutorialHint() {
+    const { width } = this.scale;
+    const hint = this.add.text(width / 2, 80,
+      'Move: WASD / Joystick  |  Attack: SPACE / ⚔  |  Interact: E  |  Inventory: I',
+      { fontSize: '10px', color: '#ffffffaa', stroke: '#000', strokeThickness: 2 }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+
+    this.time.delayedCall(6000, () => {
+      this.tweens.add({ targets: hint, alpha: 0, duration: 1000, onComplete: () => hint.destroy() });
+    });
+  }
+
+  // ── Float text ─────────────────────────────────────────────
+
+  showFloatText(x, y, text, color = '#ffffff') {
+    const t = this.add.text(x, y, text, {
+      fontSize: '14px', color, stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(300);
+    this.tweens.add({
+      targets: t, y: y - 44, alpha: 0, duration: 1100,
+      onComplete: () => t.destroy(),
+    });
+  }
+
+  // ── Update ─────────────────────────────────────────────────
+
+  update(time, delta) {
+    const store = useGameStore.getState();
+
+    // Pause world while overlays are open
+    if (store.showDeathModal || store.gamePhase === 'stronghold') {
+      this.player?.sprite.setVelocity(0, 0);
+      return;
     }
 
-    this.player.setVelocity(vx, vy);
-
-    // Keyboard shortcuts
-    if (Phaser.Input.Keyboard.JustDown(this.attackKey))   this._performAttack();
-    if (Phaser.Input.Keyboard.JustDown(this.interactKey)) this._tryInteract();
-
-    // Enemy AI
-    this.enemies.getChildren().forEach((e) => { if (!e.isDead) e.update(this.player); });
-
-    // Persist position every ~5s
-    if (Math.floor(this.time.now / 5000) !== this._lastPosSave) {
-      this._lastPosSave = Math.floor(this.time.now / 5000);
-      useGameStore.setState({
-        position: { zone: 'world', x: Math.round(this.player.x), y: Math.round(this.player.y) },
-      });
+    // Respawn detection
+    if (this._prevHP === 0 && store.playerHP > 0) {
+      const pos = this._getRespawnPos(store.lastCheckpoint);
+      this.player.moveTo(pos.x, pos.y);
     }
+    this._prevHP = store.playerHP;
+
+    // Inventory toggle
+    if (Phaser.Input.Keyboard.JustDown(this.iKey)) {
+      store.toggleInventory();
+    }
+
+    // Interact flag — true for one frame only
+    this._justInteracted = Phaser.Input.Keyboard.JustDown(this.eKey) || InputState.interact;
+    if (InputState.interact) InputState.interact = false;
+
+    // Attack
+    const attacking = Phaser.Input.Keyboard.JustDown(this.spaceKey) || InputState.attack;
+    if (attacking) {
+      this.player.attack(this.enemies);
+      InputState.attack = false;
+    }
+
+    this.player.update(time, delta, this.cursors, this.wasd);
+    this.enemies.forEach(e => e.update(time, delta, this.player));
+  }
+
+  _getRespawnPos(checkpointId) {
+    const map = {
+      stronghold: { x: 25*TS, y: 30*TS },
+      cp_center:  { x: 25*TS, y: 25*TS },
+      cp_forest:  { x: 15*TS, y: 10*TS },
+      cp_east:    { x: 40*TS, y: 18*TS },
+    };
+    return map[checkpointId] || map.stronghold;
   }
 }
