@@ -1,0 +1,208 @@
+name: Build & Upload iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Show installed Xcodes
+        run: |
+          ls -1 /Applications | grep Xcode || true
+          xcodebuild -version || true
+
+      - name: Select stable Xcode 26
+        run: |
+          if [ -d /Applications/Xcode_26.4.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.4.app
+          elif [ -d /Applications/Xcode_26.3.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.3.app
+          elif [ -d /Applications/Xcode.app ]; then
+            sudo xcode-select -s /Applications/Xcode.app
+          else
+            echo "No stable Xcode 26 installation found"
+            exit 1
+          fi
+          xcodebuild -version
+          xcodebuild -showsdks
+
+      - name: Install deps
+        run: npm install --legacy-peer-deps
+
+      - name: Build game bundle
+        run: |
+          npm run build
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: dist/index.html not found — Vite build failed"
+            exit 1
+          fi
+          echo "✅ dist/index.html built ($(wc -c < dist/index.html) bytes)"
+
+      - name: Add iOS platform
+        run: npx cap add ios
+
+      - name: Capacitor sync
+        run: npx cap sync ios
+
+      - name: Set app icon
+        run: |
+          cp AppIcon_1024.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+          cat > ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json << 'JSON'
+          {
+            "images": [
+              {
+                "filename": "AppIcon.png",
+                "idiom": "universal",
+                "platform": "ios",
+                "size": "1024x1024"
+              }
+            ],
+            "info": { "author": "xcode", "version": 1 }
+          }
+          JSON
+
+      - name: Patch Xcode project
+        run: |
+          python3 - << 'EOF'
+          import re
+          path = "ios/App/App.xcodeproj/project.pbxproj"
+          with open(path) as f:
+              content = f.read()
+          content = re.sub(r'CURRENT_PROJECT_VERSION = \d+;', 'CURRENT_PROJECT_VERSION = 1;', content)
+          content = re.sub(r'MARKETING_VERSION = [^;]+;', 'MARKETING_VERSION = 0.1.0;', content)
+          import os
+          profile_uuid = os.environ.get('PROVISIONING_PROFILE_UUID', '')
+          content = re.sub(
+              r'(PRODUCT_BUNDLE_IDENTIFIER = com\.godprodigy\.app;)',
+              (
+                  r'\1\n'
+                  r'\t\t\t\tCODE_SIGN_STYLE = Manual;\n'
+                  r'\t\t\t\tCODE_SIGN_IDENTITY = "iPhone Distribution";\n'
+                  f'\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile_uuid}";'
+              ),
+              content
+          )
+          with open(path, "w") as f:
+              f.write(content)
+          print("Project patched — version 0.1.0 build 1")
+          EOF
+        env:
+          PROVISIONING_PROFILE_UUID: ${{ secrets.PROVISIONING_PROFILE_UUID }}
+
+      - name: Patch Podfile
+        run: |
+          python3 - << 'EOF'
+          with open("ios/App/Podfile", "r") as f:
+              content = f.read()
+          signing_code = """
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
+                config.build_settings.delete('PROVISIONING_PROFILE')
+                config.build_settings.delete('PROVISIONING_PROFILE_SPECIFIER')
+                config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Development'
+              end
+            end
+          """
+          content = content.replace(
+              "post_install do |installer|",
+              "post_install do |installer|\n" + signing_code
+          )
+          with open("ios/App/Podfile", "w") as f:
+              f.write(content)
+          print("Podfile patched")
+          EOF
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.CERTIFICATE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "build123" -f pkcs12 -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision 2>/dev/null | plutil -extract UUID xml1 -o - - | sed -n 's/.*<string>\(.*\)<\/string>.*/\1/p')
+          echo "Profile UUID: $UUID"
+          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
+
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install --repo-update
+
+      - name: Build archive
+        run: |
+          xcodebuild archive \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -archivePath build/App.xcarchive \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+            OTHER_CODE_SIGN_FLAGS="--keychain build.keychain"
+
+      - name: Export IPA
+        run: |
+          cat > ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>TEAM_ID_PLACEHOLDER</string>
+            <key>uploadBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.godprodigy.app</key>
+              <string>PROFILE_UUID_PLACEHOLDER</string>
+            </dict>
+          </dict></plist>
+          PLIST
+          sed -i '' "s/TEAM_ID_PLACEHOLDER/${{ secrets.APPLE_TEAM_ID }}/" ExportOptions.plist
+          sed -i '' "s/PROFILE_UUID_PLACEHOLDER/$PROFILE_UUID/" ExportOptions.plist
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ipa
+
+      - name: Upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY: ${{ secrets.ASC_API_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_API_KEY" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          xcrun altool --upload-app --type ios --file build/ipa/App.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Save IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: god-prodigy-ipa
+          path: build/ipa/App.ipa
+          retention-days: 30
