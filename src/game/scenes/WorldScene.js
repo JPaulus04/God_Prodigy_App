@@ -23,19 +23,46 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
-    this._buildMap();
-    this._spawnPlayer();
-    this._spawnResources();
-    this._spawnEnemies();
-    this._spawnCheckpoints();
-    this._spawnNPC();
-    this._spawnStrongholdPortal();
-    this._spawnDungeonEntrance();
-    this._spawnItemPickups();
-    this._setupCamera();
-    this._setupInput();
-    this._setupCollisions();
-    this._showTutorialHint();
+    // ── Debug indicator — always visible, fixed to camera ──
+    // Remove this once world renders correctly
+    this._debugText = this.add.text(10, 10, '✓ WorldScene running', {
+      fontSize: '14px',
+      color: '#00ff00',
+      stroke: '#000',
+      strokeThickness: 3,
+      backgroundColor: '#00000088',
+      padding: { x: 6, y: 4 },
+    }).setScrollFactor(0).setDepth(999);
+
+    try {
+      this._buildMap();
+      this._debugText.setText('✓ Map built');
+
+      this._spawnPlayer();
+      this._debugText.setText('✓ Player spawned');
+
+      this._spawnResources();
+      this._spawnEnemies();
+      this._spawnCheckpoints();
+      this._spawnNPC();
+      this._spawnStrongholdPortal();
+      this._spawnDungeonEntrance();
+      this._spawnItemPickups();
+      this._setupCamera();
+      this._setupInput();
+      this._setupCollisions();
+      this._showTutorialHint();
+
+      this._debugText.setText('✓ World ready');
+      // Hide debug after 4 seconds once everything is confirmed working
+      this.time.delayedCall(4000, () => {
+        if (this._debugText) this._debugText.destroy();
+      });
+
+    } catch (e) {
+      this._debugText.setText('ERROR: ' + e.message);
+      console.error('WorldScene create error:', e);
+    }
   }
 
   // ── Map ────────────────────────────────────────────────────
@@ -43,7 +70,11 @@ export class WorldScene extends Phaser.Scene {
   _buildMap() {
     for (let y = 0; y < MH; y++) {
       for (let x = 0; x < MW; x++) {
-        this.add.image(x * TS + TS / 2, y * TS + TS / 2, this._tileAt(x, y)).setDepth(0);
+        this.add.image(
+          x * TS + TS / 2,
+          y * TS + TS / 2,
+          this._tileAt(x, y)
+        ).setDepth(0);
       }
     }
     this.physics.world.setBounds(0, 0, MW * TS, MH * TS);
@@ -137,53 +168,38 @@ export class WorldScene extends Phaser.Scene {
   }
 
   _spawnStrongholdPortal() {
-    // Stronghold portal — south of center, easy to find from spawn
     const portal = this.physics.add.staticImage(25*TS, 44*TS, 'dungeon_door').setDepth(5);
     portal.setTint(0xd4af37);
-
     this.add.text(25*TS, 44*TS - 34, '🏰 STRONGHOLD', {
       fontSize: '10px', color: '#d4af37', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(6);
-
     this.add.text(25*TS, 44*TS + 30, '[E] Enter', {
       fontSize: '9px', color: '#d4af3799', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(6);
-
-    // Pulse glow
     this.tweens.add({ targets: portal, alpha: 0.6, duration: 800, yoyo: true, repeat: -1 });
-
     this.strongholdPortal = portal;
   }
 
   _spawnDungeonEntrance() {
     const door = this.physics.add.staticImage(43*TS, 10*TS, 'dungeon_door').setDepth(5);
     door.setTint(0x8e44ad);
-
     this.add.text(43*TS, 10*TS - 34, '⚠ DUNGEON', {
       fontSize: '10px', color: '#cc88ff', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(6);
-
     this.add.text(43*TS, 10*TS + 30, '[E] Enter', {
       fontSize: '9px', color: '#cc88ff99', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(6);
-
     this.dungeonEntrance = door;
   }
 
   _spawnItemPickups() {
-    // Iron sword — on the ground near the center, easy to find
     const sword = this.physics.add.staticImage(27*TS, 27*TS, 'iron_sword').setDepth(3);
     sword.setData('itemId', 'iron_sword');
     sword.setData('collected', false);
-
-    // Glow tween
     this.tweens.add({ targets: sword, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 });
-
-    // Label
     this.add.text(27*TS, 27*TS - 20, 'Iron Sword', {
       fontSize: '9px', color: '#bdc3c7', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(4);
-
     this.itemPickups = [sword];
   }
 
@@ -210,19 +226,14 @@ export class WorldScene extends Phaser.Scene {
   _setupCollisions() {
     this.physics.add.overlap(this.player.sprite, this.resourceNodes,
       (_, node) => this._onResourceOverlap(node));
-
     this.physics.add.overlap(this.player.sprite, this.checkpointObjs,
       (_, cp) => this._onCheckpointOverlap(cp));
-
     this.physics.add.overlap(this.player.sprite, this.npcSprite,
       () => this._onNPCOverlap());
-
     this.physics.add.overlap(this.player.sprite, this.strongholdPortal,
       () => this._onStrongholdOverlap());
-
     this.physics.add.overlap(this.player.sprite, this.dungeonEntrance,
       () => this._onDungeonOverlap());
-
     this.physics.add.overlap(this.player.sprite, this.itemPickups,
       (_, item) => this._onItemOverlap(item));
   }
@@ -236,9 +247,7 @@ export class WorldScene extends Phaser.Scene {
     useGameStore.getState().addResource(res, amt);
     node.setAlpha(0.3).setData('depleted', true);
     this.showFloatText(node.x, node.y - 10, `+${amt} ${res}`, '#7ed321');
-    this.time.delayedCall(30000, () => {
-      node.setAlpha(1).setData('depleted', false);
-    });
+    this.time.delayedCall(30000, () => node.setAlpha(1).setData('depleted', false));
   }
 
   _onCheckpointOverlap(cp) {
@@ -257,7 +266,6 @@ export class WorldScene extends Phaser.Scene {
 
   _onStrongholdOverlap() {
     if (!this._justInteracted) return;
-    // Stop player, open stronghold menu via React
     this.player.sprite.setVelocity(0, 0);
     useGameStore.getState().setGamePhase('stronghold');
   }
@@ -265,18 +273,15 @@ export class WorldScene extends Phaser.Scene {
   _onDungeonOverlap() {
     if (!this._justInteracted) return;
     this.player.sprite.setVelocity(0, 0);
-    // Transition to DungeonScene
     this.scene.start('DungeonScene');
   }
 
   _onItemOverlap(item) {
     if (!this._justInteracted || item.getData('collected')) return;
-    const itemId = item.getData('itemId');
-    const store  = useGameStore.getState();
-    const added  = store.addItem({ id: itemId, slot: 'weapon', atk: 6 });
+    const store = useGameStore.getState();
+    const added = store.addItem({ id: 'iron_sword', slot: 'weapon', atk: 6 });
     if (added) {
-      item.setData('collected', true);
-      item.setVisible(false);
+      item.setData('collected', true).setVisible(false);
       this.showFloatText(item.x, item.y - 10, '⚔ Iron Sword picked up!', '#bdc3c7');
     }
   }
@@ -288,19 +293,14 @@ export class WorldScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const text = this._dialogues[this._dialogueIndex % this._dialogues.length];
     this._dialogueIndex++;
+    const pad = 20, boxH = 110, boxY = height - boxH - pad;
 
-    const pad  = 20;
-    const boxH = 110;
-    const boxY = height - boxH - pad;
-
-    this._dlgBg   = this.add.rectangle(width / 2, boxY + boxH / 2, width - pad * 2, boxH, 0x000000, 0.88)
+    this._dlgBg = this.add.rectangle(width / 2, boxY + boxH / 2, width - pad * 2, boxH, 0x000000, 0.88)
       .setScrollFactor(0).setDepth(200).setStrokeStyle(2, 0xd4af37);
-
     this._dlgText = this.add.text(pad + 10, boxY + 10,
       `Elder Kael:\n${text}`,
       { fontSize: '12px', color: '#ffffff', wordWrap: { width: width - pad * 2 - 20 }, lineSpacing: 4 }
     ).setScrollFactor(0).setDepth(201);
-
     this._dlgHint = this.add.text(width - pad - 8, boxY + boxH - 18, '[E] Close', {
       fontSize: '10px', color: '#d4af37',
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(201);
@@ -321,10 +321,9 @@ export class WorldScene extends Phaser.Scene {
   _showTutorialHint() {
     const { width } = this.scale;
     const hint = this.add.text(width / 2, 80,
-      'Move: WASD / Joystick  |  Attack: SPACE / ⚔  |  Interact: E  |  Inventory: I',
-      { fontSize: '10px', color: '#ffffffaa', stroke: '#000', strokeThickness: 2 }
+      'Move: Joystick  |  Attack: ⚔  |  Interact: E',
+      { fontSize: '11px', color: '#ffffffaa', stroke: '#000', strokeThickness: 2 }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(100);
-
     this.time.delayedCall(6000, () => {
       this.tweens.add({ targets: hint, alpha: 0, duration: 1000, onComplete: () => hint.destroy() });
     });
@@ -346,30 +345,22 @@ export class WorldScene extends Phaser.Scene {
 
   update(time, delta) {
     const store = useGameStore.getState();
-
-    // Pause world while overlays are open
     if (store.showDeathModal || store.gamePhase === 'stronghold') {
       this.player?.sprite.setVelocity(0, 0);
       return;
     }
 
-    // Respawn detection
     if (this._prevHP === 0 && store.playerHP > 0) {
       const pos = this._getRespawnPos(store.lastCheckpoint);
       this.player.moveTo(pos.x, pos.y);
     }
     this._prevHP = store.playerHP;
 
-    // Inventory toggle
-    if (Phaser.Input.Keyboard.JustDown(this.iKey)) {
-      store.toggleInventory();
-    }
+    if (Phaser.Input.Keyboard.JustDown(this.iKey)) store.toggleInventory();
 
-    // Interact flag — true for one frame only
     this._justInteracted = Phaser.Input.Keyboard.JustDown(this.eKey) || InputState.interact;
     if (InputState.interact) InputState.interact = false;
 
-    // Attack
     const attacking = Phaser.Input.Keyboard.JustDown(this.spaceKey) || InputState.attack;
     if (attacking) {
       this.player.attack(this.enemies);

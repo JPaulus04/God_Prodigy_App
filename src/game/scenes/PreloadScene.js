@@ -6,26 +6,25 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-    const { width, height } = this.scale;
-    const box = this.add.graphics();
-    const bar = this.add.graphics();
-    box.fillStyle(0x222244);
-    box.fillRect(width / 2 - 160, height / 2 - 20, 320, 40);
-    this.load.on('progress', (v) => {
-      bar.clear();
-      bar.fillStyle(0xd4af37);
-      bar.fillRect(width / 2 - 155, height / 2 - 15, 310 * v, 30);
-    });
-    this.load.on('complete', () => { bar.destroy(); box.destroy(); });
-    // this.load.audio('amb_world', 'assets/audio/world_ambient.mp3');
-    // this.load.audio('sfx_hit', 'assets/audio/hit.mp3');
-    // this.load.audio('sfx_gather', 'assets/audio/gather.mp3');
+    // Minimal preload — textures generated in create()
   }
 
   create() {
-    this._generateTextures();
-    this.scene.start('WorldScene');
-    this.scene.launch('UIScene');
+    // Show loading text while generating
+    const { width, height } = this.scale;
+    const loadText = this.add.text(width / 2, height / 2, 'Loading...', {
+      fontSize: '20px', color: '#d4af37',
+    }).setOrigin(0.5);
+
+    try {
+      this._generateTextures();
+      loadText.destroy();
+      this.scene.start('WorldScene');
+      this.scene.launch('UIScene');
+    } catch (e) {
+      loadText.setText('Error: ' + e.message);
+      console.error('PreloadScene error:', e);
+    }
   }
 
   _generateTextures() {
@@ -41,6 +40,7 @@ export class PreloadScene extends Phaser.Scene {
       { key: 'dungeon_door', color: 0x8e44ad, w: 44, h: 44 },
       { key: 'iron_sword',   color: 0xbdc3c7, w: 14, h: 28 },
     ];
+
     const tiles = [
       { key: 'tile_grass',  color: 0x2d6a3f },
       { key: 'tile_dirt',   color: 0x9b7a5b },
@@ -48,23 +48,33 @@ export class PreloadScene extends Phaser.Scene {
       { key: 'tile_water',  color: 0x2980b9 },
       { key: 'tile_forest', color: 0x1a5c35 },
     ];
+
+    // Use RenderTexture instead of Graphics.generateTexture
+    // — more reliable in Capacitor Canvas mode
     sprites.forEach(({ key, color, w, h }) => {
       if (this.textures.exists(key)) return;
-      const g = this.make.graphics({ add: false });
-      g.fillStyle(color);
-      g.fillRoundedRect(0, 0, w, h, 4);
-      g.generateTexture(key, w, h);
+      const rt = this.add.renderTexture(0, 0, w, h);
+      const g  = this.add.graphics();
+      g.fillStyle(color, 1);
+      g.fillRect(0, 0, w, h);
+      rt.draw(g, 0, 0);
+      rt.saveTexture(key);
       g.destroy();
+      rt.destroy();
     });
+
     tiles.forEach(({ key, color }) => {
       if (this.textures.exists(key)) return;
-      const g = this.make.graphics({ add: false });
-      g.fillStyle(color);
+      const rt = this.add.renderTexture(0, 0, 32, 32);
+      const g  = this.add.graphics();
+      g.fillStyle(color, 1);
       g.fillRect(0, 0, 32, 32);
-      g.lineStyle(1, 0x00000033);
+      g.lineStyle(1, 0x00000033, 1);
       g.strokeRect(0, 0, 32, 32);
-      g.generateTexture(key, 32, 32);
+      rt.draw(g, 0, 0);
+      rt.saveTexture(key);
       g.destroy();
+      rt.destroy();
     });
   }
 }
