@@ -1,132 +1,179 @@
 import React from 'react';
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore }  from '../store/useGameStore';
+import { InputState }    from '../game/systems/InputState';
+import VirtualJoystick   from './VirtualJoystick';
 
 export default function HUD() {
   const {
+    playerHP, playerMaxHP,
     playerName,
-    playerHP,
-    playerMaxHP,
-    playerATK,
-    playerDEF,
     resources,
     ascensionProgress,
     toggleHelpMenu,
-    toggleInventory,
   } = useGameStore();
 
-  const hpPct = Math.max(0, (playerHP / playerMaxHP) * 100);
-  const hpColor = hpPct > 50 ? '#00e676' : hpPct > 25 ? '#ffeb3b' : '#ff1744';
+  const hpPct   = Math.max(0, (playerHP / playerMaxHP) * 100);
+  const hpColor = hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f39c12' : '#e74c3c';
 
-  return (
-    <div style={{
-      position: 'absolute', inset: 0,
-      pointerEvents: 'none',
-      fontFamily: 'Georgia, serif',
-    }}>
-
-      {/* ── Top Bar ── */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
-        padding: '10px 14px 6px',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.75) 0%, transparent 100%)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      }}>
-
-        {/* Player info */}
-        <div>
-          <div style={{ color: '#d4af37', fontSize: 13, fontWeight: 'bold', marginBottom: 4 }}>
-            {playerName || 'Wanderer'}
-          </div>
-
-          {/* HP Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#ff6b6b', fontSize: 10 }}>HP</span>
-            <div style={{
-              width: 110, height: 8, background: '#333',
-              borderRadius: 4, overflow: 'hidden', border: '1px solid #555',
-            }}>
-              <div style={{
-                width: `${hpPct}%`, height: '100%',
-                background: hpColor,
-                transition: 'width 0.3s, background 0.3s',
-                borderRadius: 4,
-              }} />
-            </div>
-            <span style={{ color: '#fff', fontSize: 9 }}>{playerHP}/{playerMaxHP}</span>
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 3 }}>
-            <span style={{ color: '#ff7043', fontSize: 9 }}>⚔ {playerATK}</span>
-            <span style={{ color: '#42a5f5', fontSize: 9 }}>🛡 {playerDEF}</span>
-          </div>
-        </div>
-
-        {/* Ascension tracker */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#d4af37', fontSize: 9, marginBottom: 3 }}>ASCENSION</div>
-          <div style={{ display: 'flex', gap: 3 }}>
-            {Array.from({ length: 10 }, (_, i) => (
-              <div key={i} style={{
-                width: 8, height: 8, borderRadius: 2,
-                background: i < ascensionProgress ? '#d4af37' : '#333',
-                border: '1px solid #555',
-              }} />
-            ))}
-          </div>
-          <div style={{ color: '#888', fontSize: 8, marginTop: 2 }}>
-            {ascensionProgress}/10 Gods
-          </div>
-        </div>
-
-        {/* Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'auto' }}>
-          <button onClick={toggleHelpMenu} style={btnStyle('#1a2a4a', '#4488ff')}>
-            ? HELP
-          </button>
-          <button onClick={toggleInventory} style={btnStyle('#2a1a4a', '#8855ff')}>
-            🎒 BAG
-          </button>
-        </div>
-      </div>
-
-      {/* ── Resource Bar ── */}
-      <div style={{
-        position: 'absolute', top: 80, left: 14,
-        display: 'flex', flexDirection: 'column', gap: 3,
-      }}>
-        <ResourcePill icon="🪵" label="Wood"  value={resources.wood}  color="#a5d6a7" />
-        <ResourcePill icon="🪨" label="Stone" value={resources.stone} color="#b0bec5" />
-        <ResourcePill icon="⛏"  label="Ore"   value={resources.ore}   color="#ff8a65" />
-      </div>
-
-    </div>
-  );
-}
-
-function ResourcePill({ icon, label, value, color }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 5,
-      background: 'rgba(0,0,0,0.6)', borderRadius: 12,
-      padding: '2px 8px', border: `1px solid ${color}44`,
-    }}>
-      <span style={{ fontSize: 11 }}>{icon}</span>
-      <span style={{ color, fontSize: 10, fontWeight: 'bold' }}>{value}</span>
-    </div>
-  );
-}
-
-function btnStyle(bg, border) {
-  return {
-    background: bg,
-    border: `1px solid ${border}`,
-    color: '#ffffff',
-    fontSize: 9,
-    padding: '4px 8px',
-    borderRadius: 6,
-    cursor: 'pointer',
-    fontFamily: 'Georgia, serif',
-    letterSpacing: 0.5,
+  const onAttack = () => {
+    InputState.attack = true;
+    setTimeout(() => { InputState.attack = false; }, 80);
   };
+
+  const onInteract = () => {
+    InputState.interact = true;
+    setTimeout(() => { InputState.interact = false; }, 80);
+  };
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+
+      {/* ── Top-left: Name + HP + Resources ─────────────── */}
+      <div style={{
+        position: 'absolute', top: 52, left: 14,
+        display: 'flex', flexDirection: 'column', gap: 8,
+        maxWidth: '60%',
+      }}>
+        {/* Player name */}
+        <div style={{
+          color: '#d4af37', fontSize: 17, fontWeight: 'bold',
+          textShadow: '0 1px 4px #000',
+        }}>
+          {playerName || 'Warrior'}
+        </div>
+
+        {/* HP bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: '#e74c3c', fontSize: 18 }}>❤</span>
+          <div style={{
+            flex: 1, height: 16, background: '#222',
+            borderRadius: 8, overflow: 'hidden',
+            border: '1px solid #555', minWidth: 120,
+          }}>
+            <div style={{
+              width: `${hpPct}%`, height: '100%',
+              background: hpColor, borderRadius: 8,
+              transition: 'width 0.2s, background 0.3s',
+            }} />
+          </div>
+          <span style={{
+            color: '#ddd', fontSize: 13, fontWeight: 'bold',
+            textShadow: '0 1px 3px #000', minWidth: 52,
+          }}>
+            {playerHP}/{playerMaxHP}
+          </span>
+        </div>
+
+        {/* Resources */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { k: 'wood',  icon: '🪵', col: '#27ae60' },
+            { k: 'stone', icon: '🪨', col: '#95a5a6' },
+            { k: 'ore',   icon: '⛏',  col: '#e67e22' },
+          ].map(({ k, icon, col }) => (
+            <div key={k} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: '#000000aa', padding: '5px 10px',
+              borderRadius: 12, border: `1px solid ${col}55`,
+            }}>
+              <span style={{ fontSize: 16 }}>{icon}</span>
+              <span style={{
+                color: '#fff', fontSize: 16, fontWeight: 'bold',
+                textShadow: '0 1px 3px #000',
+              }}>
+                {resources[k]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Top-right: Ascension tracker ─────────────────── */}
+      <div style={{
+        position: 'absolute', top: 52, right: 14,
+        background: '#000000aa', border: '1px solid #d4af3766',
+        borderRadius: 10, padding: '8px 14px', textAlign: 'center',
+        minWidth: 72,
+      }}>
+        <div style={{
+          color: '#d4af37', fontSize: 11, fontWeight: 'bold',
+          letterSpacing: 1, marginBottom: 2,
+        }}>
+          ASCENSION
+        </div>
+        <div style={{
+          color: '#fff', fontSize: 24, fontWeight: 'bold', lineHeight: 1,
+        }}>
+          {ascensionProgress}
+          <span style={{ color: '#444', fontSize: 15 }}>/10</span>
+        </div>
+      </div>
+
+      {/* ── Help button ───────────────────────────────────── */}
+      <button
+        onClick={toggleHelpMenu}
+        style={{
+          position: 'absolute', top: 52,
+          left: '50%', transform: 'translateX(-50%)',
+          background: '#000000aa', border: '1px solid #555',
+          color: '#ccc', borderRadius: 18,
+          padding: '8px 20px', fontSize: 15,
+          cursor: 'pointer', pointerEvents: 'all',
+          fontWeight: 'bold',
+        }}
+      >
+        ? Help
+      </button>
+
+      {/* ── Bottom controls ───────────────────────────────── */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        padding: '0 20px 44px',
+        pointerEvents: 'all',
+      }}>
+        {/* Joystick — bottom left */}
+        <VirtualJoystick />
+
+        {/* Action buttons — bottom right */}
+        <div style={{
+          display: 'flex', flexDirection: 'column',
+          gap: 14, alignItems: 'center',
+        }}>
+          {/* Interact / E */}
+          <button
+            onPointerDown={onInteract}
+            style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: '#1abc9c33',
+              border: '3px solid #1abc9c',
+              color: '#1abc9c', fontSize: 20, fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 10px #1abc9c44',
+            }}
+          >
+            E
+          </button>
+
+          {/* Attack */}
+          <button
+            onPointerDown={onAttack}
+            style={{
+              width: 88, height: 88, borderRadius: '50%',
+              background: '#e74c3c33',
+              border: '3px solid #e74c3c',
+              color: '#fff', fontSize: 30,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 14px #e74c3c55',
+            }}
+          >
+            ⚔️
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

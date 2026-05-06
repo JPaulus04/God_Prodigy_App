@@ -1,15 +1,15 @@
 import React, { useRef, useCallback } from 'react';
 import { InputState } from '../game/systems/InputState';
 
-const BOX  = 110;   // outer box size px
-const KNOB = 42;    // thumb knob size px
+const BOX  = 140;   // outer box size px
+const KNOB = 54;    // thumb knob size px
 const MAX  = (BOX - KNOB) / 2 - 4;
 
 export default function VirtualJoystick() {
-  const boxRef      = useRef(null);
-  const knobRef     = useRef(null);
-  const activeTID   = useRef(null);   // active touch identifier
-  const mouseDrag   = useRef(false);
+  const boxRef    = useRef(null);
+  const knobRef   = useRef(null);
+  const activeTID = useRef(null);
+  const mouseDrag = useRef(false);
 
   const moveKnob = useCallback((clientX, clientY) => {
     if (!boxRef.current) return;
@@ -48,7 +48,6 @@ export default function VirtualJoystick() {
     mouseDrag.current   = false;
   }, []);
 
-  // ── Touch handlers ──────────────────────────────────────────
   const onTouchStart = e => {
     if (activeTID.current !== null) return;
     const t = e.changedTouches[0];
@@ -74,7 +73,6 @@ export default function VirtualJoystick() {
     }
   };
 
-  // ── Mouse handlers (desktop testing) ───────────────────────
   const onMouseDown = e => { mouseDrag.current = true;  moveKnob(e.clientX, e.clientY); };
   const onMouseMove = e => { if (mouseDrag.current) moveKnob(e.clientX, e.clientY); };
   const onMouseUp   = ()  => { if (mouseDrag.current) resetKnob(); };
@@ -91,27 +89,27 @@ export default function VirtualJoystick() {
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
       style={{
-        width:       BOX,
-        height:      BOX,
-        background:  '#ffffff0d',
-        border:      '2px solid #ffffff2a',
-        borderRadius: 14,
-        position:    'relative',
-        touchAction: 'none',
-        userSelect:  'none',
-        flexShrink:  0,
+        width:        BOX,
+        height:       BOX,
+        background:   '#ffffff0f',
+        border:       '2px solid #ffffff33',
+        borderRadius: 18,
+        position:     'relative',
+        touchAction:  'none',
+        userSelect:   'none',
+        flexShrink:   0,
       }}
     >
       {/* Directional arrows */}
       {[
-        { ch: '▲', s: { top: 5,    left: '50%', transform: 'translateX(-50%)' } },
-        { ch: '▼', s: { bottom: 5, left: '50%', transform: 'translateX(-50%)' } },
-        { ch: '◀', s: { left: 5,   top: '50%',  transform: 'translateY(-50%)' } },
-        { ch: '▶', s: { right: 5,  top: '50%',  transform: 'translateY(-50%)' } },
+        { ch: '▲', s: { top: 7,    left: '50%', transform: 'translateX(-50%)' } },
+        { ch: '▼', s: { bottom: 7, left: '50%', transform: 'translateX(-50%)' } },
+        { ch: '◀', s: { left: 7,   top: '50%',  transform: 'translateY(-50%)' } },
+        { ch: '▶', s: { right: 7,  top: '50%',  transform: 'translateY(-50%)' } },
       ].map(({ ch, s }) => (
         <span key={ch} style={{
-          position: 'absolute', color: '#ffffff28',
-          fontSize: 10, lineHeight: 1, ...s,
+          position: 'absolute', color: '#ffffff44',
+          fontSize: 13, lineHeight: 1, ...s,
         }}>{ch}</span>
       ))}
 
@@ -119,16 +117,17 @@ export default function VirtualJoystick() {
       <div
         ref={knobRef}
         style={{
-          position:     'absolute',
-          top: '50%',   left: '50%',
-          transform:    'translate(-50%, -50%)',
-          width:        KNOB,
-          height:       KNOB,
-          background:   'radial-gradient(circle at 38% 36%, #ffffff55, #ffffff1a)',
-          border:       '2px solid #ffffff55',
-          borderRadius: '50%',
-          pointerEvents:'none',
-          transition:   'transform 0.02s linear',
+          position:      'absolute',
+          top: '50%',    left: '50%',
+          transform:     'translate(-50%, -50%)',
+          width:         KNOB,
+          height:        KNOB,
+          background:    'radial-gradient(circle at 38% 36%, #ffffff66, #ffffff22)',
+          border:        '2px solid #ffffff66',
+          borderRadius:  '50%',
+          pointerEvents: 'none',
+          transition:    'transform 0.02s linear',
+          boxShadow:     '0 2px 8px #00000066',
         }}
       />
     </div>
