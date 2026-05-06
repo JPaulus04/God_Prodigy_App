@@ -1,383 +1,139 @@
 import Phaser from 'phaser';
-import { Player }      from '../entities/Player';
-import { Enemy }       from '../entities/Enemy';
-import { InputState }  from '../systems/InputState';
 import { useGameStore } from '../../store/useGameStore';
-
-const TS = 32;
-const MW = 50;
-const MH = 50;
+import { InputState }   from '../systems/InputState';
 
 export class WorldScene extends Phaser.Scene {
   constructor() {
     super({ key: 'WorldScene' });
-    this.player          = null;
-    this.enemies         = [];
-    this.resourceNodes   = [];
-    this.checkpointObjs  = [];
-    this.itemPickups     = [];
-    this._justInteracted = false;
-    this._dialogueOpen   = false;
-    this._dialogueIndex  = 0;
-    this._prevHP         = 100;
+    this.playerGraphic = null;
+    this.px = 200;
+    this.py = 400;
+    this.speed = 150;
   }
 
   create() {
-    // ── Debug indicator — always visible, fixed to camera ──
-    // Remove this once world renders correctly
-    this._debugText = this.add.text(10, 10, '✓ WorldScene running', {
-      fontSize: '14px',
+    const { width, height } = this.scale;
+
+    // ── Solid color floor tiles using Graphics (no textures) ──
+    const map = this.add.graphics();
+
+    // Green grass base
+    map.fillStyle(0x2d6a3f, 1);
+    map.fillRect(0, 0, 1600, 1600);
+
+    // Darker patches for variety
+    map.fillStyle(0x245a34, 1);
+    for (let i = 0; i < 20; i++) {
+      map.fillRect(i * 80, 100, 60, 300);
+    }
+
+    // Water border
+    map.fillStyle(0x2980b9, 1);
+    map.fillRect(0, 0, 1600, 64);
+    map.fillRect(0, 1536, 1600, 64);
+    map.fillRect(0, 0, 64, 1600);
+    map.fillRect(1536, 0, 64, 1600);
+
+    // Stone path
+    map.fillStyle(0x7f8c8d, 1);
+    map.fillRect(750, 0, 100, 1600);
+    map.fillRect(0, 750, 1600, 100);
+
+    // ── Player as colored circle ──────────────────────────────
+    this.playerGraphic = this.add.graphics();
+    this._drawPlayer();
+
+    // ── Status text fixed to camera ───────────────────────────
+    this.statusText = this.add.text(16, 16, '✓ World loaded!', {
+      fontSize: '16px',
       color: '#00ff00',
-      stroke: '#000',
-      strokeThickness: 3,
-      backgroundColor: '#00000088',
-      padding: { x: 6, y: 4 },
+      stroke: '#000000',
+      strokeThickness: 4,
+      backgroundColor: '#000000cc',
+      padding: { x: 8, y: 6 },
     }).setScrollFactor(0).setDepth(999);
 
-    try {
-      this._buildMap();
-      this._debugText.setText('✓ Map built');
+    // ── Some landmark objects ─────────────────────────────────
+    // NPC marker
+    const npc = this.add.graphics();
+    npc.fillStyle(0x1abc9c, 1);
+    npc.fillCircle(700, 900, 18);
+    this.add.text(700, 860, 'Elder Kael', {
+      fontSize: '12px', color: '#1abc9c',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(10);
 
-      this._spawnPlayer();
-      this._debugText.setText('✓ Player spawned');
+    // Stronghold marker
+    const sh = this.add.graphics();
+    sh.fillStyle(0xd4af37, 1);
+    sh.fillRect(770, 1380, 60, 60);
+    this.add.text(800, 1350, '🏰 STRONGHOLD', {
+      fontSize: '12px', color: '#d4af37',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(10);
 
-      this._spawnResources();
-      this._spawnEnemies();
-      this._spawnCheckpoints();
-      this._spawnNPC();
-      this._spawnStrongholdPortal();
-      this._spawnDungeonEntrance();
-      this._spawnItemPickups();
-      this._setupCamera();
-      this._setupInput();
-      this._setupCollisions();
-      this._showTutorialHint();
+    // Checkpoint
+    const cp = this.add.graphics();
+    cp.fillStyle(0xf1c40f, 1);
+    cp.fillTriangle(800, 790, 780, 830, 820, 830);
 
-      this._debugText.setText('✓ World ready');
-      // Hide debug after 4 seconds once everything is confirmed working
-      this.time.delayedCall(4000, () => {
-        if (this._debugText) this._debugText.destroy();
-      });
+    // ── Camera ────────────────────────────────────────────────
+    this.cameras.main.setBounds(0, 0, 1600, 1600);
+    this.cameras.main.centerOn(this.px, this.py);
 
-    } catch (e) {
-      this._debugText.setText('ERROR: ' + e.message);
-      console.error('WorldScene create error:', e);
-    }
-  }
-
-  // ── Map ────────────────────────────────────────────────────
-
-  _buildMap() {
-    for (let y = 0; y < MH; y++) {
-      for (let x = 0; x < MW; x++) {
-        this.add.image(
-          x * TS + TS / 2,
-          y * TS + TS / 2,
-          this._tileAt(x, y)
-        ).setDepth(0);
-      }
-    }
-    this.physics.world.setBounds(0, 0, MW * TS, MH * TS);
-  }
-
-  _tileAt(x, y) {
-    if (x < 2 || x >= MW - 2 || y < 2 || y >= MH - 2) return 'tile_water';
-    if (y < 14 && x > 4 && x < MW - 4)                 return 'tile_forest';
-    if (x > 34 && y > 8 && y < 42)                     return 'tile_stone';
-    if (x === 25 || y === 25)                           return 'tile_dirt';
-    return 'tile_grass';
-  }
-
-  // ── Spawns ─────────────────────────────────────────────────
-
-  _spawnPlayer() {
-    const store  = useGameStore.getState();
-    const sx     = store.position?.x || 25 * TS;
-    const sy     = store.position?.y || 30 * TS;
-    this.player  = new Player(this, sx, sy);
-    this._prevHP = store.playerHP;
-  }
-
-  _spawnResources() {
-    const defs = [
-      { key: 'tree',     res: 'wood',  amt: 2, x:  8*TS, y:  7*TS },
-      { key: 'tree',     res: 'wood',  amt: 2, x: 12*TS, y:  9*TS },
-      { key: 'tree',     res: 'wood',  amt: 2, x: 16*TS, y:  6*TS },
-      { key: 'tree',     res: 'wood',  amt: 2, x: 20*TS, y:  8*TS },
-      { key: 'tree',     res: 'wood',  amt: 2, x: 24*TS, y: 11*TS },
-      { key: 'tree',     res: 'wood',  amt: 2, x: 30*TS, y:  7*TS },
-      { key: 'rock',     res: 'stone', amt: 2, x: 14*TS, y: 22*TS },
-      { key: 'rock',     res: 'stone', amt: 2, x: 20*TS, y: 38*TS },
-      { key: 'rock',     res: 'stone', amt: 2, x: 10*TS, y: 30*TS },
-      { key: 'rock',     res: 'stone', amt: 2, x: 32*TS, y: 40*TS },
-      { key: 'ore_node', res: 'ore',   amt: 1, x: 37*TS, y: 16*TS },
-      { key: 'ore_node', res: 'ore',   amt: 1, x: 41*TS, y: 24*TS },
-      { key: 'ore_node', res: 'ore',   amt: 1, x: 38*TS, y: 34*TS },
-    ];
-    this.resourceNodes = defs.map(d => {
-      const node = this.physics.add.staticImage(d.x, d.y, d.key);
-      node.setData('res', d.res);
-      node.setData('amt', d.amt);
-      node.setData('depleted', false);
-      return node;
-    });
-  }
-
-  _spawnEnemies() {
-    const defs = [
-      { type: 'goblin', x: 12*TS, y: 18*TS },
-      { type: 'goblin', x: 18*TS, y: 15*TS },
-      { type: 'goblin', x: 22*TS, y: 20*TS },
-      { type: 'goblin', x:  8*TS, y: 22*TS },
-      { type: 'golem',  x: 38*TS, y: 20*TS },
-      { type: 'golem',  x: 42*TS, y: 30*TS },
-    ];
-    this.enemies = defs.map(d => new Enemy(this, d.x, d.y, d.type));
-  }
-
-  _spawnCheckpoints() {
-    const defs = [
-      { id: 'cp_center', x: 25*TS, y: 25*TS },
-      { id: 'cp_forest', x: 15*TS, y: 10*TS },
-      { id: 'cp_east',   x: 40*TS, y: 18*TS },
-    ];
-    this.checkpointObjs = defs.map(d => {
-      const cp = this.physics.add.staticImage(d.x, d.y, 'checkpoint').setDepth(2);
-      cp.setData('id', d.id);
-      this.tweens.add({ targets: cp, alpha: 0.4, duration: 900, yoyo: true, repeat: -1 });
-      return cp;
-    });
-  }
-
-  _spawnNPC() {
-    this.npcSprite = this.physics.add.staticImage(23*TS, 28*TS, 'npc').setDepth(5);
-    this.add.text(23*TS, 28*TS - 22, 'Elder Kael', {
-      fontSize: '9px', color: '#1abc9c', stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(6);
-
-    this._dialogues = [
-      '"Welcome, warrior. Ten elemental gods rule this realm. Defeat them all and ascend."',
-      '"Start by gathering resources — wood in the north forest, stone scattered around, ore in the rocky east."',
-      '"Goblins lurk in the forest. Weak alone, but they move in packs."',
-      '"The stone golems in the east are far more dangerous. Gear up before facing them."',
-      '"Your Stronghold is to the south — the glowing golden gate. Return there to upgrade your structures."',
-      '"The Dungeon entrance is to the northeast, marked in purple. Only the prepared should enter."',
-      '"Upgrade your Forge first. It unlocks weapon crafting — you will need it for the bosses ahead."',
-      '"Safe travels. The path to godhood is long — but you have already begun."',
-    ];
-  }
-
-  _spawnStrongholdPortal() {
-    const portal = this.physics.add.staticImage(25*TS, 44*TS, 'dungeon_door').setDepth(5);
-    portal.setTint(0xd4af37);
-    this.add.text(25*TS, 44*TS - 34, '🏰 STRONGHOLD', {
-      fontSize: '10px', color: '#d4af37', stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(6);
-    this.add.text(25*TS, 44*TS + 30, '[E] Enter', {
-      fontSize: '9px', color: '#d4af3799', stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(6);
-    this.tweens.add({ targets: portal, alpha: 0.6, duration: 800, yoyo: true, repeat: -1 });
-    this.strongholdPortal = portal;
-  }
-
-  _spawnDungeonEntrance() {
-    const door = this.physics.add.staticImage(43*TS, 10*TS, 'dungeon_door').setDepth(5);
-    door.setTint(0x8e44ad);
-    this.add.text(43*TS, 10*TS - 34, '⚠ DUNGEON', {
-      fontSize: '10px', color: '#cc88ff', stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(6);
-    this.add.text(43*TS, 10*TS + 30, '[E] Enter', {
-      fontSize: '9px', color: '#cc88ff99', stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(6);
-    this.dungeonEntrance = door;
-  }
-
-  _spawnItemPickups() {
-    const sword = this.physics.add.staticImage(27*TS, 27*TS, 'iron_sword').setDepth(3);
-    sword.setData('itemId', 'iron_sword');
-    sword.setData('collected', false);
-    this.tweens.add({ targets: sword, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 });
-    this.add.text(27*TS, 27*TS - 20, 'Iron Sword', {
-      fontSize: '9px', color: '#bdc3c7', stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(4);
-    this.itemPickups = [sword];
-  }
-
-  // ── Camera / Input ─────────────────────────────────────────
-
-  _setupCamera() {
-    this.cameras.main.setBounds(0, 0, MW * TS, MH * TS);
-    this.cameras.main.startFollow(this.player.sprite, true, 0.09, 0.09);
-  }
-
-  _setupInput() {
-    this.cursors  = this.input.keyboard.createCursorKeys();
+    // ── Input ─────────────────────────────────────────────────
+    this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = {
       up:    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
       down:  this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
       left:  this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
-    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.eKey     = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    this.iKey     = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
   }
 
-  _setupCollisions() {
-    this.physics.add.overlap(this.player.sprite, this.resourceNodes,
-      (_, node) => this._onResourceOverlap(node));
-    this.physics.add.overlap(this.player.sprite, this.checkpointObjs,
-      (_, cp) => this._onCheckpointOverlap(cp));
-    this.physics.add.overlap(this.player.sprite, this.npcSprite,
-      () => this._onNPCOverlap());
-    this.physics.add.overlap(this.player.sprite, this.strongholdPortal,
-      () => this._onStrongholdOverlap());
-    this.physics.add.overlap(this.player.sprite, this.dungeonEntrance,
-      () => this._onDungeonOverlap());
-    this.physics.add.overlap(this.player.sprite, this.itemPickups,
-      (_, item) => this._onItemOverlap(item));
+  _drawPlayer() {
+    this.playerGraphic.clear();
+    // Body
+    this.playerGraphic.fillStyle(0x4a90e2, 1);
+    this.playerGraphic.fillCircle(this.px, this.py, 16);
+    // Outline
+    this.playerGraphic.lineStyle(2, 0xffffff, 1);
+    this.playerGraphic.strokeCircle(this.px, this.py, 16);
   }
-
-  // ── Overlap Handlers ───────────────────────────────────────
-
-  _onResourceOverlap(node) {
-    if (!this._justInteracted || node.getData('depleted')) return;
-    const res = node.getData('res');
-    const amt = node.getData('amt');
-    useGameStore.getState().addResource(res, amt);
-    node.setAlpha(0.3).setData('depleted', true);
-    this.showFloatText(node.x, node.y - 10, `+${amt} ${res}`, '#7ed321');
-    this.time.delayedCall(30000, () => node.setAlpha(1).setData('depleted', false));
-  }
-
-  _onCheckpointOverlap(cp) {
-    const id    = cp.getData('id');
-    const store = useGameStore.getState();
-    if (store.lastCheckpoint === id) return;
-    store.activateCheckpoint(id);
-    this.showFloatText(cp.x, cp.y - 24, '✓ Checkpoint', '#f1c40f');
-    cp.setTint(0x00ff88);
-  }
-
-  _onNPCOverlap() {
-    if (!this._justInteracted || this._dialogueOpen) return;
-    this._openDialogue();
-  }
-
-  _onStrongholdOverlap() {
-    if (!this._justInteracted) return;
-    this.player.sprite.setVelocity(0, 0);
-    useGameStore.getState().setGamePhase('stronghold');
-  }
-
-  _onDungeonOverlap() {
-    if (!this._justInteracted) return;
-    this.player.sprite.setVelocity(0, 0);
-    this.scene.start('DungeonScene');
-  }
-
-  _onItemOverlap(item) {
-    if (!this._justInteracted || item.getData('collected')) return;
-    const store = useGameStore.getState();
-    const added = store.addItem({ id: 'iron_sword', slot: 'weapon', atk: 6 });
-    if (added) {
-      item.setData('collected', true).setVisible(false);
-      this.showFloatText(item.x, item.y - 10, '⚔ Iron Sword picked up!', '#bdc3c7');
-    }
-  }
-
-  // ── Dialogue ──────────────────────────────────────────────
-
-  _openDialogue() {
-    this._dialogueOpen = true;
-    const { width, height } = this.scale;
-    const text = this._dialogues[this._dialogueIndex % this._dialogues.length];
-    this._dialogueIndex++;
-    const pad = 20, boxH = 110, boxY = height - boxH - pad;
-
-    this._dlgBg = this.add.rectangle(width / 2, boxY + boxH / 2, width - pad * 2, boxH, 0x000000, 0.88)
-      .setScrollFactor(0).setDepth(200).setStrokeStyle(2, 0xd4af37);
-    this._dlgText = this.add.text(pad + 10, boxY + 10,
-      `Elder Kael:\n${text}`,
-      { fontSize: '12px', color: '#ffffff', wordWrap: { width: width - pad * 2 - 20 }, lineSpacing: 4 }
-    ).setScrollFactor(0).setDepth(201);
-    this._dlgHint = this.add.text(width - pad - 8, boxY + boxH - 18, '[E] Close', {
-      fontSize: '10px', color: '#d4af37',
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(201);
-
-    this.time.delayedCall(220, () => {
-      this.input.keyboard.once('keydown-E', () => this._closeDialogue());
-    });
-  }
-
-  _closeDialogue() {
-    this._dialogueOpen = false;
-    [this._dlgBg, this._dlgText, this._dlgHint].forEach(o => o?.destroy());
-    this._dlgBg = this._dlgText = this._dlgHint = null;
-  }
-
-  // ── Tutorial hint ──────────────────────────────────────────
-
-  _showTutorialHint() {
-    const { width } = this.scale;
-    const hint = this.add.text(width / 2, 80,
-      'Move: Joystick  |  Attack: ⚔  |  Interact: E',
-      { fontSize: '11px', color: '#ffffffaa', stroke: '#000', strokeThickness: 2 }
-    ).setOrigin(0.5).setScrollFactor(0).setDepth(100);
-    this.time.delayedCall(6000, () => {
-      this.tweens.add({ targets: hint, alpha: 0, duration: 1000, onComplete: () => hint.destroy() });
-    });
-  }
-
-  // ── Float text ─────────────────────────────────────────────
-
-  showFloatText(x, y, text, color = '#ffffff') {
-    const t = this.add.text(x, y, text, {
-      fontSize: '14px', color, stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(300);
-    this.tweens.add({
-      targets: t, y: y - 44, alpha: 0, duration: 1100,
-      onComplete: () => t.destroy(),
-    });
-  }
-
-  // ── Update ─────────────────────────────────────────────────
 
   update(time, delta) {
-    const store = useGameStore.getState();
-    if (store.showDeathModal || store.gamePhase === 'stronghold') {
-      this.player?.sprite.setVelocity(0, 0);
-      return;
+    const dt = delta / 1000;
+    let vx = 0, vy = 0;
+
+    // Keyboard
+    if (this.cursors.left.isDown  || this.wasd.left.isDown)  vx = -1;
+    if (this.cursors.right.isDown || this.wasd.right.isDown) vx =  1;
+    if (this.cursors.up.isDown    || this.wasd.up.isDown)    vy = -1;
+    if (this.cursors.down.isDown  || this.wasd.down.isDown)  vy =  1;
+
+    // Joystick
+    if (InputState.joystick.active) {
+      vx = InputState.joystick.x;
+      vy = InputState.joystick.y;
     }
 
-    if (this._prevHP === 0 && store.playerHP > 0) {
-      const pos = this._getRespawnPos(store.lastCheckpoint);
-      this.player.moveTo(pos.x, pos.y);
-    }
-    this._prevHP = store.playerHP;
-
-    if (Phaser.Input.Keyboard.JustDown(this.iKey)) store.toggleInventory();
-
-    this._justInteracted = Phaser.Input.Keyboard.JustDown(this.eKey) || InputState.interact;
-    if (InputState.interact) InputState.interact = false;
-
-    const attacking = Phaser.Input.Keyboard.JustDown(this.spaceKey) || InputState.attack;
-    if (attacking) {
-      this.player.attack(this.enemies);
-      InputState.attack = false;
+    // Normalize diagonal
+    if (vx !== 0 && vy !== 0) {
+      const m = Math.sqrt(vx * vx + vy * vy);
+      vx /= m; vy /= m;
     }
 
-    this.player.update(time, delta, this.cursors, this.wasd);
-    this.enemies.forEach(e => e.update(time, delta, this.player));
-  }
+    this.px = Phaser.Math.Clamp(this.px + vx * this.speed * dt, 64, 1536);
+    this.py = Phaser.Math.Clamp(this.py + vy * this.speed * dt, 64, 1536);
 
-  _getRespawnPos(checkpointId) {
-    const map = {
-      stronghold: { x: 25*TS, y: 30*TS },
-      cp_center:  { x: 25*TS, y: 25*TS },
-      cp_forest:  { x: 15*TS, y: 10*TS },
-      cp_east:    { x: 40*TS, y: 18*TS },
-    };
-    return map[checkpointId] || map.stronghold;
+    this._drawPlayer();
+    this.cameras.main.centerOn(this.px, this.py);
+
+    // Update status
+    if (this.statusText) {
+      this.statusText.setText(
+        `✓ Running | pos: ${Math.round(this.px)},${Math.round(this.py)}`
+      );
+    }
   }
 }
