@@ -10,7 +10,7 @@ const DEFAULT_STATE = {
   playerATK: 8,
   playerDEF: 4,
   playerSPD: 5,
-  position: { zone: 'world', x: 400, y: 300 },
+  position: { zone: 'world', x: 800, y: 960 },
   gear: { weapon: null, armor: null, accessory: null },
   inventory: [],
   resources: { wood: 0, stone: 0, ore: 0 },
@@ -28,9 +28,9 @@ const DEFAULT_STATE = {
 export const useGameStore = create((set, get) => ({
   ...DEFAULT_STATE,
 
-  setPlayerName: (name) => set({ playerName: name }),
-  setGamePhase: (phase) => set({ gamePhase: phase }),
-  advanceTutorial: () => set((s) => ({ tutorialStep: s.tutorialStep + 1 })),
+  setPlayerName:   (name)  => set({ playerName: name }),
+  setGamePhase:    (phase) => set({ gamePhase: phase }),
+  advanceTutorial: ()      => set((s) => ({ tutorialStep: s.tutorialStep + 1 })),
 
   takeDamage: (amount) => {
     const { playerHP } = get();
@@ -92,11 +92,19 @@ export const useGameStore = create((set, get) => ({
   },
 
   respawn: (location) => {
-    const { playerMaxHP } = get();
+    const { playerMaxHP, resources } = get();
+
+    // Apply 20% resource penalty on death
+    const penalized = {};
+    Object.entries(resources).forEach(([k, v]) => {
+      penalized[k] = Math.floor(v * 0.8);
+    });
+
     set({
-      playerHP: Math.floor(playerMaxHP * 0.5),
+      playerHP:      Math.floor(playerMaxHP * 0.5),
       showDeathModal: false,
-      activeZone: location === 'stronghold' ? 'stronghold' : 'world',
+      resources:     penalized,
+      activeZone:    location === 'stronghold' ? 'stronghold' : 'world',
     });
     SaveSystem.save(get());
   },
@@ -117,7 +125,7 @@ export const useGameStore = create((set, get) => ({
   },
 
   toggleInventory: () => set((s) => ({ showInventory: !s.showInventory })),
-  toggleHelpMenu: () => set((s) => ({ showHelpMenu: !s.showHelpMenu })),
+  toggleHelpMenu:  () => set((s) => ({ showHelpMenu:  !s.showHelpMenu  })),
 
   loadSave: () => {
     const saved = SaveSystem.load();
