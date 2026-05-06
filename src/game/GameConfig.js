@@ -6,7 +6,7 @@ import { DungeonScene }  from './scenes/DungeonScene';
 import { UIScene }       from './scenes/UIScene';
 
 export const GameConfig = {
-  type: Phaser.AUTO,
+  type: Phaser.CANVAS,
   backgroundColor: '#1a1a2e',
   scale: {
     mode:       Phaser.Scale.FIT,
