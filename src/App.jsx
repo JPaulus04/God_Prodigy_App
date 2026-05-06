@@ -10,7 +10,9 @@ import StrongholdMenu   from './ui/StrongholdMenu';
 import InventoryPanel   from './ui/InventoryPanel';
 
 export default function App() {
-  const phaserRef = useRef(null);
+  const phaserRef  = useRef(null);
+  const canvasRef  = useRef(null);
+
   const {
     gamePhase, showHelpMenu, showDeathModal, showInventory,
     loadSave, setGamePhase, setPlayerName,
@@ -19,9 +21,21 @@ export default function App() {
   useEffect(() => { loadSave(); }, []);
 
   useEffect(() => {
-    if (gamePhase === 'world' && !phaserRef.current) {
+    if (gamePhase === 'world' && !phaserRef.current && canvasRef.current) {
       const timer = setTimeout(() => {
-        phaserRef.current = new Phaser.Game(GameConfig);
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        // Set pixel dimensions to match display size
+        canvas.width  = canvas.offsetWidth  || window.innerWidth;
+        canvas.height = canvas.offsetHeight || window.innerHeight;
+
+        phaserRef.current = new Phaser.Game({
+          ...GameConfig,
+          canvas,          // React's canvas — already visible and sized
+          width:  canvas.width,
+          height: canvas.height,
+        });
       }, 200);
       return () => clearTimeout(timer);
     }
@@ -45,16 +59,17 @@ export default function App() {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {/* Game container — explicitly sized to match window */}
-      <div
-        id="game-container"
+
+      {/* Canvas always in DOM so ref is ready when Phaser needs it */}
+      <canvas
+        ref={canvasRef}
         style={{
-          position: 'absolute',
-          top:    0,
-          left:   0,
-          width:  window.innerWidth,
-          height: window.innerHeight,
-          overflow: 'hidden',
+          position:   'absolute',
+          top:        0,
+          left:       0,
+          width:      '100%',
+          height:     '100%',
+          display:    inGame ? 'block' : 'none',
         }}
       />
 
