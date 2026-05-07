@@ -208,14 +208,15 @@ export default function WorldCanvas() {
     resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
     checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
     swordPicked:  false,
-    regenTimer:   0,      // passive health regen out of combat
     floats:       [],
     npcMessage:   null,
     // ── Ability state ──────────────────────────────────
-    abilityCooldown: 0,     // seconds remaining (local timer, not in store)
-    abilityEffect:   null,  // current visual effect
-    projectiles:     [],    // Power Shot projectiles
-    lastMoveDir:     { x: 1, y: 0 },  // last movement direction for bow aim
+    abilityCooldown: 0,
+    abilityEffect:   null,
+    projectiles:     [],    // Power Shot ability projectiles
+    basicArrows:     [],    // Bow basic attack arrows
+    attackEffect:    null,  // brief visual on melee hit (hammer/sword)
+    lastMoveDir:     { x: 1, y: 0 },
     // ── Input ─────────────────────────────────────────
     keys:         {},
     prevE:        false,
@@ -419,19 +420,6 @@ export default function WorldCanvas() {
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
-    // ── Passive health regen ──────────────────────────────
-    // Regen 1 HP every 4 seconds when no enemy is aggroed nearby
-    const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol');
-    if (!inCombat && store.playerHP < store.playerMaxHP) {
-      G.regenTimer += dt;
-      if (G.regenTimer >= 4) {
-        G.regenTimer = 0;
-        store.healPlayer(1);
-      }
-    } else {
-      G.regenTimer = 0;
-    }
-
     // ── Movement ──────────────────────────────────────────
     let vx = 0, vy = 0;
     if (G.keys['ArrowLeft']  || G.keys['KeyA']) vx -= 1;
@@ -454,21 +442,76 @@ export default function WorldCanvas() {
     if (p.attackCooldown > 0) p.attackCooldown -= dt;
     if (p.invincible) { p.invTimer -= dt; if (p.invTimer <= 0) p.invincible = false; }
 
+    // ── Weapon type detection ──────────────────────────────
+    const weaponInstanceId = store.gear?.weapon;
+    const equippedWeapon   = weaponInstanceId
+      ? store.inventory.find(i => i.instanceId === weaponInstanceId)
+      : null;
+    const weaponType = equippedWeapon?.type || 'sword';
+
+    // Attack properties per weapon type
+    const WEAPON_ATTACK = {
+      sword:  { cooldown: 0.60, range: 52, aoe: false },
+      hammer: { cooldown: 1.00, range: 66, aoe: true  },
+      bow:    { cooldown: 0.70, range: 50, ranged: true },
+      dagger: { cooldown: 0.32, range: 40, aoe: false },
+      staff:  { cooldown: 0.65, range: 72, aoe: false },
+    };
+    const wAtk = WEAPON_ATTACK[weaponType] || WEAPON_ATTACK.sword;
+
     // ── Normal attack ─────────────────────────────────────
     const spaceNow  = G.keys['Space'] || InputState.attack;
     const spaceJust = spaceNow && !G.prevSpace;
     G.prevSpace = spaceNow;
     if (InputState.attack) InputState.attack = false;
 
+    if (G.attackEffect) { G.attackEffect.timer -= dt; if (G.attackEffect.timer <= 0) G.attackEffect = null; }
+
     if (spaceJust && p.attackCooldown <= 0) {
-      p.attackCooldown = 0.6;
-      G.enemies.forEach(e => {
-        if (!e.alive || dist(p.x, p.y, e.x, e.y) > 52) return;
-        const dmg = Math.max(1, store.playerATK - cfg[e.type].def);
-        e.hp -= dmg;
-        addFloat(e.x, e.y - 20, `-${dmg}`, '#ff4444');
-        if (e.hp <= 0) killEnemy(e, store);
-      });
+      p.attackCooldown = wAtk.cooldown;
+
+      if (wAtk.ranged) {
+        // ── Bow: fire basic arrow ──────────────────────────
+        let targetX = p.x + G.lastMoveDir.x * 150;
+        let targetY = p.y + G.lastMoveDir.y * 150;
+        let nearestDist = Infinity;
+        G.enemies.forEach(e => {
+          if (!e.alive) return;
+          const d = dist(p.x, p.y, e.x, e.y);
+          if (d < nearestDist) { nearestDist = d; targetX = e.x; targetY = e.y; }
+        });
+        const angle = Math.atan2(targetY - p.y, targetX - p.x);
+        G.basicArrows.push({
+          x: p.x, y: p.y,
+          vx: Math.cos(angle) * 340,
+          vy: Math.sin(angle) * 340,
+          traveled: 0,
+          maxRange: 200,
+          dmg: Math.max(1, store.playerATK),
+          hitEnemies: new Set(),
+        });
+      } else {
+        // ── Melee attack (sword/hammer/dagger/staff) ───────
+        let hitCount = 0;
+        G.enemies.forEach(e => {
+          if (!e.alive || dist(p.x, p.y, e.x, e.y) > wAtk.range) return;
+          const dmg = Math.max(1, store.playerATK - cfg[e.type].def);
+          e.hp -= dmg;
+          addFloat(e.x, e.y - 20, `-${dmg}`, '#ff4444');
+          hitCount++;
+          if (e.hp <= 0) killEnemy(e, store);
+        });
+
+        // Attack effect visual
+        if (hitCount > 0 || weaponType === 'hammer') {
+          G.attackEffect = {
+            x: p.x, y: p.y,
+            type: weaponType,
+            range: wAtk.range,
+            timer: 0.3, maxTimer: 0.3,
+          };
+        }
+      }
     }
 
     // ── Active ability ─────────────────────────────────────
@@ -481,7 +524,25 @@ export default function WorldCanvas() {
       executeAbility(store.equippedAbilityId, store);
     }
 
-    // ── Update projectiles (Power Shot) ───────────────────
+    // ── Update basic arrows (bow) ─────────────────────────
+    G.basicArrows = G.basicArrows.filter(arrow => {
+      arrow.x += arrow.vx * dt;
+      arrow.y += arrow.vy * dt;
+      arrow.traveled += Math.sqrt(arrow.vx*arrow.vx + arrow.vy*arrow.vy) * dt;
+      G.enemies.forEach(e => {
+        if (!e.alive || arrow.hitEnemies.has(e)) return;
+        if (dist(arrow.x, arrow.y, e.x, e.y) > 18) return;
+        arrow.hitEnemies.add(e);
+        const dmg = Math.max(1, arrow.dmg - cfg[e.type].def);
+        e.hp -= dmg;
+        addFloat(e.x, e.y - 20, `-${dmg}`, '#FCD34D');
+        if (e.hp <= 0) killEnemy(e, store);
+      });
+      return arrow.traveled < arrow.maxRange &&
+        arrow.x > 0 && arrow.x < WORLD_W && arrow.y > 0 && arrow.y < WORLD_H;
+    });
+
+    // ── Update Power Shot projectiles ─────────────────────
     G.projectiles = G.projectiles.filter(proj => {
       proj.x += proj.vx * dt;
       proj.y += proj.vy * dt;
@@ -538,15 +599,7 @@ export default function WorldCanvas() {
         G.swordPicked = true;
       }
 
-      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) {
-        // Full heal when returning home
-        if (store.playerHP < store.playerMaxHP) {
-          store.healPlayer(store.playerMaxHP);
-          addFloat(25*TILE, 44*TILE - 40, '❤ Fully Healed!', '#2ecc71');
-        }
-        store.setGamePhase('stronghold');
-        return;
-      }
+      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
 
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
         G.npcMessage = { text: 'The dungeon is sealed. Return in Phase 2.', timer: 5 };
@@ -791,28 +844,66 @@ export default function WorldCanvas() {
     G.projectiles.forEach(proj => {
       const px = wx(proj.x), py = wy(proj.y);
       if (!onScreen(px, py)) return;
-
-      // Trail
       ctx.globalAlpha = 0.35;
       ctx.strokeStyle = '#FCD34D'; ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(px, py);
-      ctx.lineTo(
-        px - (proj.vx / 420) * 22,
-        py - (proj.vy / 420) * 22,
-      );
+      ctx.lineTo(px - (proj.vx/420)*22, py - (proj.vy/420)*22);
       ctx.stroke();
-
-      // Glow
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#F97316';
-      ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill();
-
-      // Core
+      ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#FCD34D';
-      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
     });
+
+    // Basic arrows (bow normal attack)
+    G.basicArrows.forEach(arrow => {
+      const ax = wx(arrow.x), ay = wy(arrow.y);
+      if (!onScreen(ax, ay)) return;
+      const angle = Math.atan2(arrow.vy, arrow.vx);
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(ax - Math.cos(angle)*12, ay - Math.sin(angle)*12);
+      ctx.lineTo(ax + Math.cos(angle)*6,  ay + Math.sin(angle)*6);
+      ctx.stroke();
+      ctx.fillStyle = '#d4af37';
+      ctx.beginPath(); ctx.arc(ax+Math.cos(angle)*6, ay+Math.sin(angle)*6, 3, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // Melee attack effect
+    if (G.attackEffect) {
+      const ae = G.attackEffect;
+      const ax = wx(ae.x), ay = wy(ae.y);
+      const alpha = ae.timer / ae.maxTimer;
+      const prog  = 1 - alpha;
+      ctx.globalAlpha = alpha * 0.7;
+      if (ae.type === 'hammer') {
+        ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(ax, ay, ae.range*prog, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath(); ctx.arc(ax, ay, 18*(1-prog), 0, Math.PI*2); ctx.fill();
+      } else if (ae.type === 'dagger') {
+        for (let i = 0; i < 4; i++) {
+          const a = (i/4)*Math.PI*2 + prog*Math.PI;
+          ctx.strokeStyle = '#f39c12'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(ax+Math.cos(a)*10, ay+Math.sin(a)*10);
+          ctx.lineTo(ax+Math.cos(a)*(ae.range*0.7), ay+Math.sin(a)*(ae.range*0.7));
+          ctx.stroke();
+        }
+      } else if (ae.type === 'staff') {
+        ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(ax, ay, ae.range*0.6*prog, 0, Math.PI*2); ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#4a90e2'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(ax, ay, ae.range*0.7, -0.5, Math.PI*0.4); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
     ctx.globalAlpha = 1;
 
     // Enemies

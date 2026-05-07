@@ -1,3 +1,4 @@
+import { RARITY } from '../game/config/ItemConfig';
 import React from 'react';
 import { useGameStore } from '../store/useGameStore';
 
@@ -113,6 +114,11 @@ export default function InventoryPanel() {
                   {item.slot === 'weapon' ? '⚔️' : item.slot === 'armor' ? '🛡️' : '📦'}
                 </div>
                 <div style={{ color: '#ccc', fontSize: 9, lineHeight: 1.2 }}>{item.name || item.id}</div>
+                {item.rarity && item.rarity !== 'common' && (
+                  <div style={{ color: RARITY[item.rarity]?.color || '#aaa', fontSize: 7, fontWeight: 'bold', letterSpacing: 0.3 }}>
+                    {'★'.repeat(RARITY[item.rarity]?.stars || 1)}
+                  </div>
+                )}
                 {item.atk && <div style={{ color: '#e74c3c', fontSize: 9, marginTop: 1 }}>+{item.atk} ATK</div>}
                 {isEquipped(item) && <div style={{ color: '#d4af37', fontSize: 8, marginTop: 1, fontWeight: 'bold' }}>EQUIPPED</div>}
               </>
