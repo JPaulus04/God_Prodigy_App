@@ -3,71 +3,57 @@ import { SaveSystem } from '../game/systems/SaveSystem';
 import { XP_THRESHOLDS } from '../game/config/ItemConfig';
 
 const DEFAULT_STATE = {
-  // ── Identity ─────────────────────────────────────────
   playerName:  '',
   gamePhase:   'menu',
   tutorialStep: 0,
 
-  // ── Core stats ───────────────────────────────────────
   playerHP:      100,
   playerMaxHP:   100,
-  playerBaseATK: 8,     // never modified directly — used for recalculation
+  playerBaseATK: 8,
   playerBaseDEF: 4,
   playerATK:     8,
   playerDEF:     4,
   playerSPD:     5,
 
-  // ── Leveling ─────────────────────────────────────────
   level:           1,
   xp:              0,
-  xpToNextLevel:   100,  // XP_THRESHOLDS[1]
-  statPoints:      0,    // unspent stat points from leveling up
-  trainingATKBonus: 0,   // cumulative bonus from Training Grounds
+  xpToNextLevel:   100,
+  statPoints:      0,
+  trainingATKBonus: 0,
   trainingDEFBonus: 0,
 
-  // ── Abilities ────────────────────────────────────────
-  equippedAbilityId: null,   // set when a weapon is equipped
-  abilityCooldown:   0,      // seconds remaining
+  equippedAbilityId: null,
+  abilityCooldown:   0,
 
-  // ── Position & World ─────────────────────────────────
   position:      { zone: 'world', x: 800, y: 960 },
   activeZone:    'world',
   respawnAt:     null,
 
-  // ── Gear & Inventory ─────────────────────────────────
-  gear: { weapon: null, armor: null, accessory: null },
-  // Each inventory item: { instanceId, id, name, slot, type, tier,
-  //   rarity, atk, def, spd, abilityId, upgradeLevel, icon, color, ... }
-  inventory:   [],
-  // upgradeLevel per item instance: { [instanceId]: level }
+  gear:         { weapon: null, armor: null, accessory: null },
+  inventory:    [],
   itemUpgrades: {},
 
-  // ── Resources ────────────────────────────────────────
-  resources: { wood: 0, stone: 0, ore: 0, fire_shard: 0 },
+  resources:    { wood: 0, stone: 0, ore: 0, fire_shard: 0 },
 
-  // ── World progress ────────────────────────────────────
-  checkpoints:   [],
-  lastCheckpoint: 'stronghold',
-  stronghold:    { forge: 0, storage: 0, trainingGrounds: 0 },
-  bossesDefeated: [],
+  checkpoints:      [],
+  lastCheckpoint:   'stronghold',
+  stronghold:       { forge: 0, storage: 0, trainingGrounds: 0 },
+  bossesDefeated:   [],
   ascensionProgress: 0,
 
-  // ── UI flags ─────────────────────────────────────────
   showInventory:  false,
   showHelpMenu:   false,
   showDeathModal: false,
-  showLevelUp:    false,   // triggers level-up modal
+  showLevelUp:    false,
 };
 
 export const useGameStore = create((set, get) => ({
   ...DEFAULT_STATE,
 
-  // ── Identity ─────────────────────────────────────────
   setPlayerName:   (name)  => set({ playerName: name }),
   setGamePhase:    (phase) => set({ gamePhase: phase }),
   advanceTutorial: ()      => set(s => ({ tutorialStep: s.tutorialStep + 1 })),
 
-  // ── Combat ───────────────────────────────────────────
   takeDamage: (amount) => {
     const { playerHP } = get();
     const newHP = Math.max(0, playerHP - amount);
@@ -82,23 +68,19 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
-  // ── XP & Leveling ────────────────────────────────────
   gainXP: (amount) => {
     const { xp, level } = get();
-    if (level >= XP_THRESHOLDS.length) return; // at cap
-
+    if (level >= XP_THRESHOLDS.length) return;
     const newXP = xp + amount;
     const nextThreshold = XP_THRESHOLDS[level] || Infinity;
-
-    if (newXP >= nextThreshold) {
-      // Level up!
+    if (newXP >= nextThreshold && level < 30) {
       const newLevel = level + 1;
-      const nextNext = XP_THRESHOLDS[newLevel] || XP_THRESHOLDS[XP_THRESHOLDS.length - 1];
+      const nextNext  = XP_THRESHOLDS[newLevel] || XP_THRESHOLDS[XP_THRESHOLDS.length - 1];
       set({
         xp:            newXP,
         level:         newLevel,
         xpToNextLevel: nextNext,
-        statPoints:    get().statPoints + 3,  // 3 points per level
+        statPoints:    get().statPoints + 3,
         showLevelUp:   true,
       });
     } else {
@@ -108,7 +90,6 @@ export const useGameStore = create((set, get) => ({
   },
 
   spendStatPoint: (stat) => {
-    // stat: 'atk' | 'def' | 'spd'
     const { statPoints } = get();
     if (statPoints <= 0) return;
     const updates = { statPoints: statPoints - 1 };
@@ -120,8 +101,8 @@ export const useGameStore = create((set, get) => ({
   },
 
   dismissLevelUp: () => set({ showLevelUp: false }),
+  openLevelUp:    () => set({ showLevelUp: true }),
 
-  // ── Resources ────────────────────────────────────────
   addResource: (type, amount) => {
     const { resources } = get();
     set({ resources: { ...resources, [type]: (resources[type] || 0) + amount } });
@@ -136,13 +117,14 @@ export const useGameStore = create((set, get) => ({
     return true;
   },
 
-  // ── Inventory ────────────────────────────────────────
   addItem: (item) => {
-    const { inventory } = get();
-    const maxSlots = 16 + ((get().stronghold.storage || 0) * 8);
+    const { inventory, stronghold } = get();
+    const maxSlots = 16 + ((stronghold.storage || 0) * 8);
     if (inventory.length >= maxSlots) return false;
-    // Ensure every item has an instanceId
-    const newItem = { ...item, instanceId: item.instanceId || `item_${Date.now()}_${Math.random().toString(36).slice(2,6)}` };
+    const newItem = {
+      ...item,
+      instanceId: item.instanceId || `item_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    };
     set({ inventory: [...inventory, newItem] });
     SaveSystem.save(get());
     return true;
@@ -153,101 +135,87 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
-  // Fixed: recalculates stats from base + training + gear to prevent stacking
-  equipItem: (item) => {
+  // Recalculate all player stats from scratch based on base + training + equipped gear
+  recalculateStats: () => {
     const { gear, inventory, playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus, playerSPD } = get();
+    let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
+    let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
+    let spd = playerSPD || 5;
+    let abilityId = null;
+
+    Object.values(gear).forEach(instanceId => {
+      if (!instanceId) return;
+      const item = inventory.find(i => i.instanceId === instanceId);
+      if (!item) return;
+      if (item.atk)        atk += item.atk;
+      if (item.def)        def += item.def;
+      if (item.spd)        spd += item.spd;
+      if (item.spdPenalty) spd += item.spdPenalty;
+      if (item.slot === 'weapon' && item.abilityId) abilityId = item.abilityId;
+    });
+
+    set({ playerATK: atk, playerDEF: def, playerSPD: spd, equippedAbilityId: abilityId });
+  },
+
+  equipItem: (item) => {
+    const { gear, inventory } = get();
     const newGear = { ...gear, [item.slot]: item.instanceId };
     set({ gear: newGear });
 
-    // Recalculate from base
+    // Recalculate fresh from base stats
+    const { playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus, playerSPD } = get();
     let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
     let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
-    let spd = playerSPD;
+    let spd = playerSPD || 5;
+    let abilityId = null;
 
-    // Add stats from ALL currently equipped items (using new gear state)
-    const allItems = [...inventory, item]; // include the new item in case it's not in inventory yet
+    const allItems = [...inventory, item];
     Object.values(newGear).forEach(instanceId => {
       if (!instanceId) return;
       const equipped = allItems.find(i => i.instanceId === instanceId);
       if (!equipped) return;
-      if (equipped.atk) atk += equipped.atk;
-      if (equipped.def) def += equipped.def;
-      if (equipped.spd) spd += equipped.spd;
+      if (equipped.atk)        atk += equipped.atk;
+      if (equipped.def)        def += equipped.def;
+      if (equipped.spd)        spd += equipped.spd;
       if (equipped.spdPenalty) spd += equipped.spdPenalty;
+      if (equipped.slot === 'weapon' && equipped.abilityId) abilityId = equipped.abilityId;
     });
-
-    // Set ability from weapon type
-    const abilityId = item.abilityId || null;
 
     set({ playerATK: atk, playerDEF: def, playerSPD: spd, equippedAbilityId: abilityId });
     SaveSystem.save(get());
   },
 
   unequipItem: (slot) => {
-    const { gear, inventory, playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus } = get();
-    const newGear = { ...gear, [slot]: null };
-    set({ gear: newGear });
-
-    let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
-    let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
-    let spd = get().playerSPD;
-
-    Object.values(newGear).forEach(instanceId => {
-      if (!instanceId) return;
-      const equipped = inventory.find(i => i.instanceId === instanceId);
-      if (!equipped) return;
-      if (equipped.atk) atk += equipped.atk;
-      if (equipped.def) def += equipped.def;
-      if (equipped.spd) spd += equipped.spd;
-      if (equipped.spdPenalty) spd += equipped.spdPenalty;
-    });
-
-    const weaponInstanceId = newGear.weapon;
-    const weapon = weaponInstanceId ? inventory.find(i => i.instanceId === weaponInstanceId) : null;
-    set({ playerATK: atk, playerDEF: def, playerSPD: spd, equippedAbilityId: weapon?.abilityId || null });
+    const { gear } = get();
+    set({ gear: { ...gear, [slot]: null } });
+    get().recalculateStats();
     SaveSystem.save(get());
   },
 
-  // ── Item Upgrading ────────────────────────────────────
   upgradeItem: (instanceId, costPaid) => {
     const { itemUpgrades, inventory } = get();
     const currentLevel = itemUpgrades[instanceId] || 0;
-    const newLevel = currentLevel + 1;
-    const newUpgrades = { ...itemUpgrades, [instanceId]: newLevel };
+    const newLevel     = currentLevel + 1;
 
-    // Deduct resources
-    Object.entries(costPaid).forEach(([res, amt]) => {
-      get().spendResource(res, amt);
-    });
+    Object.entries(costPaid).forEach(([res, amt]) => get().spendResource(res, amt));
 
-    // Update the item's ATK in inventory if it's a weapon
     const updatedInventory = inventory.map(item => {
-      if (item.instanceId !== instanceId) return item;
-      if (item.slot !== 'weapon') return { ...item };
-      // Recalc ATK with new upgrade level
-      const { computeWeaponATK } = require('../game/config/ItemConfig');
-      const newATK = computeWeaponATK(item.type, item.tier, item.rarity, newLevel);
-      return { ...item, atk: newATK, upgradeLevel: newLevel };
+      if (item.instanceId !== instanceId || item.slot !== 'weapon') return item;
+      const bonus = (newLevel - currentLevel) * 2;
+      return { ...item, atk: (item.atk || 0) + bonus, upgradeLevel: newLevel };
     });
 
-    set({ itemUpgrades: newUpgrades, inventory: updatedInventory });
+    set({ itemUpgrades: { ...itemUpgrades, [instanceId]: newLevel }, inventory: updatedInventory });
 
-    // If upgraded item is equipped, recalculate player stats
     const { gear } = get();
-    if (Object.values(gear).includes(instanceId)) {
-      const item = updatedInventory.find(i => i.instanceId === instanceId);
-      if (item) get().equipItem(item);
-    }
+    if (Object.values(gear).includes(instanceId)) get().recalculateStats();
 
     SaveSystem.save(get());
   },
 
-  // ── Checkpoints ──────────────────────────────────────
   activateCheckpoint: (checkpointId) => {
     const { checkpoints } = get();
-    if (!checkpoints.includes(checkpointId)) {
-      set({ checkpoints: [...checkpoints, checkpointId] });
-    }
+    if (!checkpoints.includes(checkpointId)) set({ checkpoints: [...checkpoints, checkpointId] });
     set({ lastCheckpoint: checkpointId });
     SaveSystem.save(get());
   },
@@ -255,21 +223,12 @@ export const useGameStore = create((set, get) => ({
   respawn: (location) => {
     const { playerMaxHP, resources, lastCheckpoint } = get();
     const penalized = {};
-    Object.entries(resources).forEach(([k, v]) => {
-      penalized[k] = Math.floor(v * 0.8);
-    });
+    Object.entries(resources).forEach(([k, v]) => { penalized[k] = Math.floor(v * 0.8); });
     const respawnAt = location === 'stronghold' ? 'stronghold' : (lastCheckpoint || 'stronghold');
-    set({
-      playerHP:       Math.floor(playerMaxHP * 0.5),
-      showDeathModal: false,
-      resources:      penalized,
-      activeZone:     'world',
-      respawnAt,
-    });
+    set({ playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false, resources: penalized, activeZone: 'world', respawnAt });
     SaveSystem.save(get());
   },
 
-  // ── Stronghold ───────────────────────────────────────
   upgradeStructure: (structure) => {
     const { stronghold } = get();
     set({ stronghold: { ...stronghold, [structure]: (stronghold[structure] || 0) + 1 } });
@@ -277,18 +236,16 @@ export const useGameStore = create((set, get) => ({
   },
 
   applyTrainingBonus: (atkBonus, defBonus, spdBonus = 0) => {
-    const { trainingATKBonus, trainingDEFBonus, playerATK, playerDEF, playerSPD } = get();
+    const { trainingATKBonus, trainingDEFBonus } = get();
     set({
       trainingATKBonus: (trainingATKBonus || 0) + atkBonus,
       trainingDEFBonus: (trainingDEFBonus || 0) + defBonus,
-      playerATK: playerATK + atkBonus,
-      playerDEF: playerDEF + defBonus,
-      playerSPD: playerSPD + spdBonus,
     });
+    get().recalculateStats();
+    if (spdBonus) set(s => ({ playerSPD: s.playerSPD + spdBonus }));
     SaveSystem.save(get());
   },
 
-  // ── Progression ──────────────────────────────────────
   defeatBoss: (bossId) => {
     const { bossesDefeated } = get();
     if (!bossesDefeated.includes(bossId)) {
@@ -298,17 +255,42 @@ export const useGameStore = create((set, get) => ({
     }
   },
 
-  // ── UI ───────────────────────────────────────────────
   toggleInventory: () => set(s => ({ showInventory: !s.showInventory })),
   toggleHelpMenu:  () => set(s => ({ showHelpMenu:  !s.showHelpMenu  })),
 
-  // ── Save / Load ───────────────────────────────────────
   loadSave: () => {
     const saved = SaveSystem.load();
-    if (saved) {
-      set(saved);
-      if (saved.playerName) set({ gamePhase: 'world' });
+    if (!saved) return;
+
+    // ── Migrate: give instanceIds to items that don't have one ──────────
+    if (saved.inventory) {
+      saved.inventory = saved.inventory.map((item, i) => ({
+        ...item,
+        instanceId: item.instanceId || `item_migrated_${i}_${item.id}`,
+      }));
     }
+
+    // ── Migrate: gear stored as item id → gear stored as instanceId ─────
+    if (saved.gear && saved.inventory) {
+      const migrated = { weapon: null, armor: null, accessory: null };
+      Object.entries(saved.gear).forEach(([slot, val]) => {
+        if (!val) return;
+        if (val.startsWith('item_') || val.includes('migrated')) {
+          migrated[slot] = val; // already an instanceId
+        } else {
+          // Old format stored the item config id (e.g. 'iron_sword')
+          const found = saved.inventory.find(i => i.id === val);
+          migrated[slot] = found ? found.instanceId : null;
+        }
+      });
+      saved.gear = migrated;
+    }
+
+    set(saved);
+    if (saved.playerName) set({ gamePhase: 'world' });
+
+    // Recalculate stats from migrated gear — fixes ATK after upgrade
+    setTimeout(() => get().recalculateStats(), 0);
   },
 
   resetGame: () => {
