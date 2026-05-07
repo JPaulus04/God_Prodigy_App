@@ -96,6 +96,7 @@ export default function StrongholdMenu() {
 
   const [tab,        setTab]        = useState('build');
   const [craftTab,   setCraftTab]   = useState('weapons');
+  const [weaponType, setWeaponType] = useState(null); // null = show type picker
   const [upgradeItem, setUpgradeItem] = useState(null); // item selected for upgrade
 
   const forgeLevel = stronghold.forge ?? 0;
@@ -334,49 +335,87 @@ export default function StrongholdMenu() {
                   ))}
                 </div>
 
-                {/* Weapons */}
-                {craftTab === 'weapons' && WEAPON_RECIPES
-                  .filter(r => forgeLevel >= (r.forgeLevel || 0))
-                  .map(recipe => {
-                    const canAfford = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
-                    const atk       = computeWeaponATK(recipe.type, recipe.tier, recipe.rarity, 0);
-                    const rarColor  = RARITY[recipe.rarity]?.color || '#aaa';
-                    return (
-                      <div key={recipe.id} style={{
-                        background: '#ffffff08',
-                        border:     `1px solid ${rarColor}33`,
-                        borderLeft: `3px solid ${rarColor}`,
-                        borderRadius: 10, padding: 12, marginBottom: 10,
+                {/* Weapons — two-level: pick type first, then tier */}
+                {craftTab === 'weapons' && !weaponType && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {['sword', 'hammer', 'bow', 'dagger'].map(type => (
+                      <button key={type} onClick={() => setWeaponType(type)} style={{
+                        display: 'flex', alignItems: 'center', gap: 14,
+                        background: '#ffffff08', border: '1px solid #ffffff15',
+                        borderRadius: 12, padding: '16px 18px',
+                        cursor: 'pointer', textAlign: 'left',
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontSize: 16 }}>{WEAPON_TYPE_ICONS[recipe.type]}</span>
-                              <span style={{ fontWeight: 'bold', fontSize: 14 }}>{recipe.name}</span>
-                              <RarityBadge rarity={recipe.rarity} />
-                              <span style={{ color: '#e74c3c', fontSize: 11 }}>+{atk} ATK</span>
-                            </div>
-                            <div style={{ color: '#555', fontSize: 10, marginBottom: 4 }}>
-                              {WEAPON_TYPE_DESC[recipe.type]}
-                            </div>
-                            <ResourceCost cost={recipe.cost} resources={resources} />
+                        <span style={{ fontSize: 28 }}>{WEAPON_TYPE_ICONS[type]}</span>
+                        <div>
+                          <div style={{ color: '#fff', fontSize: 15, fontWeight: 'bold', textTransform: 'capitalize', marginBottom: 2 }}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
                           </div>
-                          <button
-                            onClick={() => handleCraftWeapon(recipe)}
-                            disabled={!canAfford}
-                            style={{
-                              marginLeft: 10, padding: '9px 13px', borderRadius: 8, border: 'none',
-                              cursor: canAfford ? 'pointer' : 'not-allowed',
-                              background: canAfford ? '#d4af37' : '#2a2a2a',
-                              color:      canAfford ? '#0d0d1a' : '#555',
-                              fontSize: 12, fontWeight: 'bold', flexShrink: 0,
-                            }}
-                          >Craft</button>
+                          <div style={{ color: '#555', fontSize: 11 }}>{WEAPON_TYPE_DESC[type]}</div>
                         </div>
-                      </div>
-                    );
-                  })
-                }
+                        <span style={{ marginLeft: 'auto', color: '#d4af37', fontSize: 18 }}>›</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {craftTab === 'weapons' && weaponType && (
+                  <div>
+                    {/* Back button */}
+                    <button onClick={() => setWeaponType(null)} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      background: 'none', border: 'none',
+                      color: '#d4af37', fontSize: 13, cursor: 'pointer',
+                      marginBottom: 14, padding: 0,
+                    }}>
+                      ‹ All Weapons
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {WEAPON_TYPE_ICONS[weaponType]} {weaponType.charAt(0).toUpperCase() + weaponType.slice(1)}
+                      </span>
+                    </button>
+
+                    {WEAPON_RECIPES
+                      .filter(r => r.type === weaponType && forgeLevel >= (r.forgeLevel || 0))
+                      .map(recipe => {
+                        const canAfford = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
+                        const atk       = computeWeaponATK(recipe.type, recipe.tier, recipe.rarity, 0);
+                        const rarColor  = RARITY[recipe.rarity]?.color || '#aaa';
+                        const TIER_LABELS = { wood: 'Wood', iron: 'Iron', steel: 'Steel', elemental: 'Elemental', god: 'God' };
+                        return (
+                          <div key={recipe.id} style={{
+                            background: '#ffffff08',
+                            border:     `1px solid ${rarColor}33`,
+                            borderLeft: `3px solid ${rarColor}`,
+                            borderRadius: 10, padding: 12, marginBottom: 10,
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                  <span style={{ color: '#888', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 }}>
+                                    {TIER_LABELS[recipe.tier]?.toUpperCase()}
+                                  </span>
+                                  <RarityBadge rarity={recipe.rarity} />
+                                  <span style={{ color: '#e74c3c', fontSize: 11 }}>+{atk} ATK</span>
+                                </div>
+                                <ResourceCost cost={recipe.cost} resources={resources} />
+                              </div>
+                              <button
+                                onClick={() => handleCraftWeapon(recipe)}
+                                disabled={!canAfford}
+                                style={{
+                                  marginLeft: 10, padding: '9px 13px', borderRadius: 8, border: 'none',
+                                  cursor: canAfford ? 'pointer' : 'not-allowed',
+                                  background: canAfford ? '#d4af37' : '#2a2a2a',
+                                  color:      canAfford ? '#0d0d1a' : '#555',
+                                  fontSize: 12, fontWeight: 'bold', flexShrink: 0,
+                                }}
+                              >Craft</button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                )}
 
                 {/* Armor */}
                 {craftTab === 'armor' && Object.values(ARMOR_ITEMS)
