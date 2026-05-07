@@ -3,8 +3,7 @@ import { useGameStore } from '../store/useGameStore';
 
 const STRUCTURES = {
   forge: {
-    name: 'Forge',
-    icon: '🔥',
+    name: 'Forge', icon: '🔥',
     description: 'Craft weapons and elemental gear.',
     levels: [
       { cost: { wood: 5,  stone: 3        }, benefit: 'Unlock basic weapon crafting' },
@@ -13,17 +12,15 @@ const STRUCTURES = {
     ],
   },
   storage: {
-    name: 'Storage House',
-    icon: '📦',
+    name: 'Storage House', icon: '📦',
     description: 'Store more resources and gear.',
     levels: [
-      { cost: { wood: 8              }, benefit: '+8 inventory slots' },
-      { cost: { wood: 15, stone: 5   }, benefit: '+16 inventory slots total' },
+      { cost: { wood: 8            }, benefit: '+8 inventory slots' },
+      { cost: { wood: 15, stone: 5 }, benefit: '+16 inventory slots total' },
     ],
   },
   trainingGrounds: {
-    name: 'Training Grounds',
-    icon: '⚔️',
+    name: 'Training Grounds', icon: '⚔️',
     description: 'Sharpen your combat stats.',
     levels: [
       { cost: { stone: 5,  ore: 2 }, benefit: '+2 ATK, +1 DEF' },
@@ -32,15 +29,13 @@ const STRUCTURES = {
   },
 };
 
+const TRAINING_BONUSES = [
+  { atk: 2, def: 1, spd: 0 },
+  { atk: 3, def: 2, spd: 1 },
+];
+
 const FORGE_RECIPES = [
-  {
-    id:         'iron_sword',
-    name:       'Iron Sword',
-    icon:       '⚔️',
-    cost:       { ore: 3, wood: 1 },
-    stat:       '+6 ATK',
-    forgeLevel: 1,
-  },
+  { id: 'iron_sword', name: 'Iron Sword', icon: '⚔️', cost: { ore: 3, wood: 1 }, stat: '+6 ATK', forgeLevel: 1 },
 ];
 
 function ResourceCost({ cost, resources }) {
@@ -68,29 +63,30 @@ export default function StrongholdMenu() {
   const {
     stronghold, resources, inventory,
     upgradeStructure, spendResource, addItem, equipItem,
-    setGamePhase,
+    applyTrainingBonus, setGamePhase,
     playerATK, playerDEF, playerSPD,
   } = useGameStore();
 
   const [tab, setTab] = useState('build');
 
   const handleUpgrade = (structure) => {
-    const level = stronghold[structure];
-    const def   = STRUCTURES[structure];
+    const level     = stronghold[structure] ?? 0;
+    const def       = STRUCTURES[structure];
     if (level >= def.levels.length) return;
     const cost      = def.levels[level].cost;
     const canAfford = Object.entries(cost).every(([r, a]) => (resources[r] ?? 0) >= a);
     if (!canAfford) return;
     Object.entries(cost).forEach(([r, a]) => spendResource(r, a));
     upgradeStructure(structure);
+    // Apply training bonuses through the store method (prevents stacking)
     if (structure === 'trainingGrounds') {
-      if (level === 0) useGameStore.setState(s => ({ playerATK: s.playerATK + 2, playerDEF: s.playerDEF + 1 }));
-      if (level === 1) useGameStore.setState(s => ({ playerATK: s.playerATK + 3, playerDEF: s.playerDEF + 2, playerSPD: s.playerSPD + 1 }));
+      const bonus = TRAINING_BONUSES[level];
+      if (bonus) applyTrainingBonus(bonus.atk, bonus.def, bonus.spd);
     }
   };
 
   const handleCraft = (recipe) => {
-    if (stronghold.forge < recipe.forgeLevel) return;
+    if ((stronghold.forge ?? 0) < recipe.forgeLevel) return;
     const canAfford = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
     if (!canAfford || inventory.length >= 16) return;
     Object.entries(recipe.cost).forEach(([r, a]) => spendResource(r, a));
@@ -113,11 +109,12 @@ export default function StrongholdMenu() {
       background: 'linear-gradient(180deg, #0d0d1a 0%, #1a1a3a 100%)',
       display: 'flex', flexDirection: 'column',
       color: '#fff', overflowY: 'auto',
+      paddingTop: 'env(safe-area-inset-top)',
     }}>
-      {/* Header */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '20px 20px 12px', borderBottom: '1px solid #d4af3733',
+        padding: '16px 20px 14px',
+        borderBottom: '1px solid #d4af3733',
       }}>
         <div>
           <h2 style={{ color: '#d4af37', fontSize: 20, margin: 0 }}>🏰 Stronghold</h2>
@@ -126,16 +123,14 @@ export default function StrongholdMenu() {
         <button
           onClick={() => setGamePhase('world')}
           style={{
-            background: '#1a1a2e', border: '1px solid #555',
-            color: '#aaa', borderRadius: 8,
-            padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+            background: '#1a1a2e', border: '2px solid #d4af37',
+            color: '#d4af37', borderRadius: 10,
+            padding: '10px 20px', cursor: 'pointer',
+            fontSize: 15, fontWeight: 'bold',
           }}
-        >
-          ← Return
-        </button>
+        >← Return</button>
       </div>
 
-      {/* Stats bar */}
       <div style={{
         display: 'flex', gap: 16, padding: '10px 20px',
         background: '#ffffff08', borderBottom: '1px solid #ffffff11',
@@ -147,16 +142,12 @@ export default function StrongholdMenu() {
           { label: 'SPD', val: playerSPD, col: '#2ecc71' },
         ].map(({ label, val, col }) => (
           <div key={label} style={{ textAlign: 'center', minWidth: 36 }}>
-            <div style={{ color: col,   fontSize: 18, fontWeight: 'bold' }}>{val}</div>
+            <div style={{ color: col,    fontSize: 18, fontWeight: 'bold' }}>{val}</div>
             <div style={{ color: '#555', fontSize: 10 }}>{label}</div>
           </div>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
-          {[
-            { k: 'wood',  icon: '🪵' },
-            { k: 'stone', icon: '🪨' },
-            { k: 'ore',   icon: '⛏'  },
-          ].map(({ k, icon }) => (
+          {[{ k: 'wood', icon: '🪵' }, { k: 'stone', icon: '🪨' }, { k: 'ore', icon: '⛏' }].map(({ k, icon }) => (
             <div key={k} style={{
               display: 'flex', alignItems: 'center', gap: 4,
               background: '#ffffff0a', padding: '4px 8px', borderRadius: 8,
@@ -168,23 +159,18 @@ export default function StrongholdMenu() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid #222' }}>
         <button style={tabStyle(tab === 'build')} onClick={() => setTab('build')}>Build</button>
         <button style={tabStyle(tab === 'craft')} onClick={() => setTab('craft')}>Craft</button>
       </div>
 
-      {/* Content */}
       <div style={{ padding: 16, flex: 1 }}>
-
-        {/* BUILD TAB */}
         {tab === 'build' && Object.entries(STRUCTURES).map(([key, def]) => {
           const level     = stronghold[key] ?? 0;
           const maxed     = level >= def.levels.length;
           const nextTier  = def.levels[level];
           const canAfford = !maxed && nextTier &&
             Object.entries(nextTier.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
-
           return (
             <div key={key} style={{
               background: '#ffffff08', border: '1px solid #ffffff11',
@@ -194,19 +180,11 @@ export default function StrongholdMenu() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 'bold' }}>
                     {def.icon} {def.name}
-                    <span style={{ color: '#555', fontSize: 12, marginLeft: 8 }}>
-                      Lv {level}/{def.levels.length}
-                    </span>
+                    <span style={{ color: '#555', fontSize: 12, marginLeft: 8 }}>Lv {level}/{def.levels.length}</span>
                   </div>
                   <div style={{ color: '#777', fontSize: 11, marginTop: 2 }}>{def.description}</div>
-                  {!maxed && nextTier && (
-                    <div style={{ color: '#d4af37', fontSize: 11, marginTop: 4 }}>
-                      Next: {nextTier.benefit}
-                    </div>
-                  )}
-                  {maxed && (
-                    <div style={{ color: '#2ecc71', fontSize: 11, marginTop: 4 }}>✓ Fully Upgraded</div>
-                  )}
+                  {!maxed && nextTier && <div style={{ color: '#d4af37', fontSize: 11, marginTop: 4 }}>Next: {nextTier.benefit}</div>}
+                  {maxed && <div style={{ color: '#2ecc71', fontSize: 11, marginTop: 4 }}>✓ Fully Upgraded</div>}
                   {!maxed && nextTier && <ResourceCost cost={nextTier.cost} resources={resources} />}
                 </div>
                 {!maxed && (
@@ -214,22 +192,19 @@ export default function StrongholdMenu() {
                     onClick={() => handleUpgrade(key)}
                     disabled={!canAfford}
                     style={{
-                      marginLeft: 12, padding: '8px 14px', borderRadius: 8,
-                      border: 'none', cursor: canAfford ? 'pointer' : 'not-allowed',
+                      marginLeft: 12, padding: '10px 16px', borderRadius: 8, border: 'none',
+                      cursor: canAfford ? 'pointer' : 'not-allowed',
                       background: canAfford ? '#d4af37' : '#2a2a2a',
                       color:      canAfford ? '#0d0d1a' : '#555',
-                      fontSize: 12, fontWeight: 'bold', flexShrink: 0,
+                      fontSize: 13, fontWeight: 'bold', flexShrink: 0,
                     }}
-                  >
-                    Upgrade
-                  </button>
+                  >Upgrade</button>
                 )}
               </div>
             </div>
           );
         })}
 
-        {/* CRAFT TAB */}
         {tab === 'craft' && (
           <div>
             {(stronghold.forge ?? 0) === 0 && (
@@ -240,10 +215,9 @@ export default function StrongholdMenu() {
             {(stronghold.forge ?? 0) > 0 && FORGE_RECIPES
               .filter(r => (stronghold.forge ?? 0) >= r.forgeLevel)
               .map(recipe => {
-                const canAfford  = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
+                const canAfford   = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
                 const alreadyHave = inventory.some(i => i.id === recipe.id);
-                const gearEquipped = useGameStore.getState().gear?.weapon === recipe.id;
-
+                const equipped    = useGameStore.getState().gear?.weapon === recipe.id;
                 return (
                   <div key={recipe.id} style={{
                     background: '#ffffff08', border: `1px solid ${alreadyHave ? '#2ecc7133' : '#ffffff11'}`,
@@ -258,7 +232,7 @@ export default function StrongholdMenu() {
                       <ResourceCost cost={recipe.cost} resources={resources} />
                       {alreadyHave && (
                         <div style={{ color: '#2ecc71', fontSize: 11, marginTop: 6 }}>
-                          ✓ {gearEquipped ? 'Equipped' : 'In inventory'}
+                          ✓ {equipped ? 'Equipped' : 'In inventory'}
                         </div>
                       )}
                     </div>
@@ -266,16 +240,13 @@ export default function StrongholdMenu() {
                       onClick={() => !alreadyHave && handleCraft(recipe)}
                       disabled={!canAfford || alreadyHave}
                       style={{
-                        marginLeft: 12, padding: '8px 14px', borderRadius: 8,
-                        border: 'none',
+                        marginLeft: 12, padding: '10px 16px', borderRadius: 8, border: 'none',
                         cursor: (canAfford && !alreadyHave) ? 'pointer' : 'default',
                         background: alreadyHave ? '#1a3a1a' : canAfford ? '#d4af37' : '#2a2a2a',
                         color:      alreadyHave ? '#2ecc71'  : canAfford ? '#0d0d1a' : '#555',
-                        fontSize: 12, fontWeight: 'bold', flexShrink: 0,
+                        fontSize: 13, fontWeight: 'bold', flexShrink: 0,
                       }}
-                    >
-                      {alreadyHave ? 'Owned ✓' : 'Craft'}
-                    </button>
+                    >{alreadyHave ? 'Owned ✓' : 'Craft'}</button>
                   </div>
                 );
               })

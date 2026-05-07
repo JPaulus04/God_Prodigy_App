@@ -2,86 +2,71 @@ import React from 'react';
 import { useGameStore } from '../store/useGameStore';
 
 const CONTROLS = [
-  { key: 'WASD / Arrow Keys', action: 'Move' },
-  { key: 'Space',             action: 'Attack' },
-  { key: 'E',                 action: 'Interact / Gather' },
-  { key: 'Joystick (left)',   action: 'Move (mobile)' },
-  { key: '⚔ Button (right)',  action: 'Attack (mobile)' },
-  { key: 'E Button (right)',  action: 'Interact (mobile)' },
-];
-
-const TIPS = [
-  'Gather Wood, Stone, and Ore to build your Stronghold.',
-  'Approach enemies and press Space or ⚔ to attack.',
-  'Press E near NPCs to hear hints and rumours.',
-  'Activate Checkpoints — they are your respawn points.',
-  'Golems drop Ore and sometimes gear. Fight them when ready.',
-  'Upgrade your Forge to craft stronger weapons.',
-  'Ten Elemental Gods stand between you and ascension.',
+  { icon: '🕹',  key: 'Left Joystick',   action: 'Move'                    },
+  { icon: '⚔️',  key: '⚔️ Button',        action: 'Attack enemies'          },
+  { icon: '🟢',  key: 'E Button',         action: 'Interact · Gather · Talk' },
+  { icon: '🎒',  key: '🎒 Bag Button',    action: 'Open inventory'          },
+  { icon: '❓',  key: '? Help Button',    action: 'Open this menu'          },
 ];
 
 export default function HelpMenu() {
-  const { toggleHelpMenu } = useGameStore();
+  const { toggleHelpMenu, ascensionProgress } = useGameStore();
 
   return (
     <div style={{
       position: 'absolute', inset: 0,
-      background: 'rgba(0,0,0,0.88)',
+      background: '#000000bb', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 100, fontFamily: 'Georgia, serif',
     }}>
       <div style={{
-        background: '#0d0d1a',
-        border: '1px solid #d4af37',
-        borderRadius: 12,
-        padding: 24,
-        width: '88%', maxWidth: 360,
-        maxHeight: '85vh',
-        overflowY: 'auto',
+        background: '#0d0d1a', border: '2px solid #d4af37',
+        borderRadius: 14, padding: 24,
+        width: '88%', maxWidth: 340, color: '#fff',
       }}>
-        <h2 style={{ color: '#d4af37', textAlign: 'center', fontSize: 18, marginBottom: 16 }}>
-          Controls & Tips
-        </h2>
-
-        {/* Controls */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ color: '#888', fontSize: 10, letterSpacing: 1, marginBottom: 8 }}>
-            CONTROLS
-          </div>
-          {CONTROLS.map(({ key, action }) => (
-            <div key={key} style={{
-              display: 'flex', justifyContent: 'space-between',
-              padding: '5px 0', borderBottom: '1px solid #1a1a2e',
-            }}>
-              <span style={{ color: '#4488ff', fontSize: 12 }}>{key}</span>
-              <span style={{ color: '#cccccc', fontSize: 12 }}>{action}</span>
-            </div>
-          ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <h2 style={{ color: '#d4af37', fontSize: 18, margin: 0 }}>Controls</h2>
+          <button onClick={toggleHelpMenu} style={{
+            background: 'none', border: 'none',
+            color: '#777', fontSize: 22, cursor: 'pointer', lineHeight: 1,
+          }}>✕</button>
         </div>
 
-        {/* Tips */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ color: '#888', fontSize: 10, letterSpacing: 1, marginBottom: 8 }}>
-            TIPS
-          </div>
-          {TIPS.map((tip, i) => (
-            <div key={i} style={{
-              color: '#bbbbbb', fontSize: 11, marginBottom: 6,
-              paddingLeft: 10, borderLeft: '2px solid #d4af3744',
-            }}>
-              {tip}
+        {CONTROLS.map(({ icon, key, action }) => (
+          <div key={key} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 0', borderBottom: '1px solid #1a1a2e',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{icon}</span>
+              <span style={{ color: '#d4af37', fontSize: 13, fontWeight: 'bold' }}>{key}</span>
             </div>
-          ))}
+            <span style={{ color: '#bbb', fontSize: 12 }}>{action}</span>
+          </div>
+        ))}
+
+        {/* Goal */}
+        <div style={{ background: '#111', borderRadius: 10, padding: 12, marginTop: 16 }}>
+          <p style={{ color: '#aaa', fontSize: 12, margin: 0 }}>
+            🎯 <strong style={{ color: '#d4af37' }}>Goal:</strong> Defeat all 10 elemental gods and ascend to godhood.
+          </p>
+          <p style={{ color: '#555', fontSize: 11, margin: '6px 0 0' }}>
+            Progress: <strong style={{ color: '#fff' }}>{ascensionProgress}/10 gods defeated</strong>
+          </p>
+        </div>
+
+        {/* Tip */}
+        <div style={{ background: '#111', borderRadius: 10, padding: 12, marginTop: 8 }}>
+          <p style={{ color: '#aaa', fontSize: 12, margin: 0 }}>
+            💡 Talk to <strong style={{ color: '#1abc9c' }}>Elder Kael</strong> (green dot, center of map) for hints. Find the <strong style={{ color: '#d4af37' }}>gold STRONGHOLD</strong> to the south to upgrade.
+          </p>
         </div>
 
         <button onClick={toggleHelpMenu} style={{
-          width: '100%', padding: '10px 0',
-          background: '#d4af37', border: 'none',
-          borderRadius: 8, color: '#0d0d1a',
-          fontWeight: 'bold', fontSize: 14,
-          cursor: 'pointer', fontFamily: 'Georgia, serif',
+          width: '100%', marginTop: 16, padding: '13px 0',
+          background: '#d4af37', border: 'none', borderRadius: 10,
+          color: '#0d0d1a', fontWeight: 'bold', fontSize: 15, cursor: 'pointer',
         }}>
-          Close
+          Back to Game
         </button>
       </div>
     </div>

@@ -24,10 +24,6 @@ function clampToWorld(x, y) {
   };
 }
 
-function getRespawnPos(checkpointId) {
-  return RESPAWN_POINTS[checkpointId] || RESPAWN_POINTS.stronghold;
-}
-
 function tileColor(tx, ty) {
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
   if (ty < 14 && tx > 4 && tx < MAP_W-4)                  return '#1a5c35';
@@ -38,6 +34,25 @@ function tileColor(tx, ty) {
 
 function dist(ax, ay, bx, by) {
   return Math.sqrt((ax-bx)**2 + (ay-by)**2);
+}
+
+// Simple canvas word wrap helper
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let currentY = y;
+  for (const word of words) {
+    const testLine  = line + word + ' ';
+    const metrics   = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && line !== '') {
+      ctx.fillText(line, x, currentY);
+      line = word + ' ';
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, currentY);
 }
 
 const CHECKPOINTS = [
@@ -71,7 +86,18 @@ const ENEMY_DEFS = [
   { type: 'golem',  x: 42*TILE, y: 30*TILE },
 ];
 
-const PATROL_RADIUS = 80; // max pixels enemy drifts from origin
+const PATROL_RADIUS = 80;
+
+const NPC_HINTS = [
+  'Defeat the 10 elemental gods and ascend to godhood.',
+  'Gather wood, stone, and ore to build your Stronghold.',
+  'The Stronghold is to the south — upgrade your Forge first.',
+  'Golems drop ore. They are tough — bring your best gear.',
+  'Activate checkpoints to save your progress across the world.',
+  'Training Grounds sharpens your ATK and DEF over time.',
+  'The dungeon to the northeast holds rare materials.',
+  'Every god you defeat brings you closer to ascension.',
+];
 
 function makeEnemy(def) {
   const cfg = EnemyConfig[def.type];
@@ -91,23 +117,28 @@ export default function WorldCanvas() {
   const prevDeathModal = useRef(false);
 
   const G = useRef({
-    player:      { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
-    camera:      { x: 25*TILE, y: 30*TILE },
-    enemies:     ENEMY_DEFS.map(makeEnemy),
-    resources:   RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
-    checkpoints: CHECKPOINTS.map(c => ({ ...c, activated: false })),
-    swordPicked: false,
-    floats:      [],
-    keys:        {},
-    prevE:       false,
-    prevSpace:   false,
-    saveTimer:   0,
+    player:       { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
+    camera:       { x: 25*TILE, y: 30*TILE },
+    enemies:      ENEMY_DEFS.map(makeEnemy),
+    resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
+    checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
+    swordPicked:  false,
+    floats:       [],
+    npcMessage:   null,   // { text, timer } — shown as a box at bottom of screen
+    keys:         {},
+    prevE:        false,
+    prevSpace:    false,
+    saveTimer:    0,
     W: 390, H: 844,
     _hintIndex: 0,
   }).current;
 
   const addFloat = (x, y, text, color = '#fff') => {
-    G.floats.push({ x, y, text, color, life: 1, vy: -55 });
+    G.floats.push({ x, y, text, color, life: 1.2, vy: -40 });
+  };
+
+  const showNPCMessage = (text) => {
+    G.npcMessage = { text, timer: 5.0 };
   };
 
   useEffect(() => {
@@ -115,21 +146,29 @@ export default function WorldCanvas() {
     if (!canvas) return;
 
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width  = rect.width  > 0 ? rect.width  : window.innerWidth;
-      canvas.height = rect.height > 0 ? rect.height : window.innerHeight;
-      G.W = canvas.width;
-      G.H = canvas.height;
+      setTimeout(() => {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width  = Math.round(rect.width  > 0 ? rect.width  : window.innerWidth);
+        canvas.height = Math.round(rect.height > 0 ? rect.height : window.innerHeight);
+        G.W = canvas.width;
+        G.H = canvas.height;
+      }, 50);
     };
     resize();
     window.addEventListener('resize', resize);
 
-    const savedPos = useGameStore.getState().position;
-    if (savedPos?.x) {
-      const c = clampToWorld(savedPos.x, savedPos.y);
+    const store = useGameStore.getState();
+
+    // Load saved position — clamp to valid area
+    if (store.position?.x) {
+      const c = clampToWorld(store.position.x, store.position.y);
       G.player.x = c.x; G.player.y = c.y;
       G.camera.x = c.x; G.camera.y = c.y;
     }
+
+    // Prevent duplicate sword pickup — check inventory on mount
+    const hasSword = store.inventory.some(i => i.id === 'iron_sword');
+    if (hasSword) G.swordPicked = true;
 
     const kd = e => { G.keys[e.code] = true; };
     const ku = e => { G.keys[e.code] = false; };
@@ -140,7 +179,7 @@ export default function WorldCanvas() {
     const loop = (ts) => {
       const dt = Math.min((ts - lastTimeRef.current) / 1000, 0.05);
       lastTimeRef.current = ts;
-      if (dt > 0) { update(dt); render(ctx, G.W, G.H); }
+      if (dt > 0 && G.W > 100) { update(dt); render(ctx, G.W, G.H); }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
@@ -156,17 +195,17 @@ export default function WorldCanvas() {
   function update(dt) {
     const store = useGameStore.getState();
 
-    // ── Respawn detection ──────────────────────────────────
+    // ── Respawn: reads respawnAt from store (explicit, no ambiguity) ──
     const isDeathModal = store.showDeathModal;
     if (prevDeathModal.current && !isDeathModal) {
-      const pos = store.activeZone === 'stronghold'
-        ? RESPAWN_POINTS.stronghold
-        : getRespawnPos(store.lastCheckpoint);
+      const respawnAt  = store.respawnAt || store.lastCheckpoint || 'stronghold';
+      const pos        = RESPAWN_POINTS[respawnAt] || RESPAWN_POINTS.stronghold;
       G.player.x = pos.x; G.player.y = pos.y;
       G.camera.x = pos.x; G.camera.y = pos.y;
-      // 3 seconds invincibility — enough time to move away
       G.player.invincible = true;
       G.player.invTimer   = 3.0;
+      // Clear respawnAt so it doesn't trigger again
+      useGameStore.setState({ respawnAt: null });
     }
     prevDeathModal.current = isDeathModal;
 
@@ -174,6 +213,12 @@ export default function WorldCanvas() {
 
     const p   = G.player;
     const cfg = EnemyConfig;
+
+    // ── NPC message timer ──────────────────────────────────
+    if (G.npcMessage) {
+      G.npcMessage.timer -= dt;
+      if (G.npcMessage.timer <= 0) G.npcMessage = null;
+    }
 
     // ── Movement ──────────────────────────────────────────
     let vx = 0, vy = 0;
@@ -217,7 +262,7 @@ export default function WorldCanvas() {
           });
           setTimeout(() => {
             e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
-            e.x = e.originX; e.y = e.originY; // reset to origin on respawn
+            e.x = e.originX; e.y = e.originY;
           }, cfg[e.type].respawnTime);
         }
       });
@@ -230,6 +275,7 @@ export default function WorldCanvas() {
     if (InputState.interact) InputState.interact = false;
 
     if (eJust) {
+      // Resources
       G.resources.forEach(r => {
         if (r.depleted || dist(p.x, p.y, r.x, r.y) > 48) return;
         store.addResource(r.res, r.amt);
@@ -238,41 +284,40 @@ export default function WorldCanvas() {
         setTimeout(() => { r.depleted = false; }, 30000);
       });
 
+      // Checkpoints
       G.checkpoints.forEach(cp => {
         if (dist(p.x, p.y, cp.x, cp.y) > 55) return;
         if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); }
         addFloat(cp.x, cp.y - 30, '✓ Checkpoint saved!', '#f1c40f');
       });
 
-      if (!G.swordPicked && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
+      // Iron Sword — double-check store too
+      const alreadyHasSword = store.inventory.some(i => i.id === 'iron_sword');
+      if (!G.swordPicked && !alreadyHasSword && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
         const item = { id: 'iron_sword', name: 'Iron Sword', slot: 'weapon', atk: 6 };
-        const ok = store.addItem(item);
-        if (ok) {
+        if (store.addItem(item)) {
           G.swordPicked = true;
           store.equipItem(item);
           addFloat(27*TILE, 27*TILE - 30, '⚔ Iron Sword equipped!', '#bdc3c7');
         }
+      } else if (alreadyHasSword) {
+        G.swordPicked = true;
       }
 
+      // Stronghold
       if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) {
         store.setGamePhase('stronghold');
         return;
       }
 
+      // Dungeon
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
-        addFloat(p.x, p.y - 40, '⚠ Dungeon — Phase 2!', '#cc88ff');
+        showNPCMessage('The dungeon is sealed for now. Return in Phase 2 when you are stronger.');
       }
 
+      // NPC — show as dialogue box (readable duration)
       if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
-        const hints = [
-          '"Defeat the 10 elemental gods. Ascend."',
-          '"Gather wood, stone, and ore to build."',
-          '"Your Stronghold is to the south."',
-          '"The golems drop ore — they are tough."',
-          '"Find checkpoints to save your progress."',
-          '"Upgrade Training Grounds for more ATK."',
-        ];
-        addFloat(23*TILE, 28*TILE - 50, hints[G._hintIndex % hints.length], '#1abc9c');
+        showNPCMessage(NPC_HINTS[G._hintIndex % NPC_HINTS.length]);
         G._hintIndex++;
       }
     }
@@ -299,19 +344,16 @@ export default function WorldCanvas() {
         e.x += Math.cos(angle) * ecfg.speed * dt;
         e.y += Math.sin(angle) * ecfg.speed * dt;
       } else if (dOrigin > PATROL_RADIUS) {
-        // Too far from home — walk back to origin
         e.state = 'patrol';
         const homeAngle = Math.atan2(e.originY - e.y, e.originX - e.x);
         e.x += Math.cos(homeAngle) * ecfg.speed * 0.5 * dt;
         e.y += Math.sin(homeAngle) * ecfg.speed * 0.5 * dt;
       } else {
-        // Normal patrol
         e.state = 'patrol';
         e.patrolTimer += dt;
         if (e.patrolTimer > 2.2) { e.patrolDir *= -1; e.patrolTimer = 0; }
         e.x += ecfg.speed * 0.35 * e.patrolDir * dt;
       }
-
       const ec = clampToWorld(e.x, e.y);
       e.x = ec.x; e.y = ec.y;
     });
@@ -334,16 +376,16 @@ export default function WorldCanvas() {
     const wx = x => Math.round(x - cx + W / 2);
     const wy = y => Math.round(y - cy + H / 2);
     const onScreen = (sx, sy, pad = 50) =>
-      sx > -pad && sx < W+pad && sy > -pad && sy < H+pad;
+      sx > -pad && sx < W + pad && sy > -pad && sy < H + pad;
 
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, W, H);
 
+    // Tiles
     const txS = Math.max(0, Math.floor((cx - W/2) / TILE));
     const txE = Math.min(MAP_W, Math.ceil((cx + W/2) / TILE) + 1);
     const tyS = Math.max(0, Math.floor((cy - H/2) / TILE));
     const tyE = Math.min(MAP_H, Math.ceil((cy + H/2) / TILE) + 1);
-
     for (let ty = tyS; ty < tyE; ty++) {
       for (let tx = txS; tx < txE; tx++) {
         ctx.fillStyle = tileColor(tx, ty);
@@ -351,6 +393,7 @@ export default function WorldCanvas() {
       }
     }
 
+    // Resources
     G.resources.forEach(r => {
       if (r.depleted) return;
       const sx = wx(r.x), sy = wy(r.y);
@@ -361,6 +404,7 @@ export default function WorldCanvas() {
       ctx.fillText(r.res, sx, sy + 24);
     });
 
+    // Checkpoints
     G.checkpoints.forEach(cp => {
       const sx = wx(cp.x), sy = wy(cp.y);
       if (!onScreen(sx, sy)) return;
@@ -373,10 +417,10 @@ export default function WorldCanvas() {
       ctx.fillText(cp.activated ? 'SAVED' : 'SAVE', sx, sy + 28);
     });
 
+    // Stronghold
     const shx = wx(25*TILE), shy = wy(44*TILE);
     if (onScreen(shx, shy, 80)) {
-      const pulse = 0.75 + Math.sin(Date.now() / 700) * 0.25;
-      ctx.globalAlpha = pulse;
+      ctx.globalAlpha = 0.75 + Math.sin(Date.now() / 700) * 0.25;
       ctx.fillStyle   = '#d4af37';
       ctx.fillRect(shx-24, shy-24, 48, 48);
       ctx.globalAlpha = 1;
@@ -386,6 +430,7 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', shx, shy + 36);
     }
 
+    // Dungeon
     const dunx = wx(43*TILE), duny = wy(10*TILE);
     if (onScreen(dunx, duny, 80)) {
       ctx.fillStyle = '#8e44ad';
@@ -396,6 +441,7 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
 
+    // NPC
     const nx = wx(23*TILE), ny = wy(28*TILE);
     if (onScreen(nx, ny)) {
       ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
@@ -406,11 +452,11 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Talk', nx, ny + 26);
     }
 
+    // Iron Sword
     if (!G.swordPicked) {
       const isx = wx(27*TILE), isy = wy(27*TILE);
       if (onScreen(isx, isy)) {
-        const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-        ctx.globalAlpha = pulse;
+        ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 400) * 0.5;
         ctx.fillStyle = '#bdc3c7';
         ctx.fillRect(isx-5, isy-14, 10, 24);
         ctx.globalAlpha = 1;
@@ -421,6 +467,7 @@ export default function WorldCanvas() {
       }
     }
 
+    // Enemies
     G.enemies.forEach(e => {
       if (!e.alive) return;
       const ex = wx(e.x), ey = wy(e.y);
@@ -428,11 +475,9 @@ export default function WorldCanvas() {
       const isGolem = e.type === 'golem';
       const r       = isGolem ? 18 : 12;
       const aggroed = e.state !== 'patrol';
-
       ctx.fillStyle = aggroed ? '#e74c3c' : (isGolem ? '#8e44ad' : '#7ed321');
       ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-
       if (aggroed) {
         const bw = 36;
         ctx.fillStyle = '#333'; ctx.fillRect(ex-bw/2, ey-r-10, bw, 5);
@@ -442,17 +487,17 @@ export default function WorldCanvas() {
       }
     });
 
-    // Player — blink faster when invincible to signal grace period
+    // Player
     const ppx = wx(p.x), ppy = wy(p.y);
     const blinkOn = !p.invincible || Math.sin(Date.now() / 80) > 0;
     ctx.globalAlpha = blinkOn ? 1 : 0.15;
     ctx.fillStyle = '#4a90e2';
     ctx.beginPath(); ctx.arc(ppx, ppy, 14, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = p.invincible ? '#ffffff' : '#aaaaaa';
-    ctx.lineWidth = p.invincible ? 3 : 2;
-    ctx.stroke();
+    ctx.lineWidth = p.invincible ? 3 : 2; ctx.stroke();
     ctx.globalAlpha = 1;
 
+    // Float texts
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
@@ -462,7 +507,45 @@ export default function WorldCanvas() {
       ctx.fillStyle = f.color; ctx.fillText(f.text, fx, fy);
     });
     ctx.globalAlpha = 1;
-    ctx.textAlign = 'left';
+
+    // ── NPC Dialogue Box (fixed to screen, readable for 5 seconds) ──
+    if (G.npcMessage) {
+      const msg    = G.npcMessage;
+      const alpha  = Math.min(1, msg.timer * 1.5); // fade out in last ~0.67s
+      const pad    = 18;
+      const boxH   = 88;
+      const boxY   = H - boxH - 80; // above the controls
+      const boxW   = W - pad * 2;
+
+      ctx.globalAlpha = alpha;
+
+      // Box background
+      ctx.fillStyle = '#000000dd';
+      ctx.beginPath();
+      ctx.roundRect?.(pad, boxY, boxW, boxH, 10) ?? ctx.rect(pad, boxY, boxW, boxH);
+      ctx.fill();
+
+      // Gold border
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect?.(pad, boxY, boxW, boxH, 10) ?? ctx.rect(pad, boxY, boxW, boxH);
+      ctx.stroke();
+
+      // Speaker name
+      ctx.fillStyle = '#1abc9c';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('Elder Kael', pad + 12, boxY + 18);
+
+      // Message text with word wrap
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px sans-serif';
+      wrapText(ctx, msg.text, pad + 12, boxY + 36, boxW - 24, 16);
+
+      ctx.globalAlpha = 1;
+      ctx.textAlign = 'left';
+    }
   }
 
   return (
