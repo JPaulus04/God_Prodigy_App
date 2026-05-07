@@ -11,6 +11,7 @@ const DEFAULT_STATE = {
   playerMaxHP:   100,
   playerBaseATK: 8,
   playerBaseDEF: 4,
+  playerBaseSPD: 5,
   playerATK:     8,
   playerDEF:     4,
   playerSPD:     5,
@@ -96,7 +97,7 @@ export const useGameStore = create((set, get) => ({
     const updates = { statPoints: statPoints - 1 };
     if (stat === 'atk') updates.playerATK = get().playerATK + 1;
     if (stat === 'def') updates.playerDEF = get().playerDEF + 1;
-    if (stat === 'spd') updates.playerSPD = get().playerSPD + 1;
+    if (stat === 'spd') { updates.playerSPD = get().playerSPD + 1; updates.playerBaseSPD = (get().playerBaseSPD || 5) + 1; }
     set(updates);
     SaveSystem.save(get());
   },
@@ -142,10 +143,10 @@ export const useGameStore = create((set, get) => ({
   },
 
   recalculateStats: () => {
-    const { gear, inventory, playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus, playerSPD } = get();
+    const { gear, inventory, playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus } = get();
     let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
     let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
-    let spd = playerSPD || 5;
+    let spd = (get().playerBaseSPD || 5);
     let abilityId = null;
 
     Object.values(gear).forEach(instanceId => {
@@ -167,10 +168,10 @@ export const useGameStore = create((set, get) => ({
     const newGear = { ...gear, [item.slot]: item.instanceId };
     set({ gear: newGear });
 
-    const { playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus, playerSPD } = get();
+    const { playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus } = get();
     let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
     let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
-    let spd = playerSPD || 5;
+    let spd = (get().playerBaseSPD || 5);
     let abilityId = null;
 
     const allItems = [...inventory, item];
@@ -239,7 +240,7 @@ export const useGameStore = create((set, get) => ({
     const { trainingATKBonus, trainingDEFBonus } = get();
     set({ trainingATKBonus: (trainingATKBonus || 0) + atkBonus, trainingDEFBonus: (trainingDEFBonus || 0) + defBonus });
     get().recalculateStats();
-    if (spdBonus) set(s => ({ playerSPD: s.playerSPD + spdBonus }));
+    if (spdBonus) set(s => ({ playerSPD: s.playerSPD + spdBonus, playerBaseSPD: (s.playerBaseSPD || 5) + spdBonus }));
     SaveSystem.save(get());
   },
 
