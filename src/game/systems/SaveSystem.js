@@ -1,22 +1,32 @@
-const SAVE_KEY = 'gp_save';
-const SAVE_VERSION = '0.1.0';
+// SaveSystem.js
+const SAVE_KEY     = 'gp_save';
+const SAVE_VERSION = '0.2.0';
 
 const PERSIST_FIELDS = [
-  'playerName', 'tutorialStep',
-  'playerHP', 'playerMaxHP', 'playerATK', 'playerDEF', 'playerSPD',
-  'position', 'gear', 'inventory', 'resources',
-  'checkpoints', 'lastCheckpoint', 'activeZone',
+  'playerName',
+  'playerHP', 'playerMaxHP',
+  'playerBaseATK', 'playerBaseDEF',
+  'playerATK', 'playerDEF', 'playerSPD',
+  'level', 'xp', 'xpToNextLevel', 'statPoints',
+  'trainingATKBonus', 'trainingDEFBonus',
+  'equippedAbilityId',
+  'position', 'activeZone',
+  'checkpoints', 'lastCheckpoint',
+  'gear', 'inventory', 'itemUpgrades',
+  'resources',
   'stronghold', 'bossesDefeated', 'ascensionProgress',
 ];
 
 export const SaveSystem = {
   save(state) {
-    const payload = { version: SAVE_VERSION, lastSaved: Date.now() };
-    PERSIST_FIELDS.forEach((f) => { payload[f] = state[f]; });
     try {
+      const payload = { version: SAVE_VERSION, savedAt: Date.now() };
+      PERSIST_FIELDS.forEach(key => {
+        if (state[key] !== undefined) payload[key] = state[key];
+      });
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     } catch (e) {
-      console.warn('[SaveSystem] Save failed:', e);
+      console.warn('SaveSystem: failed to save', e);
     }
   },
 
@@ -25,17 +35,21 @@ export const SaveSystem = {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const data = JSON.parse(raw);
-      if (data.version !== SAVE_VERSION) {
-        console.warn('[SaveSystem] Version mismatch, starting fresh.');
-        return null;
-      }
-      return data;
+      if (!data.version || !data.version.startsWith('0.')) return null;
+      const { version, savedAt, ...fields } = data;
+      return fields;
     } catch (e) {
-      console.warn('[SaveSystem] Load failed:', e);
+      console.warn('SaveSystem: failed to load', e);
       return null;
     }
   },
 
-  clear() { localStorage.removeItem(SAVE_KEY); },
-  exists() { return !!localStorage.getItem(SAVE_KEY); },
+  clear() {
+    try { localStorage.removeItem(SAVE_KEY); }
+    catch (e) { console.warn('SaveSystem: failed to clear', e); }
+  },
+
+  hasSave() {
+    return !!localStorage.getItem(SAVE_KEY);
+  },
 };
