@@ -208,6 +208,7 @@ export default function WorldCanvas() {
     resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
     checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
     swordPicked:  false,
+    regenTimer:   0,      // passive health regen out of combat
     floats:       [],
     npcMessage:   null,
     // ── Ability state ──────────────────────────────────
@@ -418,6 +419,19 @@ export default function WorldCanvas() {
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
+    // ── Passive health regen ──────────────────────────────
+    // Regen 1 HP every 4 seconds when no enemy is aggroed nearby
+    const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol');
+    if (!inCombat && store.playerHP < store.playerMaxHP) {
+      G.regenTimer += dt;
+      if (G.regenTimer >= 4) {
+        G.regenTimer = 0;
+        store.healPlayer(1);
+      }
+    } else {
+      G.regenTimer = 0;
+    }
+
     // ── Movement ──────────────────────────────────────────
     let vx = 0, vy = 0;
     if (G.keys['ArrowLeft']  || G.keys['KeyA']) vx -= 1;
@@ -524,7 +538,15 @@ export default function WorldCanvas() {
         G.swordPicked = true;
       }
 
-      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
+      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) {
+        // Full heal when returning home
+        if (store.playerHP < store.playerMaxHP) {
+          store.healPlayer(store.playerMaxHP);
+          addFloat(25*TILE, 44*TILE - 40, '❤ Fully Healed!', '#2ecc71');
+        }
+        store.setGamePhase('stronghold');
+        return;
+      }
 
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
         G.npcMessage = { text: 'The dungeon is sealed. Return in Phase 2.', timer: 5 };
