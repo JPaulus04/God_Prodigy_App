@@ -7,6 +7,8 @@ const DEFAULT_STATE = {
   tutorialStep: 0,
   playerHP: 100,
   playerMaxHP: 100,
+  playerBaseATK: 8,   // never changes — used to recalculate on equip
+  playerBaseDEF: 4,   // never changes — used to recalculate on equip
   playerATK: 8,
   playerDEF: 4,
   playerSPD: 5,
@@ -17,7 +19,10 @@ const DEFAULT_STATE = {
   checkpoints: [],
   lastCheckpoint: 'stronghold',
   activeZone: 'world',
+  respawnAt: null,      // 'stronghold' | 'cp_center' | 'cp_forest' | 'cp_east'
   stronghold: { forge: 0, storage: 0, trainingGrounds: 0 },
+  trainingATKBonus: 0,  // tracks training grounds cumulative ATK bonus
+  trainingDEFBonus: 0,  // tracks training grounds cumulative DEF bonus
   bossesDefeated: [],
   ascensionProgress: 0,
   showInventory: false,
@@ -74,11 +79,27 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
+  // Fixed: recalculates stats from base + training bonuses + new gear
+  // Prevents stacking from clicking the same item multiple times
   equipItem: (item) => {
-    const { gear } = get();
-    set({ gear: { ...gear, [item.slot]: item.id } });
-    if (item.atk) set((s) => ({ playerATK: s.playerATK + item.atk }));
-    if (item.def) set((s) => ({ playerDEF: s.playerDEF + item.def }));
+    const { gear, inventory, playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus } = get();
+    const newGear = { ...gear, [item.slot]: item.id };
+    set({ gear: newGear });
+
+    // Recalculate ATK and DEF from scratch:
+    // base stats + training grounds bonuses + equipped gear bonuses
+    let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
+    let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
+
+    Object.values(newGear).forEach(equippedId => {
+      if (!equippedId) return;
+      const equippedItem = inventory.find(i => i.id === equippedId)
+        || (equippedId === item.id ? item : null);
+      if (equippedItem?.atk) atk += equippedItem.atk;
+      if (equippedItem?.def) def += equippedItem.def;
+    });
+
+    set({ playerATK: atk, playerDEF: def });
     SaveSystem.save(get());
   },
 
@@ -91,20 +112,23 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
+  // Fixed: stores explicit respawnAt so WorldCanvas knows exactly where to go
   respawn: (location) => {
-    const { playerMaxHP, resources } = get();
+    const { playerMaxHP, resources, lastCheckpoint } = get();
 
-    // Apply 20% resource penalty on death
     const penalized = {};
     Object.entries(resources).forEach(([k, v]) => {
       penalized[k] = Math.floor(v * 0.8);
     });
 
+    const respawnAt = location === 'stronghold' ? 'stronghold' : (lastCheckpoint || 'stronghold');
+
     set({
-      playerHP:      Math.floor(playerMaxHP * 0.5),
+      playerHP:       Math.floor(playerMaxHP * 0.5),
       showDeathModal: false,
-      resources:     penalized,
-      activeZone:    location === 'stronghold' ? 'stronghold' : 'world',
+      resources:      penalized,
+      activeZone:     'world',
+      respawnAt,
     });
     SaveSystem.save(get());
   },
@@ -112,6 +136,19 @@ export const useGameStore = create((set, get) => ({
   upgradeStructure: (structure) => {
     const { stronghold } = get();
     set({ stronghold: { ...stronghold, [structure]: stronghold[structure] + 1 } });
+    SaveSystem.save(get());
+  },
+
+  // Fixed: training grounds upgrades now track bonuses separately
+  applyTrainingBonus: (atkBonus, defBonus, spdBonus = 0) => {
+    const { trainingATKBonus, trainingDEFBonus, playerATK, playerDEF, playerSPD } = get();
+    set({
+      trainingATKBonus: (trainingATKBonus || 0) + atkBonus,
+      trainingDEFBonus: (trainingDEFBonus || 0) + defBonus,
+      playerATK: playerATK + atkBonus,
+      playerDEF: playerDEF + defBonus,
+      playerSPD: playerSPD + spdBonus,
+    });
     SaveSystem.save(get());
   },
 
