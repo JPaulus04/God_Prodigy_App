@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
+import { AbilityConfig } from '../game/config/AbilityConfig';
 
 const TILE    = 32;
 const MAP_W   = 50;
@@ -11,7 +12,7 @@ const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold: { x: 25*TILE, y: 42*TILE },  // just outside the stronghold portal
+  stronghold: { x: 25*TILE, y: 42*TILE },
   cp_center:  { x: 25*TILE, y: 25*TILE },
   cp_forest:  { x: 15*TILE, y: 10*TILE },
   cp_east:    { x: 40*TILE, y: 18*TILE },
@@ -38,17 +39,13 @@ function dist(ax, ay, bx, by) {
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
-  let line = '';
-  let currentY = y;
+  let line = '', currentY = y;
   for (const word of words) {
-    const testLine = line + word + ' ';
-    if (ctx.measureText(testLine).width > maxWidth && line !== '') {
+    const test = line + word + ' ';
+    if (ctx.measureText(test).width > maxWidth && line) {
       ctx.fillText(line.trim(), x, currentY);
-      line = word + ' ';
-      currentY += lineHeight;
-    } else {
-      line = testLine;
-    }
+      line = word + ' '; currentY += lineHeight;
+    } else { line = test; }
   }
   if (line.trim()) ctx.fillText(line.trim(), x, currentY);
 }
@@ -92,9 +89,11 @@ const NPC_HINTS = [
   'The Stronghold is to the south. Upgrade your Forge first.',
   'Golems drop ore. They are tough — bring your best gear.',
   'Activate checkpoints to save your progress across the world.',
-  'Training Grounds sharpens your ATK and DEF over time.',
-  'The dungeon to the northeast holds rare materials and gear.',
-  'Every god you defeat brings you closer to ascension.',
+  'Each weapon type has a unique active ability — use it!',
+  'Sword: Whirlwind hits all nearby foes at once.',
+  'Hammer: Ground Slam stuns enemies and knocks them back.',
+  'Bow: Power Shot pierces through enemies in a line.',
+  'Dagger: Flurry lands three rapid strikes instantly.',
 ];
 
 function makeEnemy(def) {
@@ -105,56 +104,183 @@ function makeEnemy(def) {
     hp: cfg.hp, maxHp: cfg.hp,
     state: 'patrol', alive: true,
     attackTimer: 0, patrolDir: 1, patrolTimer: 0,
+    stunTimer: 0,
   };
 }
 
-export default function WorldCanvas() {
-  const canvasRef = useRef(null);
-  const rafRef    = useRef(null);
-  const lastTimeRef = useRef(0);
+// Ability colors per ability ID
+const ABILITY_COLORS = {
+  whirlwind:    { primary: '#4a90e2', secondary: '#7ab3e0' },
+  ground_slam:  { primary: '#c0392b', secondary: '#e67e22' },
+  power_shot:   { primary: '#FCD34D', secondary: '#F97316' },
+  flurry:       { primary: '#f39c12', secondary: '#fff' },
+  arcane_burst: { primary: '#9b59b6', secondary: '#d4af37' },
+};
 
-  // React subscription for death modal — more reliable than RAF-based detection
-  const showDeathModal = useGameStore(state => state.showDeathModal);
-  const prevDeathModalRef = useRef(false);
+export default function WorldCanvas() {
+  const canvasRef       = useRef(null);
+  const rafRef          = useRef(null);
+  const lastTimeRef     = useRef(0);
+  const showDeathModal  = useGameStore(state => state.showDeathModal);
+  const prevDeathModal  = useRef(false);
 
   const G = useRef({
-    player:      { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
-    camera:      { x: 25*TILE, y: 30*TILE },
-    enemies:     ENEMY_DEFS.map(makeEnemy),
-    resources:   RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
-    checkpoints: CHECKPOINTS.map(c => ({ ...c, activated: false })),
-    swordPicked: false,
-    floats:      [],
-    npcMessage:  null,
-    keys:        {},
-    prevE:       false,
-    prevSpace:   false,
-    saveTimer:   0,
+    player:       { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
+    camera:       { x: 25*TILE, y: 30*TILE },
+    enemies:      ENEMY_DEFS.map(makeEnemy),
+    resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
+    checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
+    swordPicked:  false,
+    floats:       [],
+    npcMessage:   null,
+    // ── Ability state ──────────────────────────────────
+    abilityCooldown: 0,     // seconds remaining (local timer, not in store)
+    abilityEffect:   null,  // current visual effect
+    projectiles:     [],    // Power Shot projectiles
+    lastMoveDir:     { x: 1, y: 0 },  // last movement direction for bow aim
+    // ── Input ─────────────────────────────────────────
+    keys:         {},
+    prevE:        false,
+    prevSpace:    false,
+    prevAbility:  false,
+    saveTimer:    0,
     W: 390, H: 844,
     _hintIndex: 0,
   }).current;
 
-  const addFloat = (x, y, text, color = '#fff') => {
-    G.floats.push({ x, y, text, color, life: 1.2, vy: -40 });
+  const addFloat = (x, y, text, color = '#fff', big = false) => {
+    G.floats.push({ x, y, text, color, life: big ? 1.5 : 1.2, vy: big ? -50 : -40, big });
   };
 
-  // ── Respawn via React effect — fires exactly when modal closes ──
+  // ── Kill enemy helper ────────────────────────────────────
+  const killEnemy = (e, store) => {
+    e.alive = false;
+    const xpReward = EnemyConfig[e.type]?.xpReward || 10;
+    store.gainXP(xpReward);
+    addFloat(e.x, e.y - 50, `+${xpReward} XP`, '#9b59b6');
+    EnemyConfig[e.type]?.drops?.forEach(drop => {
+      if (Math.random() < drop.chance) {
+        store.addResource(drop.item, drop.amount);
+        addFloat(e.x, e.y - 36, `+${drop.amount} ${drop.item}`, '#7ed321');
+      }
+    });
+    const respawnTime = EnemyConfig[e.type]?.respawnTime || 0;
+    if (respawnTime > 0) {
+      setTimeout(() => {
+        e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
+        e.x = e.originX; e.y = e.originY; e.stunTimer = 0;
+      }, respawnTime);
+    }
+  };
+
+  // ── Execute active ability ────────────────────────────────
+  const executeAbility = (abilityId, store) => {
+    const ability = AbilityConfig[abilityId];
+    if (!ability) return;
+
+    const p = G.player;
+    G.abilityCooldown = ability.cooldown;
+    store.recordAbilityFired(ability.cooldown);
+
+    addFloat(p.x, p.y - 55, ability.name, '#d4af37', true);
+
+    switch (ability.type) {
+      // ── AOE: Whirlwind (sword) ────────────────────────────
+      case 'aoe': {
+        G.enemies.forEach(e => {
+          if (!e.alive || dist(p.x, p.y, e.x, e.y) > ability.range) return;
+          const dmg = Math.max(1, Math.round(store.playerATK * ability.damageMult));
+          e.hp -= dmg;
+          addFloat(e.x, e.y - 24, `-${dmg}`, '#ff4444');
+          if (ability.stunDuration) e.stunTimer = ability.stunDuration;
+          if (e.hp <= 0) killEnemy(e, store);
+        });
+        G.abilityEffect = {
+          id: abilityId, x: p.x, y: p.y,
+          maxRadius: ability.range, radius: 0,
+          timer: 0.7, maxTimer: 0.7,
+        };
+        break;
+      }
+
+      // ── Projectile: Power Shot (bow) ──────────────────────
+      case 'projectile': {
+        // Aim at nearest enemy; fall back to last movement direction
+        let targetX = p.x + G.lastMoveDir.x * 200;
+        let targetY = p.y + G.lastMoveDir.y * 200;
+        let nearestDist = Infinity;
+        G.enemies.forEach(e => {
+          if (!e.alive) return;
+          const d = dist(p.x, p.y, e.x, e.y);
+          if (d < nearestDist) { nearestDist = d; targetX = e.x; targetY = e.y; }
+        });
+        const angle = Math.atan2(targetY - p.y, targetX - p.x);
+        G.projectiles.push({
+          x: p.x, y: p.y,
+          vx: Math.cos(angle) * 420,
+          vy: Math.sin(angle) * 420,
+          traveled: 0,
+          maxRange: ability.range,
+          dmg: Math.max(1, Math.round(store.playerATK * ability.damageMult)),
+          hitEnemies: new Set(),
+        });
+        break;
+      }
+
+      // ── Multi-hit: Flurry (dagger) ────────────────────────
+      case 'multi_hit': {
+        G.abilityEffect = {
+          id: abilityId, x: p.x, y: p.y,
+          timer: 0.6, maxTimer: 0.6,
+        };
+        for (let i = 0; i < ability.hits; i++) {
+          setTimeout(() => {
+            const currentStore = useGameStore.getState();
+            G.enemies.forEach(e => {
+              if (!e.alive || dist(G.player.x, G.player.y, e.x, e.y) > ability.range) return;
+              const dmg = Math.max(1, Math.round(currentStore.playerATK * ability.damageMult));
+              e.hp -= dmg;
+              addFloat(e.x, e.y - 20 - i * 8, `-${dmg}`, '#f39c12');
+              if (e.hp <= 0) killEnemy(e, currentStore);
+            });
+          }, i * ability.hitDelay * 1000);
+        }
+        break;
+      }
+
+      // ── Elemental AOE: Arcane Burst (staff) ───────────────
+      case 'elemental_aoe': {
+        G.enemies.forEach(e => {
+          if (!e.alive || dist(p.x, p.y, e.x, e.y) > ability.range) return;
+          const dmg = Math.max(1, Math.round(store.playerATK * ability.damageMult));
+          e.hp -= dmg;
+          addFloat(e.x, e.y - 24, `-${dmg}`, '#9b59b6');
+          if (e.hp <= 0) killEnemy(e, store);
+        });
+        G.abilityEffect = {
+          id: abilityId, x: p.x, y: p.y,
+          maxRadius: ability.range,
+          timer: 0.8, maxTimer: 0.8,
+        };
+        break;
+      }
+
+      default: break;
+    }
+  };
+
+  // ── Respawn via React effect ──────────────────────────────
   useEffect(() => {
-    if (prevDeathModalRef.current && !showDeathModal) {
+    if (prevDeathModal.current && !showDeathModal) {
       const store    = useGameStore.getState();
       const respawnAt = store.respawnAt || store.lastCheckpoint || 'stronghold';
       const pos      = RESPAWN_POINTS[respawnAt] || RESPAWN_POINTS.stronghold;
-
-      G.player.x = pos.x;
-      G.player.y = pos.y;
-      G.camera.x = pos.x;
-      G.camera.y = pos.y;
-      G.player.invincible = true;
-      G.player.invTimer   = 3.0;
-
+      G.player.x = pos.x; G.player.y = pos.y;
+      G.camera.x = pos.x; G.camera.y = pos.y;
+      G.player.invincible = true; G.player.invTimer = 3.0;
       useGameStore.setState({ respawnAt: null });
     }
-    prevDeathModalRef.current = showDeathModal;
+    prevDeathModal.current = showDeathModal;
   }, [showDeathModal]);
 
   useEffect(() => {
@@ -166,8 +292,7 @@ export default function WorldCanvas() {
         const rect = canvas.getBoundingClientRect();
         canvas.width  = Math.round(rect.width  > 0 ? rect.width  : window.innerWidth);
         canvas.height = Math.round(rect.height > 0 ? rect.height : window.innerHeight);
-        G.W = canvas.width;
-        G.H = canvas.height;
+        G.W = canvas.width; G.H = canvas.height;
       }, 50);
     };
     resize();
@@ -179,9 +304,7 @@ export default function WorldCanvas() {
       G.player.x = c.x; G.player.y = c.y;
       G.camera.x = c.x; G.camera.y = c.y;
     }
-
-    const hasSword = store.inventory.some(i => i.id === 'iron_sword');
-    if (hasSword) G.swordPicked = true;
+    if (store.inventory.some(i => i.id === 'iron_sword')) G.swordPicked = true;
 
     const kd = e => { G.keys[e.code] = true; };
     const ku = e => { G.keys[e.code] = false; };
@@ -212,12 +335,11 @@ export default function WorldCanvas() {
     const p   = G.player;
     const cfg = EnemyConfig;
 
-    if (G.npcMessage) {
-      G.npcMessage.timer -= dt;
-      if (G.npcMessage.timer <= 0) G.npcMessage = null;
-    }
+    if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
+    if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
+    if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
-    // Movement
+    // ── Movement ──────────────────────────────────────────
     let vx = 0, vy = 0;
     if (G.keys['ArrowLeft']  || G.keys['KeyA']) vx -= 1;
     if (G.keys['ArrowRight'] || G.keys['KeyD']) vx += 1;
@@ -225,24 +347,21 @@ export default function WorldCanvas() {
     if (G.keys['ArrowDown']  || G.keys['KeyS']) vy += 1;
     if (InputState.joystick.active) { vx = InputState.joystick.x; vy = InputState.joystick.y; }
     if (vx !== 0 && vy !== 0) { const m = Math.sqrt(vx*vx+vy*vy); vx/=m; vy/=m; }
+    if (vx !== 0 || vy !== 0) G.lastMoveDir = { x: vx, y: vy };
 
     const spd  = 150 + (store.playerSPD - 5) * 12;
     const next = clampToWorld(p.x + vx * spd * dt, p.y + vy * spd * dt);
     p.x = next.x; p.y = next.y;
 
-    // Camera with world bounds clamping — prevents dark strips at edges
-    const targetCamX = p.x;
-    const targetCamY = p.y;
-    G.camera.x += (targetCamX - G.camera.x) * Math.min(1, 8 * dt);
-    G.camera.y += (targetCamY - G.camera.y) * Math.min(1, 8 * dt);
-    // Clamp camera so it never shows outside the world
+    G.camera.x += (p.x - G.camera.x) * Math.min(1, 8 * dt);
+    G.camera.y += (p.y - G.camera.y) * Math.min(1, 8 * dt);
     G.camera.x = Math.max(G.W/2, Math.min(WORLD_W - G.W/2, G.camera.x));
     G.camera.y = Math.max(G.H/2, Math.min(WORLD_H - G.H/2, G.camera.y));
 
     if (p.attackCooldown > 0) p.attackCooldown -= dt;
     if (p.invincible) { p.invTimer -= dt; if (p.invTimer <= 0) p.invincible = false; }
 
-    // Attack
+    // ── Normal attack ─────────────────────────────────────
     const spaceNow  = G.keys['Space'] || InputState.attack;
     const spaceJust = spaceNow && !G.prevSpace;
     G.prevSpace = spaceNow;
@@ -255,25 +374,40 @@ export default function WorldCanvas() {
         const dmg = Math.max(1, store.playerATK - cfg[e.type].def);
         e.hp -= dmg;
         addFloat(e.x, e.y - 20, `-${dmg}`, '#ff4444');
-        if (e.hp <= 0) {
-          e.alive = false;
-          store.gainXP(cfg[e.type].xpReward || 10);
-          addFloat(e.x, e.y - 50, `+${cfg[e.type].xpReward || 10} XP`, '#9b59b6');
-          cfg[e.type].drops.forEach(drop => {
-            if (Math.random() < drop.chance) {
-              store.addResource(drop.item, drop.amount);
-              addFloat(e.x, e.y - 40, `+${drop.amount} ${drop.item}`, '#7ed321');
-            }
-          });
-          setTimeout(() => {
-            e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
-            e.x = e.originX; e.y = e.originY;
-          }, cfg[e.type].respawnTime);
-        }
+        if (e.hp <= 0) killEnemy(e, store);
       });
     }
 
-    // Interact
+    // ── Active ability ─────────────────────────────────────
+    const abilityNow  = G.keys['KeyQ'] || InputState.ability;
+    const abilityJust = abilityNow && !G.prevAbility;
+    G.prevAbility = abilityNow;
+    if (InputState.ability) InputState.ability = false;
+
+    if (abilityJust && G.abilityCooldown <= 0 && store.equippedAbilityId) {
+      executeAbility(store.equippedAbilityId, store);
+    }
+
+    // ── Update projectiles (Power Shot) ───────────────────
+    G.projectiles = G.projectiles.filter(proj => {
+      proj.x += proj.vx * dt;
+      proj.y += proj.vy * dt;
+      proj.traveled += Math.sqrt(proj.vx*proj.vx + proj.vy*proj.vy) * dt;
+
+      G.enemies.forEach(e => {
+        if (!e.alive || proj.hitEnemies.has(e)) return;
+        if (dist(proj.x, proj.y, e.x, e.y) > 22) return;
+        proj.hitEnemies.add(e);
+        e.hp -= proj.dmg;
+        addFloat(e.x, e.y - 24, `-${proj.dmg}`, '#FCD34D');
+        if (e.hp <= 0) killEnemy(e, store);
+      });
+
+      return proj.traveled < proj.maxRange &&
+        proj.x > 0 && proj.x < WORLD_W && proj.y > 0 && proj.y < WORLD_H;
+    });
+
+    // ── Interact (E) ───────────────────────────────────────
     const eNow  = G.keys['KeyE'] || InputState.interact;
     const eJust = eNow && !G.prevE;
     G.prevE = eNow;
@@ -294,25 +428,27 @@ export default function WorldCanvas() {
         addFloat(cp.x, cp.y - 30, '✓ Checkpoint saved!', '#f1c40f');
       });
 
-      const alreadyHasSword = store.inventory.some(i => i.id === 'iron_sword');
-      if (!G.swordPicked && !alreadyHasSword && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
-        const item = { id: 'iron_sword', name: 'Iron Sword', slot: 'weapon', atk: 6 };
+      const hasSword = store.inventory.some(i => i.id === 'iron_sword');
+      if (!G.swordPicked && !hasSword && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
+        const item = {
+          id: 'iron_sword', name: 'Iron Sword', slot: 'weapon',
+          type: 'sword', tier: 'iron', rarity: 'common',
+          atk: 6, abilityId: 'whirlwind',
+          instanceId: `item_${Date.now()}_sword`,
+        };
         if (store.addItem(item)) {
           G.swordPicked = true;
           store.equipItem(item);
-          addFloat(27*TILE, 27*TILE - 30, '⚔ Iron Sword equipped!', '#bdc3c7');
+          addFloat(27*TILE, 27*TILE - 30, '⚔ Iron Sword + Whirlwind!', '#bdc3c7');
         }
-      } else if (alreadyHasSword) {
+      } else if (hasSword) {
         G.swordPicked = true;
       }
 
-      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) {
-        store.setGamePhase('stronghold');
-        return;
-      }
+      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
 
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
-        G.npcMessage = { text: 'The dungeon is sealed for now. Return in Phase 2 when you are stronger.', timer: 5 };
+        G.npcMessage = { text: 'The dungeon is sealed. Return in Phase 2.', timer: 5 };
       }
 
       if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
@@ -321,9 +457,16 @@ export default function WorldCanvas() {
       }
     }
 
-    // Enemy AI
+    // ── Enemy AI ───────────────────────────────────────────
     G.enemies.forEach(e => {
       if (!e.alive) return;
+
+      // Stun check — skip AI entirely when stunned
+      if (e.stunTimer > 0) {
+        e.stunTimer -= dt;
+        return;
+      }
+
       const ecfg    = cfg[e.type];
       const d       = dist(p.x, p.y, e.x, e.y);
       const dOrigin = dist(e.x, e.y, e.originX, e.originY);
@@ -380,17 +523,18 @@ export default function WorldCanvas() {
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, W, H);
 
+    // Tiles
     const txS = Math.max(0, Math.floor((cx - W/2) / TILE));
     const txE = Math.min(MAP_W, Math.ceil((cx + W/2) / TILE) + 1);
     const tyS = Math.max(0, Math.floor((cy - H/2) / TILE));
     const tyE = Math.min(MAP_H, Math.ceil((cy + H/2) / TILE) + 1);
-    for (let ty = tyS; ty < tyE; ty++) {
+    for (let ty = tyS; ty < tyE; ty++)
       for (let tx = txS; tx < txE; tx++) {
         ctx.fillStyle = tileColor(tx, ty);
         ctx.fillRect(wx(tx*TILE), wy(ty*TILE), TILE+1, TILE+1);
       }
-    }
 
+    // Resources
     G.resources.forEach(r => {
       if (r.depleted) return;
       const sx = wx(r.x), sy = wy(r.y);
@@ -401,11 +545,11 @@ export default function WorldCanvas() {
       ctx.fillText(r.res, sx, sy + 24);
     });
 
+    // Checkpoints
     G.checkpoints.forEach(cp => {
       const sx = wx(cp.x), sy = wy(cp.y);
       if (!onScreen(sx, sy)) return;
-      const pulse = cp.activated ? 1 : 0.6 + Math.sin(Date.now() / 600) * 0.4;
-      ctx.globalAlpha = pulse;
+      ctx.globalAlpha = cp.activated ? 1 : 0.6 + Math.sin(Date.now() / 600) * 0.4;
       ctx.fillStyle   = cp.activated ? '#00ff88' : '#f1c40f';
       ctx.fillRect(sx-8, sy-18, 16, 26);
       ctx.globalAlpha = 1;
@@ -413,10 +557,11 @@ export default function WorldCanvas() {
       ctx.fillText(cp.activated ? 'SAVED' : 'SAVE', sx, sy + 28);
     });
 
+    // Stronghold
     const shx = wx(25*TILE), shy = wy(44*TILE);
     if (onScreen(shx, shy, 80)) {
       ctx.globalAlpha = 0.75 + Math.sin(Date.now() / 700) * 0.25;
-      ctx.fillStyle   = '#d4af37';
+      ctx.fillStyle = '#d4af37';
       ctx.fillRect(shx-24, shy-24, 48, 48);
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#000000cc'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
@@ -425,6 +570,7 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', shx, shy + 36);
     }
 
+    // Dungeon
     const dunx = wx(43*TILE), duny = wy(10*TILE);
     if (onScreen(dunx, duny, 80)) {
       ctx.fillStyle = '#8e44ad';
@@ -435,6 +581,7 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
 
+    // NPC
     const nx = wx(23*TILE), ny = wy(28*TILE);
     if (onScreen(nx, ny)) {
       ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
@@ -445,20 +592,129 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Talk', nx, ny + 26);
     }
 
+    // Iron Sword pickup
     if (!G.swordPicked) {
       const isx = wx(27*TILE), isy = wy(27*TILE);
       if (onScreen(isx, isy)) {
         ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-        ctx.fillStyle = '#bdc3c7';
-        ctx.fillRect(isx-5, isy-14, 10, 24);
+        ctx.fillStyle = '#bdc3c7'; ctx.fillRect(isx-5, isy-14, 10, 24);
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#bdc3c7'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('⚔ Iron Sword', isx, isy - 22);
+        ctx.fillText('⚔ Iron Sword + Whirlwind', isx, isy - 22);
         ctx.fillStyle = '#bdc3c7aa'; ctx.font = '9px sans-serif';
         ctx.fillText('[E] Pick up', isx, isy + 24);
       }
     }
 
+    // ── Ability effect rendering ───────────────────────────
+    if (G.abilityEffect) {
+      const fx = G.abilityEffect, px = wx(fx.x), py = wy(fx.y);
+      const progress = 1 - (fx.timer / fx.maxTimer); // 0 → 1 as effect plays
+      const alpha    = fx.timer / fx.maxTimer;        // 1 → 0 fading out
+      const colors   = ABILITY_COLORS[fx.id] || { primary: '#fff', secondary: '#aaa' };
+
+      ctx.globalAlpha = alpha * 0.85;
+
+      if (fx.id === 'whirlwind') {
+        // Expanding ring + rotating arcs
+        const r = fx.maxRadius * progress;
+        ctx.strokeStyle = colors.primary; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + progress * Math.PI * 4;
+          ctx.strokeStyle = colors.secondary; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(
+            px + Math.cos(a) * r * 0.5,
+            py + Math.sin(a) * r * 0.5,
+            r * 0.25, a + 0.5, a + 2.5,
+          );
+          ctx.stroke();
+        }
+
+      } else if (fx.id === 'ground_slam') {
+        // Multiple shockwave rings
+        for (let ring = 0; ring < 4; ring++) {
+          const delay = ring * 0.12;
+          const rProg = Math.max(0, progress - delay);
+          const r = fx.maxRadius * rProg;
+          if (r <= 0) continue;
+          ctx.strokeStyle = ring === 0 ? colors.primary : colors.secondary;
+          ctx.lineWidth = Math.max(1, 5 - ring * 1.2);
+          ctx.globalAlpha = alpha * (1 - ring * 0.2) * 0.85;
+          ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
+        }
+        // Center impact flash
+        ctx.globalAlpha = (1 - progress) * alpha * 0.6;
+        ctx.fillStyle = colors.primary;
+        ctx.beginPath(); ctx.arc(px, py, 20 * (1 - progress), 0, Math.PI * 2); ctx.fill();
+
+      } else if (fx.id === 'arcane_burst') {
+        // Expanding star burst
+        const r = fx.maxRadius * progress;
+        ctx.strokeStyle = colors.primary; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
+        // Star points
+        for (let i = 0; i < 8; i++) {
+          const a  = (i / 8) * Math.PI * 2 + progress * Math.PI;
+          const sx = px + Math.cos(a) * r;
+          const sy = py + Math.sin(a) * r;
+          ctx.fillStyle = colors.secondary;
+          ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill();
+          // Spokes
+          ctx.strokeStyle = colors.primary; ctx.lineWidth = 1.5;
+          ctx.globalAlpha = alpha * 0.4;
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx, sy); ctx.stroke();
+          ctx.globalAlpha = alpha * 0.85;
+        }
+
+      } else if (fx.id === 'flurry') {
+        // Rapid slash marks radiating from player
+        for (let i = 0; i < 8; i++) {
+          const a  = (i / 8) * Math.PI * 2 + progress * Math.PI * 2;
+          const r1 = 20 + progress * 30;
+          const r2 = r1 + 20;
+          ctx.strokeStyle = i % 2 === 0 ? colors.primary : colors.secondary;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(px + Math.cos(a) * r1, py + Math.sin(a) * r1);
+          ctx.lineTo(px + Math.cos(a) * r2, py + Math.sin(a) * r2);
+          ctx.stroke();
+        }
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Power Shot projectiles ─────────────────────────────
+    G.projectiles.forEach(proj => {
+      const px = wx(proj.x), py = wy(proj.y);
+      if (!onScreen(px, py)) return;
+
+      // Trail
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = '#FCD34D'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(
+        px - (proj.vx / 420) * 22,
+        py - (proj.vy / 420) * 22,
+      );
+      ctx.stroke();
+
+      // Glow
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#F97316';
+      ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill();
+
+      // Core
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#FCD34D';
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // Enemies
     G.enemies.forEach(e => {
       if (!e.alive) return;
       const ex = wx(e.x), ey = wy(e.y);
@@ -466,10 +722,22 @@ export default function WorldCanvas() {
       const isGolem = e.type === 'golem';
       const r       = isGolem ? 18 : 12;
       const aggroed = e.state !== 'patrol';
-      ctx.fillStyle = aggroed ? '#e74c3c' : (isGolem ? '#8e44ad' : '#7ed321');
+      const stunned = e.stunTimer > 0;
+
+      // Stunned flash
+      ctx.globalAlpha = stunned ? (Math.sin(Date.now() / 80) > 0 ? 0.4 : 1) : 1;
+      ctx.fillStyle = stunned ? '#FCD34D' : aggroed ? '#e74c3c' : (isGolem ? '#8e44ad' : '#7ed321');
       ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-      if (aggroed) {
+      ctx.strokeStyle = stunned ? '#FCD34D' : '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Stun stars
+      if (stunned) {
+        ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('💫', ex, ey - r - 8);
+      }
+
+      if (aggroed && !stunned) {
         const bw = 36;
         ctx.fillStyle = '#333'; ctx.fillRect(ex-bw/2, ey-r-10, bw, 5);
         ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex-bw/2, ey-r-10, bw*(e.hp/e.maxHp), 5);
@@ -478,6 +746,7 @@ export default function WorldCanvas() {
       }
     });
 
+    // Player
     const ppx = wx(p.x), ppy = wy(p.y);
     const blinkOn = !p.invincible || Math.sin(Date.now() / 80) > 0;
     ctx.globalAlpha = blinkOn ? 1 : 0.15;
@@ -487,63 +756,47 @@ export default function WorldCanvas() {
     ctx.lineWidth = p.invincible ? 3 : 2; ctx.stroke();
     ctx.globalAlpha = 1;
 
+    // Float texts
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
-      ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+      ctx.font = `bold ${f.big ? 16 : 14}px sans-serif`; ctx.textAlign = 'center';
       ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
       ctx.strokeText(f.text, fx, fy);
       ctx.fillStyle = f.color; ctx.fillText(f.text, fx, fy);
     });
     ctx.globalAlpha = 1;
 
-    // ── NPC dialogue — positioned ABOVE the control buttons ──
+    // NPC dialogue box — above controls
     if (G.npcMessage) {
-      const msg   = G.npcMessage;
-      const alpha = Math.min(1, msg.timer * 1.5);
-      const pad   = 16;
-      const boxH  = 90;
-      // Controls area is ~240px from bottom — place dialogue above that
-      const boxY  = H - boxH - 260;
-      const boxW  = W - pad * 2;
-
+      const msg    = G.npcMessage;
+      const alpha  = Math.min(1, msg.timer * 1.5);
+      const pad    = 16, boxH = 90, boxY = H - boxH - 260, boxW = W - pad * 2;
       ctx.globalAlpha = alpha;
       ctx.fillStyle   = '#000000ee';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
       else ctx.rect(pad, boxY, boxW, boxH);
       ctx.fill();
-
-      ctx.strokeStyle = '#d4af37';
-      ctx.lineWidth   = 1.5;
+      ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 1.5;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
       else ctx.rect(pad, boxY, boxW, boxH);
       ctx.stroke();
-
-      ctx.fillStyle = '#1abc9c';
-      ctx.font      = 'bold 13px sans-serif';
-      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1abc9c'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
       ctx.fillText('Elder Kael', pad + 12, boxY + 20);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font      = '12px sans-serif';
+      ctx.fillStyle = '#ffffff'; ctx.font = '12px sans-serif';
       wrapText(ctx, msg.text, pad + 12, boxY + 40, boxW - 24, 17);
-
-      ctx.globalAlpha = 1;
-      ctx.textAlign   = 'left';
+      ctx.globalAlpha = 1; ctx.textAlign = 'left';
     }
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: 'absolute', top: 0, left: 0,
-        width: '100%', height: '100%', display: 'block',
-        touchAction: 'none', userSelect: 'none',
-        WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
-      }}
-    />
+    <canvas ref={canvasRef} style={{
+      position: 'absolute', top: 0, left: 0,
+      width: '100%', height: '100%', display: 'block',
+      touchAction: 'none', userSelect: 'none',
+      WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
+    }} />
   );
 }
