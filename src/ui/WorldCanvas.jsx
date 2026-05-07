@@ -73,12 +73,20 @@ const RESOURCE_DEFS = [
 ];
 
 const ENEMY_DEFS = [
+  // Standard goblins — northern forest
   { type: 'goblin', x: 12*TILE, y: 18*TILE },
   { type: 'goblin', x: 18*TILE, y: 15*TILE },
   { type: 'goblin', x: 22*TILE, y: 20*TILE },
   { type: 'goblin', x:  8*TILE, y: 22*TILE },
+  // Standard golems — eastern zone
   { type: 'golem',  x: 38*TILE, y: 20*TILE },
   { type: 'golem',  x: 42*TILE, y: 30*TILE },
+  // ⭐ Elite: Gold Goblins — deeper forest
+  { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },
+  { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },
+  // ⭐⭐ Elite: Stone Guardians — eastern rocky zone
+  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },
+  { type: 'stone_guardian', x: 45*TILE, y: 35*TILE },
 ];
 
 const PATROL_RADIUS = 80;
@@ -105,7 +113,76 @@ function makeEnemy(def) {
     state: 'patrol', alive: true,
     attackTimer: 0, patrolDir: 1, patrolTimer: 0,
     stunTimer: 0,
+    // Elite properties
+    isElite:    cfg.isElite    || false,
+    isBoss:     cfg.isBoss     || false,
+    eliteStars: cfg.eliteStars || 0,
   };
+}
+
+// Resolve a drop item — handles resources, gear, and special items
+function resolveDropItem(drop, store, floatX, floatY, addFloat) {
+  const RESOURCE_TYPES = ['wood', 'stone', 'ore', 'fire_shard', 'goblin_tooth'];
+
+  if (RESOURCE_TYPES.includes(drop.item)) {
+    store.addResource(drop.item, drop.amount);
+    addFloat(floatX, floatY, `+${drop.amount} ${drop.item}`, '#7ed321');
+    return;
+  }
+
+  if (drop.item === 'hunters_charm') {
+    const item = {
+      id: 'hunters_charm', name: "Hunter's Charm",
+      slot: 'accessory', rarity: 'rare',
+      atk: 4, spd: 1,
+      instanceId: `item_${Date.now()}_hunters_charm`,
+    };
+    if (store.addItem(item)) addFloat(floatX, floatY - 16, "🎯 Hunter's Charm!", '#3498db');
+    return;
+  }
+
+  if (drop.item === 'shadow_armor') {
+    const item = {
+      id: 'shadow_armor', name: 'Shadow Armor',
+      slot: 'armor', tier: 'iron', rarity: 'rare',
+      def: 14,
+      instanceId: `item_${Date.now()}_shadow_armor`,
+    };
+    if (store.addItem(item)) addFloat(floatX, floatY - 16, '🌑 Shadow Armor!', '#9b59b6');
+    return;
+  }
+
+  if (drop.item === 'gear_drop_uncommon_weapon') {
+    const TYPES    = ['sword', 'hammer', 'bow', 'dagger'];
+    const ABILITY  = { sword: 'whirlwind', hammer: 'ground_slam', bow: 'power_shot', dagger: 'flurry' };
+    const type     = TYPES[Math.floor(Math.random() * TYPES.length)];
+    const name     = `Iron ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    const item = {
+      id: `iron_${type}_uncommon`, name,
+      slot: 'weapon', type, tier: 'iron', rarity: 'uncommon',
+      atk: 15,  // iron tier * uncommon rarity ≈ 8 * 1.6 * 1.25
+      abilityId: ABILITY[type],
+      instanceId: `item_${Date.now()}_${type}`,
+    };
+    if (store.addItem(item)) addFloat(floatX, floatY - 16, `⚔ Uncommon ${name}!`, '#2ecc71');
+    return;
+  }
+
+  if (drop.item === 'gear_drop_rare_weapon') {
+    const TYPES   = ['sword', 'hammer', 'bow', 'dagger'];
+    const ABILITY = { sword: 'whirlwind', hammer: 'ground_slam', bow: 'power_shot', dagger: 'flurry' };
+    const type    = TYPES[Math.floor(Math.random() * TYPES.length)];
+    const name    = `Steel ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    const item = {
+      id: `steel_${type}_rare`, name,
+      slot: 'weapon', type, tier: 'steel', rarity: 'rare',
+      atk: 31,  // steel tier * rare rarity ≈ 8 * 2.4 * 1.6
+      abilityId: ABILITY[type],
+      instanceId: `item_${Date.now()}_${type}`,
+    };
+    if (store.addItem(item)) addFloat(floatX, floatY - 16, `💎 Rare ${name}!`, '#3498db');
+    return;
+  }
 }
 
 // Ability colors per ability ID
@@ -155,16 +232,18 @@ export default function WorldCanvas() {
   // ── Kill enemy helper ────────────────────────────────────
   const killEnemy = (e, store) => {
     e.alive = false;
-    const xpReward = EnemyConfig[e.type]?.xpReward || 10;
+    const cfg       = EnemyConfig[e.type];
+    const xpReward  = cfg?.xpReward || 10;
     store.gainXP(xpReward);
     addFloat(e.x, e.y - 50, `+${xpReward} XP`, '#9b59b6');
-    EnemyConfig[e.type]?.drops?.forEach(drop => {
+
+    cfg?.drops?.forEach(drop => {
       if (Math.random() < drop.chance) {
-        store.addResource(drop.item, drop.amount);
-        addFloat(e.x, e.y - 36, `+${drop.amount} ${drop.item}`, '#7ed321');
+        resolveDropItem(drop, store, e.x, e.y - 36, addFloat);
       }
     });
-    const respawnTime = EnemyConfig[e.type]?.respawnTime || 0;
+
+    const respawnTime = cfg?.respawnTime || 0;
     if (respawnTime > 0) {
       setTimeout(() => {
         e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
@@ -719,16 +798,46 @@ export default function WorldCanvas() {
       if (!e.alive) return;
       const ex = wx(e.x), ey = wy(e.y);
       if (!onScreen(ex, ey)) return;
-      const isGolem = e.type === 'golem';
-      const r       = isGolem ? 18 : 12;
+
+      const cfg     = EnemyConfig[e.type];
+      const isGolem = e.type === 'golem' || e.type === 'stone_guardian';
+      const r       = isGolem ? (e.isElite ? 22 : 18) : (e.isElite ? 15 : 12);
       const aggroed = e.state !== 'patrol';
       const stunned = e.stunTimer > 0;
 
-      // Stunned flash
+      // Elite glow ring
+      if (e.isElite && !stunned) {
+        const glowColor = e.type === 'gold_goblin'    ? '#f1c40f'
+                        : e.type === 'stone_guardian' ? '#8e44ad'
+                        : '#fff';
+        ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 400) * 0.15;
+        ctx.strokeStyle = glowColor;
+        ctx.lineWidth   = 4;
+        ctx.beginPath(); ctx.arc(ex, ey, r + 5, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // Body
       ctx.globalAlpha = stunned ? (Math.sin(Date.now() / 80) > 0 ? 0.4 : 1) : 1;
-      ctx.fillStyle = stunned ? '#FCD34D' : aggroed ? '#e74c3c' : (isGolem ? '#8e44ad' : '#7ed321');
-      ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = stunned ? '#FCD34D' : '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Elite tint colors
+      let fillColor;
+      if      (e.type === 'gold_goblin')    fillColor = aggroed ? '#e6a800' : '#f1c40f';
+      else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad';
+      else if (stunned)                     fillColor = '#FCD34D';
+      else if (aggroed)                     fillColor = '#e74c3c';
+      else if (isGolem)                     fillColor = '#8e44ad';
+      else                                  fillColor = '#7ed321';
+
+      ctx.fillStyle = fillColor;
+      ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+
+      const strokeColor = stunned ? '#FCD34D'
+                        : e.isElite ? (e.type === 'gold_goblin' ? '#ffd700' : '#c39bd3')
+                        : '#fff';
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth   = e.isElite ? 2.5 : 1.5;
+      ctx.stroke();
       ctx.globalAlpha = 1;
 
       // Stun stars
@@ -737,12 +846,35 @@ export default function WorldCanvas() {
         ctx.fillText('💫', ex, ey - r - 8);
       }
 
+      // HP bar + name + elite stars
       if (aggroed && !stunned) {
-        const bw = 36;
-        ctx.fillStyle = '#333'; ctx.fillRect(ex-bw/2, ey-r-10, bw, 5);
-        ctx.fillStyle = '#e74c3c'; ctx.fillRect(ex-bw/2, ey-r-10, bw*(e.hp/e.maxHp), 5);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(e.type, ex, ey - r - 14);
+        const bw = e.isElite ? 48 : 36;
+
+        // HP bar background
+        ctx.fillStyle = '#333';
+        ctx.fillRect(ex - bw/2, ey - r - 10, bw, 5);
+
+        // HP bar fill — gold for elites
+        ctx.fillStyle = e.isElite ? '#f1c40f' : '#e74c3c';
+        ctx.fillRect(ex - bw/2, ey - r - 10, bw * (e.hp / e.maxHp), 5);
+
+        // Name
+        ctx.fillStyle = e.isElite ? '#ffd700' : '#fff';
+        ctx.font = `bold ${e.isElite ? 10 : 9}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(cfg.name || e.type, ex, ey - r - 14);
+
+        // Elite stars
+        if (e.eliteStars > 0) {
+          const stars = '⭐'.repeat(e.eliteStars);
+          ctx.font = '8px sans-serif';
+          ctx.fillText(stars, ex, ey - r - 24);
+        }
+      } else if (e.isElite && !aggroed) {
+        // Show elite indicator even when patrolling
+        ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = e.type === 'gold_goblin' ? '#ffd700aa' : '#c39bd3aa';
+        ctx.fillText('⭐'.repeat(e.eliteStars), ex, ey - r - 8);
       }
     });
 
