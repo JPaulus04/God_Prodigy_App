@@ -15,15 +15,17 @@ const DEFAULT_STATE = {
   playerDEF:     4,
   playerSPD:     5,
 
-  level:           1,
-  xp:              0,
-  xpToNextLevel:   100,
-  statPoints:      0,
+  level:            1,
+  xp:               0,
+  xpToNextLevel:    100,
+  statPoints:       0,
   trainingATKBonus: 0,
   trainingDEFBonus: 0,
 
-  equippedAbilityId: null,
-  abilityCooldown:   0,
+  equippedAbilityId:  null,
+  // Ability cooldown tracking — read by HUD for the cooldown ring display
+  abilityFiredAt:     null,   // timestamp (ms) when ability last fired
+  abilityCooldownMs:  0,      // total cooldown duration in ms
 
   position:      { zone: 'world', x: 800, y: 960 },
   activeZone:    'world',
@@ -35,10 +37,10 @@ const DEFAULT_STATE = {
 
   resources:    { wood: 0, stone: 0, ore: 0, fire_shard: 0 },
 
-  checkpoints:      [],
-  lastCheckpoint:   'stronghold',
-  stronghold:       { forge: 0, storage: 0, trainingGrounds: 0 },
-  bossesDefeated:   [],
+  checkpoints:       [],
+  lastCheckpoint:    'stronghold',
+  stronghold:        { forge: 0, storage: 0, trainingGrounds: 0 },
+  bossesDefeated:    [],
   ascensionProgress: 0,
 
   showInventory:  false,
@@ -70,16 +72,15 @@ export const useGameStore = create((set, get) => ({
 
   gainXP: (amount) => {
     const { xp, level } = get();
-    if (level >= XP_THRESHOLDS.length) return;
-    const newXP = xp + amount;
-    const nextThreshold = XP_THRESHOLDS[level] || Infinity;
-    if (newXP >= nextThreshold && level < 30) {
+    if (level >= 30) return;
+    const newXP  = xp + amount;
+    const nextTh = XP_THRESHOLDS[level] || Infinity;
+    if (newXP >= nextTh && level < 30) {
       const newLevel = level + 1;
-      const nextNext  = XP_THRESHOLDS[newLevel] || XP_THRESHOLDS[XP_THRESHOLDS.length - 1];
       set({
         xp:            newXP,
         level:         newLevel,
-        xpToNextLevel: nextNext,
+        xpToNextLevel: XP_THRESHOLDS[newLevel] || XP_THRESHOLDS[XP_THRESHOLDS.length - 1],
         statPoints:    get().statPoints + 3,
         showLevelUp:   true,
       });
@@ -102,6 +103,11 @@ export const useGameStore = create((set, get) => ({
 
   dismissLevelUp: () => set({ showLevelUp: false }),
   openLevelUp:    () => set({ showLevelUp: true }),
+
+  // Called by WorldCanvas when ability fires — updates HUD cooldown ring
+  recordAbilityFired: (cooldownSeconds) => {
+    set({ abilityFiredAt: Date.now(), abilityCooldownMs: cooldownSeconds * 1000 });
+  },
 
   addResource: (type, amount) => {
     const { resources } = get();
@@ -135,7 +141,6 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
-  // Recalculate all player stats from scratch based on base + training + equipped gear
   recalculateStats: () => {
     const { gear, inventory, playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus, playerSPD } = get();
     let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
@@ -162,7 +167,6 @@ export const useGameStore = create((set, get) => ({
     const newGear = { ...gear, [item.slot]: item.instanceId };
     set({ gear: newGear });
 
-    // Recalculate fresh from base stats
     const { playerBaseATK, playerBaseDEF, trainingATKBonus, trainingDEFBonus, playerSPD } = get();
     let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
     let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
@@ -196,20 +200,13 @@ export const useGameStore = create((set, get) => ({
     const { itemUpgrades, inventory } = get();
     const currentLevel = itemUpgrades[instanceId] || 0;
     const newLevel     = currentLevel + 1;
-
     Object.entries(costPaid).forEach(([res, amt]) => get().spendResource(res, amt));
-
     const updatedInventory = inventory.map(item => {
       if (item.instanceId !== instanceId || item.slot !== 'weapon') return item;
-      const bonus = (newLevel - currentLevel) * 2;
-      return { ...item, atk: (item.atk || 0) + bonus, upgradeLevel: newLevel };
+      return { ...item, atk: (item.atk || 0) + 2, upgradeLevel: newLevel };
     });
-
     set({ itemUpgrades: { ...itemUpgrades, [instanceId]: newLevel }, inventory: updatedInventory });
-
-    const { gear } = get();
-    if (Object.values(gear).includes(instanceId)) get().recalculateStats();
-
+    if (Object.values(get().gear).includes(instanceId)) get().recalculateStats();
     SaveSystem.save(get());
   },
 
@@ -224,8 +221,11 @@ export const useGameStore = create((set, get) => ({
     const { playerMaxHP, resources, lastCheckpoint } = get();
     const penalized = {};
     Object.entries(resources).forEach(([k, v]) => { penalized[k] = Math.floor(v * 0.8); });
-    const respawnAt = location === 'stronghold' ? 'stronghold' : (lastCheckpoint || 'stronghold');
-    set({ playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false, resources: penalized, activeZone: 'world', respawnAt });
+    set({
+      playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false,
+      resources: penalized, activeZone: 'world',
+      respawnAt: location === 'stronghold' ? 'stronghold' : (lastCheckpoint || 'stronghold'),
+    });
     SaveSystem.save(get());
   },
 
@@ -237,10 +237,7 @@ export const useGameStore = create((set, get) => ({
 
   applyTrainingBonus: (atkBonus, defBonus, spdBonus = 0) => {
     const { trainingATKBonus, trainingDEFBonus } = get();
-    set({
-      trainingATKBonus: (trainingATKBonus || 0) + atkBonus,
-      trainingDEFBonus: (trainingDEFBonus || 0) + defBonus,
-    });
+    set({ trainingATKBonus: (trainingATKBonus || 0) + atkBonus, trainingDEFBonus: (trainingDEFBonus || 0) + defBonus });
     get().recalculateStats();
     if (spdBonus) set(s => ({ playerSPD: s.playerSPD + spdBonus }));
     SaveSystem.save(get());
@@ -261,40 +258,28 @@ export const useGameStore = create((set, get) => ({
   loadSave: () => {
     const saved = SaveSystem.load();
     if (!saved) return;
-
-    // ── Migrate: give instanceIds to items that don't have one ──────────
     if (saved.inventory) {
       saved.inventory = saved.inventory.map((item, i) => ({
         ...item,
         instanceId: item.instanceId || `item_migrated_${i}_${item.id}`,
       }));
     }
-
-    // ── Migrate: gear stored as item id → gear stored as instanceId ─────
     if (saved.gear && saved.inventory) {
       const migrated = { weapon: null, armor: null, accessory: null };
       Object.entries(saved.gear).forEach(([slot, val]) => {
         if (!val) return;
-        if (val.startsWith('item_') || val.includes('migrated')) {
-          migrated[slot] = val; // already an instanceId
-        } else {
-          // Old format stored the item config id (e.g. 'iron_sword')
+        if (val.startsWith('item_')) { migrated[slot] = val; }
+        else {
           const found = saved.inventory.find(i => i.id === val);
           migrated[slot] = found ? found.instanceId : null;
         }
       });
       saved.gear = migrated;
     }
-
     set(saved);
     if (saved.playerName) set({ gamePhase: 'world' });
-
-    // Recalculate stats from migrated gear — fixes ATK after upgrade
     setTimeout(() => get().recalculateStats(), 0);
   },
 
-  resetGame: () => {
-    SaveSystem.clear();
-    set({ ...DEFAULT_STATE });
-  },
+  resetGame: () => { SaveSystem.clear(); set({ ...DEFAULT_STATE }); },
 }));
