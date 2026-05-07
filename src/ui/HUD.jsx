@@ -5,13 +5,21 @@ import VirtualJoystick   from './VirtualJoystick';
 
 export default function HUD() {
   const {
-    playerHP, playerMaxHP, playerName,
+    playerHP, playerMaxHP,
+    playerName,
+    level, xp, xpToNextLevel, statPoints,
     resources, ascensionProgress,
     toggleHelpMenu, toggleInventory, showInventory,
   } = useGameStore();
 
-  const hpPct   = Math.max(0, (playerHP / playerMaxHP) * 100);
+  const hpPct  = Math.max(0, (playerHP / playerMaxHP) * 100);
   const hpColor = hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f39c12' : '#e74c3c';
+
+  // XP bar — show progress toward next level
+  const prevThreshold = xp >= xpToNextLevel ? xpToNextLevel : 0;
+  const xpPct = xpToNextLevel > 0
+    ? Math.min(100, (xp / xpToNextLevel) * 100)
+    : 100;
 
   const onAttack = () => {
     InputState.attack = true;
@@ -26,31 +34,76 @@ export default function HUD() {
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
 
-      {/* ── Top-left: Name + HP + Resources ─────────────── */}
+      {/* ── Top-left: Name + Level + HP + XP + Resources ─── */}
       <div style={{
         position: 'absolute', top: 56, left: 14,
-        display: 'flex', flexDirection: 'column', gap: 6,
-        maxWidth: '55%',
+        display: 'flex', flexDirection: 'column', gap: 5,
+        maxWidth: '58%',
       }}>
-        <div style={{ color: '#d4af37', fontSize: 17, fontWeight: 'bold', textShadow: '0 1px 4px #000' }}>
-          {playerName || 'Warrior'}
+
+        {/* Name + Level */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ color: '#d4af37', fontSize: 17, fontWeight: 'bold', textShadow: '0 1px 4px #000' }}>
+            {playerName || 'Warrior'}
+          </span>
+          <span style={{
+            color: '#fff', fontSize: 11, fontWeight: 'bold',
+            background: '#d4af3733', border: '1px solid #d4af3766',
+            borderRadius: 6, padding: '1px 6px',
+          }}>
+            Lv.{level}
+          </span>
+          {statPoints > 0 && (
+            <span style={{
+              color: '#0d0d1a', fontSize: 10, fontWeight: 'bold',
+              background: '#d4af37', borderRadius: 10,
+              padding: '1px 6px', animation: 'pulse 1s infinite',
+            }}>
+              +{statPoints} pts
+            </span>
+          )}
         </div>
+
+        {/* HP bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ color: '#e74c3c', fontSize: 18 }}>❤</span>
+          <span style={{ color: '#e74c3c', fontSize: 16 }}>❤</span>
           <div style={{
-            flex: 1, height: 16, background: '#222',
-            borderRadius: 8, overflow: 'hidden', border: '1px solid #555', minWidth: 100,
+            flex: 1, height: 14, background: '#222',
+            borderRadius: 7, overflow: 'hidden',
+            border: '1px solid #555', minWidth: 100,
           }}>
             <div style={{
               width: `${hpPct}%`, height: '100%',
-              background: hpColor, borderRadius: 8,
+              background: hpColor, borderRadius: 7,
               transition: 'width 0.2s, background 0.3s',
             }} />
           </div>
-          <span style={{ color: '#ddd', fontSize: 12, minWidth: 46 }}>
+          <span style={{ color: '#ddd', fontSize: 11, minWidth: 46 }}>
             {playerHP}/{playerMaxHP}
           </span>
         </div>
+
+        {/* XP bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ color: '#9b59b6', fontSize: 12 }}>✦</span>
+          <div style={{
+            flex: 1, height: 6, background: '#1a1a2e',
+            borderRadius: 3, overflow: 'hidden',
+            border: '1px solid #333', minWidth: 100,
+          }}>
+            <div style={{
+              width: `${xpPct}%`, height: '100%',
+              background: 'linear-gradient(90deg, #8e44ad, #9b59b6)',
+              borderRadius: 3,
+              transition: 'width 0.4s ease',
+            }} />
+          </div>
+          <span style={{ color: '#666', fontSize: 9, minWidth: 46 }}>
+            {xp}/{xpToNextLevel} XP
+          </span>
+        </div>
+
+        {/* Resources */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[
             { k: 'wood',  icon: '🪵', col: '#27ae60' },
@@ -59,19 +112,19 @@ export default function HUD() {
           ].map(({ k, icon, col }) => (
             <div key={k} style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              background: '#000000aa', padding: '4px 8px',
+              background: '#000000aa', padding: '3px 7px',
               borderRadius: 10, border: `1px solid ${col}44`,
             }}>
-              <span style={{ fontSize: 15 }}>{icon}</span>
-              <span style={{ color: '#fff', fontSize: 15, fontWeight: 'bold', textShadow: '0 1px 3px #000' }}>
-                {resources[k]}
+              <span style={{ fontSize: 13 }}>{icon}</span>
+              <span style={{ color: '#fff', fontSize: 13, fontWeight: 'bold', textShadow: '0 1px 3px #000' }}>
+                {resources[k] ?? 0}
               </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Top-right column: Ascension + Bag ────────────── */}
+      {/* ── Top-right: Ascension + Bag ────────────────────── */}
       <div style={{
         position: 'absolute', top: 56, right: 14,
         display: 'flex', flexDirection: 'column',
@@ -89,25 +142,37 @@ export default function HUD() {
           </div>
         </div>
 
-        {/* Bag / Inventory button */}
-        <button
-          onClick={toggleInventory}
-          style={{
-            background:   showInventory ? '#d4af37' : '#000000bb',
-            border:       `2px solid ${showInventory ? '#d4af37' : '#888'}`,
-            borderRadius: 12,
-            padding:      '10px 16px',
-            fontSize:     22,
-            cursor:       'pointer',
-            color:        showInventory ? '#0d0d1a' : '#fff',
-            boxShadow:    showInventory ? '0 0 12px #d4af3777' : 'none',
-          }}
-        >
-          🎒
-        </button>
+        {/* Bag button — badge if stat points unspent */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={toggleInventory}
+            style={{
+              background:   showInventory ? '#d4af37' : '#000000bb',
+              border:       `2px solid ${showInventory ? '#d4af37' : '#888'}`,
+              borderRadius: 12,
+              padding:      '10px 16px',
+              fontSize:     22,
+              cursor:       'pointer',
+              color:        showInventory ? '#0d0d1a' : '#fff',
+              boxShadow:    showInventory ? '0 0 12px #d4af3777' : 'none',
+            }}
+          >🎒</button>
+          {statPoints > 0 && (
+            <div style={{
+              position: 'absolute', top: -4, right: -4,
+              background: '#e74c3c', borderRadius: '50%',
+              width: 18, height: 18,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 'bold', color: '#fff',
+              border: '2px solid #0d0d1a',
+            }}>
+              {statPoints}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Help button (top-center) ─────────────────────── */}
+      {/* ── Help button ───────────────────────────────────── */}
       <button
         onClick={toggleHelpMenu}
         style={{

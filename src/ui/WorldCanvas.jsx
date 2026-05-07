@@ -257,6 +257,8 @@ export default function WorldCanvas() {
         addFloat(e.x, e.y - 20, `-${dmg}`, '#ff4444');
         if (e.hp <= 0) {
           e.alive = false;
+          store.gainXP(cfg[e.type].xpReward || 10);
+          addFloat(e.x, e.y - 50, `+${cfg[e.type].xpReward || 10} XP`, '#9b59b6');
           cfg[e.type].drops.forEach(drop => {
             if (Math.random() < drop.chance) {
               store.addResource(drop.item, drop.amount);
