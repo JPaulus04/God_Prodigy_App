@@ -10,16 +10,12 @@ export default function HUD() {
     level, xp, xpToNextLevel, statPoints,
     resources, ascensionProgress,
     toggleHelpMenu, toggleInventory, showInventory,
+    openLevelUp,
   } = useGameStore();
 
-  const hpPct  = Math.max(0, (playerHP / playerMaxHP) * 100);
+  const hpPct   = Math.max(0, (playerHP / playerMaxHP) * 100);
   const hpColor = hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f39c12' : '#e74c3c';
-
-  // XP bar — show progress toward next level
-  const prevThreshold = xp >= xpToNextLevel ? xpToNextLevel : 0;
-  const xpPct = xpToNextLevel > 0
-    ? Math.min(100, (xp / xpToNextLevel) * 100)
-    : 100;
+  const xpPct   = xpToNextLevel > 0 ? Math.min(100, (xp / xpToNextLevel) * 100) : 100;
 
   const onAttack = () => {
     InputState.attack = true;
@@ -41,8 +37,8 @@ export default function HUD() {
         maxWidth: '58%',
       }}>
 
-        {/* Name + Level */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        {/* Name + Level + Stat Points */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ color: '#d4af37', fontSize: 17, fontWeight: 'bold', textShadow: '0 1px 4px #000' }}>
             {playerName || 'Warrior'}
           </span>
@@ -53,14 +49,26 @@ export default function HUD() {
           }}>
             Lv.{level}
           </span>
+
+          {/* Tappable stat points badge — reopens level up modal */}
           {statPoints > 0 && (
-            <span style={{
-              color: '#0d0d1a', fontSize: 10, fontWeight: 'bold',
-              background: '#d4af37', borderRadius: 10,
-              padding: '1px 6px', animation: 'pulse 1s infinite',
-            }}>
-              +{statPoints} pts
-            </span>
+            <button
+              onClick={openLevelUp}
+              style={{
+                pointerEvents: 'all',
+                background: '#e74c3c',
+                border: 'none',
+                borderRadius: 10,
+                padding: '2px 8px',
+                fontSize: 11,
+                fontWeight: 'bold',
+                color: '#fff',
+                cursor: 'pointer',
+                animation: 'none',
+              }}
+            >
+              +{statPoints} pts ▸
+            </button>
           )}
         </div>
 
@@ -94,12 +102,11 @@ export default function HUD() {
             <div style={{
               width: `${xpPct}%`, height: '100%',
               background: 'linear-gradient(90deg, #8e44ad, #9b59b6)',
-              borderRadius: 3,
-              transition: 'width 0.4s ease',
+              borderRadius: 3, transition: 'width 0.4s ease',
             }} />
           </div>
           <span style={{ color: '#666', fontSize: 9, minWidth: 46 }}>
-            {xp}/{xpToNextLevel} XP
+            {xp}/{xpToNextLevel}
           </span>
         </div>
 
@@ -131,7 +138,6 @@ export default function HUD() {
         gap: 10, alignItems: 'flex-end',
         pointerEvents: 'all',
       }}>
-        {/* Ascension */}
         <div style={{
           background: '#000000aa', border: '1px solid #d4af3766',
           borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 70,
@@ -142,19 +148,17 @@ export default function HUD() {
           </div>
         </div>
 
-        {/* Bag button — badge if stat points unspent */}
+        {/* Bag — red badge if unspent stat points */}
         <div style={{ position: 'relative' }}>
           <button
             onClick={toggleInventory}
             style={{
               background:   showInventory ? '#d4af37' : '#000000bb',
               border:       `2px solid ${showInventory ? '#d4af37' : '#888'}`,
-              borderRadius: 12,
-              padding:      '10px 16px',
-              fontSize:     22,
-              cursor:       'pointer',
-              color:        showInventory ? '#0d0d1a' : '#fff',
-              boxShadow:    showInventory ? '0 0 12px #d4af3777' : 'none',
+              borderRadius: 12, padding: '10px 16px', fontSize: 22,
+              cursor: 'pointer',
+              color: showInventory ? '#0d0d1a' : '#fff',
+              boxShadow: showInventory ? '0 0 12px #d4af3777' : 'none',
             }}
           >🎒</button>
           {statPoints > 0 && (
