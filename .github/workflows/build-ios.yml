@@ -80,7 +80,7 @@ jobs:
           path = "ios/App/App.xcodeproj/project.pbxproj"
           with open(path) as f:
               content = f.read()
-          content = re.sub(r'CURRENT_PROJECT_VERSION = \d+;', 'CURRENT_PROJECT_VERSION = 14;', content)
+          content = re.sub(r'CURRENT_PROJECT_VERSION = \d+;', 'CURRENT_PROJECT_VERSION = 15;', content)
           content = re.sub(r'MARKETING_VERSION = [^;]+;', 'MARKETING_VERSION = 0.1.0;', content)
           import os
           profile_uuid = os.environ.get('PROVISIONING_PROFILE_UUID', '')
