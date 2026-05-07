@@ -1,47 +1,45 @@
 import React, { useEffect } from 'react';
 import { useGameStore }  from './store/useGameStore';
-import NameEntry         from './ui/NameEntry';
+import WorldCanvas       from './ui/WorldCanvas';
 import HUD               from './ui/HUD';
+import NameEntry         from './ui/NameEntry';
 import HelpMenu          from './ui/HelpMenu';
 import DeathModal        from './ui/DeathModal';
 import StrongholdMenu    from './ui/StrongholdMenu';
 import InventoryPanel    from './ui/InventoryPanel';
-import WorldCanvas       from './ui/WorldCanvas';
+import LevelUpModal      from './ui/LevelUpModal';
 
 export default function App() {
   const {
-    gamePhase, showHelpMenu, showDeathModal, showInventory,
-    loadSave, setGamePhase, setPlayerName,
+    gamePhase,
+    showHelpMenu,
+    showInventory,
+    showDeathModal,
+    showLevelUp,
+    loadSave,
   } = useGameStore();
 
   useEffect(() => { loadSave(); }, []);
 
-  const handleNameConfirmed = (name) => {
-    setPlayerName(name);
-    setGamePhase('world');
-  };
-
-  const inGame = gamePhase === 'world' || gamePhase === 'stronghold';
+  const inGame = gamePhase === 'world' || gamePhase === 'stronghold' || gamePhase === 'dungeon';
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{
+      width: '100%', height: '100%',
+      position: 'relative',
+      background: '#0d0d1a',
+      overflow: 'hidden',
+    }}>
+      {gamePhase === 'menu' && <NameEntry />}
 
-      {/* Game canvas — always mounted once game starts */}
       {inGame && <WorldCanvas />}
+      {inGame && gamePhase !== 'stronghold' && <HUD />}
+      {inGame && showHelpMenu  && <HelpMenu />}
+      {inGame && showInventory && <InventoryPanel />}
+      {inGame && showDeathModal && <DeathModal />}
+      {inGame && showLevelUp   && <LevelUpModal />}
 
-      {gamePhase === 'menu' && (
-        <NameEntry onConfirm={handleNameConfirmed} />
-      )}
-
-      {inGame && (
-        <>
-          {gamePhase === 'world' && <HUD />}
-          {showHelpMenu   && <HelpMenu />}
-          {showDeathModal && <DeathModal />}
-          {showInventory  && <InventoryPanel />}
-          {gamePhase === 'stronghold' && <StrongholdMenu />}
-        </>
-      )}
+      {gamePhase === 'stronghold' && <StrongholdMenu />}
     </div>
   );
 }
