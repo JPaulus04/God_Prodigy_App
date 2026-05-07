@@ -1,9 +1,10 @@
-// Shared mutable input state between React UI and Phaser game loop.
-// Plain object — no re-renders, no Zustand overhead, reads every frame.
-// Phase 4: this routes through Socket.io for multiplayer input sync.
+// InputState.js
+// Shared mutable input state read by WorldCanvas each frame.
+// Touch/button handlers write here; the game loop reads and clears.
 
 export const InputState = {
-  joystick: { x: 0, y: 0, active: false },
-  attack: false,
-  interact: false,
+  joystick:  { active: false, x: 0, y: 0 },
+  attack:    false,
+  interact:  false,
+  ability:   false,   // active ability button
 };
