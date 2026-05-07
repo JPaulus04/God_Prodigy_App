@@ -11,7 +11,7 @@ const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold: { x: 25*TILE, y: 30*TILE },
+  stronghold: { x: 25*TILE, y: 42*TILE },  // just outside the stronghold portal
   cp_center:  { x: 25*TILE, y: 25*TILE },
   cp_forest:  { x: 15*TILE, y: 10*TILE },
   cp_east:    { x: 40*TILE, y: 18*TILE },
@@ -36,23 +36,21 @@ function dist(ax, ay, bx, by) {
   return Math.sqrt((ax-bx)**2 + (ay-by)**2);
 }
 
-// Simple canvas word wrap helper
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
   let line = '';
   let currentY = y;
   for (const word of words) {
-    const testLine  = line + word + ' ';
-    const metrics   = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && line !== '') {
-      ctx.fillText(line, x, currentY);
+    const testLine = line + word + ' ';
+    if (ctx.measureText(testLine).width > maxWidth && line !== '') {
+      ctx.fillText(line.trim(), x, currentY);
       line = word + ' ';
       currentY += lineHeight;
     } else {
       line = testLine;
     }
   }
-  ctx.fillText(line, x, currentY);
+  if (line.trim()) ctx.fillText(line.trim(), x, currentY);
 }
 
 const CHECKPOINTS = [
@@ -91,11 +89,11 @@ const PATROL_RADIUS = 80;
 const NPC_HINTS = [
   'Defeat the 10 elemental gods and ascend to godhood.',
   'Gather wood, stone, and ore to build your Stronghold.',
-  'The Stronghold is to the south — upgrade your Forge first.',
+  'The Stronghold is to the south. Upgrade your Forge first.',
   'Golems drop ore. They are tough — bring your best gear.',
   'Activate checkpoints to save your progress across the world.',
   'Training Grounds sharpens your ATK and DEF over time.',
-  'The dungeon to the northeast holds rare materials.',
+  'The dungeon to the northeast holds rare materials and gear.',
   'Every god you defeat brings you closer to ascension.',
 ];
 
@@ -111,24 +109,27 @@ function makeEnemy(def) {
 }
 
 export default function WorldCanvas() {
-  const canvasRef      = useRef(null);
-  const rafRef         = useRef(null);
-  const lastTimeRef    = useRef(0);
-  const prevDeathModal = useRef(false);
+  const canvasRef = useRef(null);
+  const rafRef    = useRef(null);
+  const lastTimeRef = useRef(0);
+
+  // React subscription for death modal — more reliable than RAF-based detection
+  const showDeathModal = useGameStore(state => state.showDeathModal);
+  const prevDeathModalRef = useRef(false);
 
   const G = useRef({
-    player:       { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
-    camera:       { x: 25*TILE, y: 30*TILE },
-    enemies:      ENEMY_DEFS.map(makeEnemy),
-    resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
-    checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
-    swordPicked:  false,
-    floats:       [],
-    npcMessage:   null,   // { text, timer } — shown as a box at bottom of screen
-    keys:         {},
-    prevE:        false,
-    prevSpace:    false,
-    saveTimer:    0,
+    player:      { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
+    camera:      { x: 25*TILE, y: 30*TILE },
+    enemies:     ENEMY_DEFS.map(makeEnemy),
+    resources:   RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
+    checkpoints: CHECKPOINTS.map(c => ({ ...c, activated: false })),
+    swordPicked: false,
+    floats:      [],
+    npcMessage:  null,
+    keys:        {},
+    prevE:       false,
+    prevSpace:   false,
+    saveTimer:   0,
     W: 390, H: 844,
     _hintIndex: 0,
   }).current;
@@ -137,9 +138,24 @@ export default function WorldCanvas() {
     G.floats.push({ x, y, text, color, life: 1.2, vy: -40 });
   };
 
-  const showNPCMessage = (text) => {
-    G.npcMessage = { text, timer: 5.0 };
-  };
+  // ── Respawn via React effect — fires exactly when modal closes ──
+  useEffect(() => {
+    if (prevDeathModalRef.current && !showDeathModal) {
+      const store    = useGameStore.getState();
+      const respawnAt = store.respawnAt || store.lastCheckpoint || 'stronghold';
+      const pos      = RESPAWN_POINTS[respawnAt] || RESPAWN_POINTS.stronghold;
+
+      G.player.x = pos.x;
+      G.player.y = pos.y;
+      G.camera.x = pos.x;
+      G.camera.y = pos.y;
+      G.player.invincible = true;
+      G.player.invTimer   = 3.0;
+
+      useGameStore.setState({ respawnAt: null });
+    }
+    prevDeathModalRef.current = showDeathModal;
+  }, [showDeathModal]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -158,15 +174,12 @@ export default function WorldCanvas() {
     window.addEventListener('resize', resize);
 
     const store = useGameStore.getState();
-
-    // Load saved position — clamp to valid area
     if (store.position?.x) {
       const c = clampToWorld(store.position.x, store.position.y);
       G.player.x = c.x; G.player.y = c.y;
       G.camera.x = c.x; G.camera.y = c.y;
     }
 
-    // Prevent duplicate sword pickup — check inventory on mount
     const hasSword = store.inventory.some(i => i.id === 'iron_sword');
     if (hasSword) G.swordPicked = true;
 
@@ -194,33 +207,17 @@ export default function WorldCanvas() {
 
   function update(dt) {
     const store = useGameStore.getState();
-
-    // ── Respawn: reads respawnAt from store (explicit, no ambiguity) ──
-    const isDeathModal = store.showDeathModal;
-    if (prevDeathModal.current && !isDeathModal) {
-      const respawnAt  = store.respawnAt || store.lastCheckpoint || 'stronghold';
-      const pos        = RESPAWN_POINTS[respawnAt] || RESPAWN_POINTS.stronghold;
-      G.player.x = pos.x; G.player.y = pos.y;
-      G.camera.x = pos.x; G.camera.y = pos.y;
-      G.player.invincible = true;
-      G.player.invTimer   = 3.0;
-      // Clear respawnAt so it doesn't trigger again
-      useGameStore.setState({ respawnAt: null });
-    }
-    prevDeathModal.current = isDeathModal;
-
-    if (isDeathModal || store.gamePhase === 'stronghold') return;
+    if (store.showDeathModal || store.gamePhase === 'stronghold') return;
 
     const p   = G.player;
     const cfg = EnemyConfig;
 
-    // ── NPC message timer ──────────────────────────────────
     if (G.npcMessage) {
       G.npcMessage.timer -= dt;
       if (G.npcMessage.timer <= 0) G.npcMessage = null;
     }
 
-    // ── Movement ──────────────────────────────────────────
+    // Movement
     let vx = 0, vy = 0;
     if (G.keys['ArrowLeft']  || G.keys['KeyA']) vx -= 1;
     if (G.keys['ArrowRight'] || G.keys['KeyD']) vx += 1;
@@ -233,13 +230,19 @@ export default function WorldCanvas() {
     const next = clampToWorld(p.x + vx * spd * dt, p.y + vy * spd * dt);
     p.x = next.x; p.y = next.y;
 
-    G.camera.x += (p.x - G.camera.x) * Math.min(1, 8 * dt);
-    G.camera.y += (p.y - G.camera.y) * Math.min(1, 8 * dt);
+    // Camera with world bounds clamping — prevents dark strips at edges
+    const targetCamX = p.x;
+    const targetCamY = p.y;
+    G.camera.x += (targetCamX - G.camera.x) * Math.min(1, 8 * dt);
+    G.camera.y += (targetCamY - G.camera.y) * Math.min(1, 8 * dt);
+    // Clamp camera so it never shows outside the world
+    G.camera.x = Math.max(G.W/2, Math.min(WORLD_W - G.W/2, G.camera.x));
+    G.camera.y = Math.max(G.H/2, Math.min(WORLD_H - G.H/2, G.camera.y));
 
     if (p.attackCooldown > 0) p.attackCooldown -= dt;
     if (p.invincible) { p.invTimer -= dt; if (p.invTimer <= 0) p.invincible = false; }
 
-    // ── Attack ─────────────────────────────────────────────
+    // Attack
     const spaceNow  = G.keys['Space'] || InputState.attack;
     const spaceJust = spaceNow && !G.prevSpace;
     G.prevSpace = spaceNow;
@@ -268,14 +271,13 @@ export default function WorldCanvas() {
       });
     }
 
-    // ── Interact (E) ───────────────────────────────────────
+    // Interact
     const eNow  = G.keys['KeyE'] || InputState.interact;
     const eJust = eNow && !G.prevE;
     G.prevE = eNow;
     if (InputState.interact) InputState.interact = false;
 
     if (eJust) {
-      // Resources
       G.resources.forEach(r => {
         if (r.depleted || dist(p.x, p.y, r.x, r.y) > 48) return;
         store.addResource(r.res, r.amt);
@@ -284,14 +286,12 @@ export default function WorldCanvas() {
         setTimeout(() => { r.depleted = false; }, 30000);
       });
 
-      // Checkpoints
       G.checkpoints.forEach(cp => {
         if (dist(p.x, p.y, cp.x, cp.y) > 55) return;
         if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); }
         addFloat(cp.x, cp.y - 30, '✓ Checkpoint saved!', '#f1c40f');
       });
 
-      // Iron Sword — double-check store too
       const alreadyHasSword = store.inventory.some(i => i.id === 'iron_sword');
       if (!G.swordPicked && !alreadyHasSword && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
         const item = { id: 'iron_sword', name: 'Iron Sword', slot: 'weapon', atk: 6 };
@@ -304,25 +304,22 @@ export default function WorldCanvas() {
         G.swordPicked = true;
       }
 
-      // Stronghold
       if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) {
         store.setGamePhase('stronghold');
         return;
       }
 
-      // Dungeon
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
-        showNPCMessage('The dungeon is sealed for now. Return in Phase 2 when you are stronger.');
+        G.npcMessage = { text: 'The dungeon is sealed for now. Return in Phase 2 when you are stronger.', timer: 5 };
       }
 
-      // NPC — show as dialogue box (readable duration)
       if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
-        showNPCMessage(NPC_HINTS[G._hintIndex % NPC_HINTS.length]);
+        G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], timer: 5 };
         G._hintIndex++;
       }
     }
 
-    // ── Enemy AI ───────────────────────────────────────────
+    // Enemy AI
     G.enemies.forEach(e => {
       if (!e.alive) return;
       const ecfg    = cfg[e.type];
@@ -381,7 +378,6 @@ export default function WorldCanvas() {
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, W, H);
 
-    // Tiles
     const txS = Math.max(0, Math.floor((cx - W/2) / TILE));
     const txE = Math.min(MAP_W, Math.ceil((cx + W/2) / TILE) + 1);
     const tyS = Math.max(0, Math.floor((cy - H/2) / TILE));
@@ -393,7 +389,6 @@ export default function WorldCanvas() {
       }
     }
 
-    // Resources
     G.resources.forEach(r => {
       if (r.depleted) return;
       const sx = wx(r.x), sy = wy(r.y);
@@ -404,7 +399,6 @@ export default function WorldCanvas() {
       ctx.fillText(r.res, sx, sy + 24);
     });
 
-    // Checkpoints
     G.checkpoints.forEach(cp => {
       const sx = wx(cp.x), sy = wy(cp.y);
       if (!onScreen(sx, sy)) return;
@@ -417,7 +411,6 @@ export default function WorldCanvas() {
       ctx.fillText(cp.activated ? 'SAVED' : 'SAVE', sx, sy + 28);
     });
 
-    // Stronghold
     const shx = wx(25*TILE), shy = wy(44*TILE);
     if (onScreen(shx, shy, 80)) {
       ctx.globalAlpha = 0.75 + Math.sin(Date.now() / 700) * 0.25;
@@ -430,7 +423,6 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', shx, shy + 36);
     }
 
-    // Dungeon
     const dunx = wx(43*TILE), duny = wy(10*TILE);
     if (onScreen(dunx, duny, 80)) {
       ctx.fillStyle = '#8e44ad';
@@ -441,7 +433,6 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
 
-    // NPC
     const nx = wx(23*TILE), ny = wy(28*TILE);
     if (onScreen(nx, ny)) {
       ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
@@ -452,7 +443,6 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Talk', nx, ny + 26);
     }
 
-    // Iron Sword
     if (!G.swordPicked) {
       const isx = wx(27*TILE), isy = wy(27*TILE);
       if (onScreen(isx, isy)) {
@@ -467,7 +457,6 @@ export default function WorldCanvas() {
       }
     }
 
-    // Enemies
     G.enemies.forEach(e => {
       if (!e.alive) return;
       const ex = wx(e.x), ey = wy(e.y);
@@ -487,7 +476,6 @@ export default function WorldCanvas() {
       }
     });
 
-    // Player
     const ppx = wx(p.x), ppy = wy(p.y);
     const blinkOn = !p.invincible || Math.sin(Date.now() / 80) > 0;
     ctx.globalAlpha = blinkOn ? 1 : 0.15;
@@ -497,7 +485,6 @@ export default function WorldCanvas() {
     ctx.lineWidth = p.invincible ? 3 : 2; ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Float texts
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
@@ -508,43 +495,41 @@ export default function WorldCanvas() {
     });
     ctx.globalAlpha = 1;
 
-    // ── NPC Dialogue Box (fixed to screen, readable for 5 seconds) ──
+    // ── NPC dialogue — positioned ABOVE the control buttons ──
     if (G.npcMessage) {
-      const msg    = G.npcMessage;
-      const alpha  = Math.min(1, msg.timer * 1.5); // fade out in last ~0.67s
-      const pad    = 18;
-      const boxH   = 88;
-      const boxY   = H - boxH - 80; // above the controls
-      const boxW   = W - pad * 2;
+      const msg   = G.npcMessage;
+      const alpha = Math.min(1, msg.timer * 1.5);
+      const pad   = 16;
+      const boxH  = 90;
+      // Controls area is ~240px from bottom — place dialogue above that
+      const boxY  = H - boxH - 260;
+      const boxW  = W - pad * 2;
 
       ctx.globalAlpha = alpha;
-
-      // Box background
-      ctx.fillStyle = '#000000dd';
+      ctx.fillStyle   = '#000000ee';
       ctx.beginPath();
-      ctx.roundRect?.(pad, boxY, boxW, boxH, 10) ?? ctx.rect(pad, boxY, boxW, boxH);
+      if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
+      else ctx.rect(pad, boxY, boxW, boxH);
       ctx.fill();
 
-      // Gold border
       ctx.strokeStyle = '#d4af37';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth   = 1.5;
       ctx.beginPath();
-      ctx.roundRect?.(pad, boxY, boxW, boxH, 10) ?? ctx.rect(pad, boxY, boxW, boxH);
+      if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
+      else ctx.rect(pad, boxY, boxW, boxH);
       ctx.stroke();
 
-      // Speaker name
       ctx.fillStyle = '#1abc9c';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font      = 'bold 13px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('Elder Kael', pad + 12, boxY + 18);
+      ctx.fillText('Elder Kael', pad + 12, boxY + 20);
 
-      // Message text with word wrap
       ctx.fillStyle = '#ffffff';
-      ctx.font = '12px sans-serif';
-      wrapText(ctx, msg.text, pad + 12, boxY + 36, boxW - 24, 16);
+      ctx.font      = '12px sans-serif';
+      wrapText(ctx, msg.text, pad + 12, boxY + 40, boxW - 24, 17);
 
       ctx.globalAlpha = 1;
-      ctx.textAlign = 'left';
+      ctx.textAlign   = 'left';
     }
   }
 
