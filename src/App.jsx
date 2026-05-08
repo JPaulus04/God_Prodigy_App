@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useGameStore }  from './store/useGameStore';
 import WorldCanvas       from './ui/WorldCanvas';
+import DungeonCanvas     from './ui/DungeonCanvas';
 import HUD               from './ui/HUD';
 import NameEntry         from './ui/NameEntry';
 import HelpMenu          from './ui/HelpMenu';
@@ -47,19 +48,36 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, loadSave } = useGameStore();
+  const {
+    gamePhase, showHelpMenu, showInventory,
+    showDeathModal, showLevelUp, loadSave,
+  } = useGameStore();
+
   useEffect(() => { loadSave(); }, []);
-  const inGame = gamePhase === 'world' || gamePhase === 'stronghold' || gamePhase === 'dungeon';
+
+  const inWorld     = gamePhase === 'world';
+  const inDungeon   = gamePhase === 'dungeon';
+  const inStronghold = gamePhase === 'stronghold';
+  const inGame      = inWorld || inDungeon || inStronghold;
+
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0d0d1a', overflow: 'hidden' }}>
+    <div style={{
+      width: '100%', height: '100%', position: 'relative',
+      background: '#0d0d1a', overflow: 'hidden',
+    }}>
       {gamePhase === 'menu' && <NameEntry />}
-      {inGame && <ErrorBoundary><WorldCanvas /></ErrorBoundary>}
-      {inGame && gamePhase !== 'stronghold' && <ErrorBoundary><HUD /></ErrorBoundary>}
+
+      {inWorld     && <ErrorBoundary><WorldCanvas /></ErrorBoundary>}
+      {inDungeon   && <ErrorBoundary><DungeonCanvas /></ErrorBoundary>}
+      {inStronghold && <ErrorBoundary><StrongholdMenu /></ErrorBoundary>}
+
+      {/* HUD shows in world and dungeon, not stronghold */}
+      {(inWorld || inDungeon) && <ErrorBoundary><HUD /></ErrorBoundary>}
+
       {inGame && showHelpMenu   && <HelpMenu />}
       {inGame && showInventory  && <InventoryPanel />}
       {inGame && showDeathModal && <DeathModal />}
       {inGame && showLevelUp    && <LevelUpModal />}
-      {gamePhase === 'stronghold' && <ErrorBoundary><StrongholdMenu /></ErrorBoundary>}
     </div>
   );
 }
