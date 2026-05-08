@@ -346,6 +346,7 @@ export default function WorldCanvas() {
           if (!e.alive || dist(p.x, p.y, e.x, e.y) > ability.range) return;
           const dmg = Math.max(1, Math.round(store.playerATK * ability.damageMult));
           e.hp -= dmg;
+          e.state = 'chase'; // alert on hit
           addFloat(e.x, e.y - 24, `-${dmg}`, '#ff4444');
           if (ability.stunDuration) e.stunTimer = ability.stunDuration;
           if (e.hp <= 0) killEnemy(e, store);
@@ -616,6 +617,7 @@ export default function WorldCanvas() {
         arrow.hitEnemies.add(e);
         const dmg = Math.max(1, arrow.dmg - cfg[e.type].def);
         e.hp -= dmg;
+        e.state = 'chase'; // alert on hit — no kiting from outside aggro range
         addFloat(e.x, e.y - 20, `-${dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
@@ -634,6 +636,7 @@ export default function WorldCanvas() {
         if (dist(proj.x, proj.y, e.x, e.y) > 22) return;
         proj.hitEnemies.add(e);
         e.hp -= proj.dmg;
+        e.state = 'chase'; // alert on hit
         addFloat(e.x, e.y - 24, `-${proj.dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
