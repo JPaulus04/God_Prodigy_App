@@ -602,7 +602,10 @@ export default function WorldCanvas() {
       if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
 
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
-        G.npcMessage = { text: 'The dungeon is sealed. Return in Phase 2.', timer: 5 };
+        // Enter the dungeon!
+        addFloat(p.x, p.y-40, '⚠ Entering Dungeon...', '#cc88ff');
+        setTimeout(() => store.setGamePhase('dungeon'), 400);
+        return;
       }
 
       if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
