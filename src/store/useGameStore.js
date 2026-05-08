@@ -97,8 +97,8 @@ export const useGameStore = create((set, get) => ({
     const { statPoints } = get();
     if (statPoints <= 0) return;
     const updates = { statPoints: statPoints - 1 };
-    if (stat === 'atk') updates.playerATK = get().playerATK + 1;
-    if (stat === 'def') updates.playerDEF = get().playerDEF + 1;
+    if (stat === 'atk') { updates.playerATK = get().playerATK + 1; updates.playerBaseATK = (get().playerBaseATK || 8) + 1; }
+    if (stat === 'def') { updates.playerDEF = get().playerDEF + 1; updates.playerBaseDEF = (get().playerBaseDEF || 4) + 1; }
     if (stat === 'spd') { updates.playerSPD = get().playerSPD + 1; updates.playerBaseSPD = (get().playerBaseSPD || 5) + 1; }
     set(updates);
     SaveSystem.save(get());
@@ -146,8 +146,8 @@ export const useGameStore = create((set, get) => ({
 
   recalculateStats: () => {
     const { gear, inventory, playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus } = get();
-    let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
-    let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
+    let atk = (playerBaseATK || 8); // base already includes training + stat points
+    let def = (playerBaseDEF || 4); // base already includes training + stat points
     let spd = (get().playerBaseSPD || 5);
     let abilityId = null;
 
@@ -171,8 +171,8 @@ export const useGameStore = create((set, get) => ({
     set({ gear: newGear });
 
     const { playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus } = get();
-    let atk = (playerBaseATK || 8) + (trainingATKBonus || 0);
-    let def = (playerBaseDEF || 4) + (trainingDEFBonus || 0);
+    let atk = (playerBaseATK || 8); // base already includes training + stat points
+    let def = (playerBaseDEF || 4); // base already includes training + stat points
     let spd = (get().playerBaseSPD || 5);
     let abilityId = null;
 
