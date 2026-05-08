@@ -49,28 +49,36 @@ function clampToWorld(x, y) {
 
 function tileColor(tx, ty) {
   // ── Realm transition border tiles ────────────────────
-  if (ty < 2) {
-    if (tx >= 8  && tx <= 20) return '#1a5c35'; // 🌿 Forest
-    if (tx >= 60 && tx <= 74) return '#a8d8ea'; // ❄️ Ice
+  // Painted on the innermost playable rows so players can see them
+  if (ty < 2 || ty < 4 && (
+    (tx >= 8 && tx <= 20) || (tx >= 60 && tx <= 74))) {
+    if (ty >= 2 && tx >= 8  && tx <= 20) return '#1a5c35'; // 🌿 Forest
+    if (ty >= 2 && tx >= 60 && tx <= 74) return '#a8d8ea'; // ❄️ Ice
+    if (ty < 2 && tx >= 8  && tx <= 20)  return '#1a5c35';
+    if (ty < 2 && tx >= 60 && tx <= 74)  return '#a8d8ea';
     return '#2980b9';
   }
-  if (ty >= MAP_H-2) {
+  if (ty < 2) return '#2980b9';
+  if (ty >= MAP_H-4 && ty < MAP_H) {
     if (tx >= 18 && tx <= 30) return '#1a1a38'; // 🌑 Shadow
     if (tx >= 32 && tx <= 48) return '#8b0000'; // 🔥 Fire
     if (tx >= 50 && tx <= 62) return '#7a3000'; // 🌋 Lava
-    return '#2980b9';
+    if (ty >= MAP_H-2) return '#2980b9';
   }
-  if (tx < 2) {
+  if (ty >= MAP_H-2) return '#2980b9';
+  if (tx < 4 && tx >= 0) {
     if (ty >= 30 && ty <= 44) return '#b8d8f0'; // 💨 Wind
     if (ty >= 52 && ty <= 65) return '#0e4a40'; // 🌊 Ocean
-    return '#2980b9';
+    if (tx < 2) return '#2980b9';
   }
-  if (tx >= MAP_W-2) {
+  if (tx < 2) return '#2980b9';
+  if (tx >= MAP_W-4) {
     if (ty >= 15 && ty <= 28) return '#3a3a3a'; // 🪨 Earth
     if (ty >= 32 && ty <= 45) return '#3a1a4a'; // ⚡ Storm
     if (ty >= 58 && ty <= 70) return '#5a4800'; // ✨ Void
-    return '#2980b9';
+    if (tx >= MAP_W-2) return '#2980b9';
   }
+  if (tx >= MAP_W-2) return '#2980b9';
   // ── Interior zones ────────────────────────────────────
   if (ty < 18 && tx > 4 && tx < MAP_W-4)      return '#1a5c35'; // Northern forest
   if (tx > 46 && ty > 8  && ty < MAP_H-4)     return '#636e72'; // Eastern rocky
@@ -731,10 +739,10 @@ export default function WorldCanvas() {
           (t.edge === 'north' || t.edge === 'south') ? (tx >= t.min && tx <= t.max) :
                                                        (ty >= t.min && ty <= t.max);
         const atEdge =
-          t.edge === 'north' ? p.y < 2.0*TILE :
-          t.edge === 'south' ? p.y > WORLD_H - 2.0*TILE :
-          t.edge === 'east'  ? p.x > WORLD_W - 2.0*TILE :
-                               p.x < 2.0*TILE;
+          t.edge === 'north' ? p.y <= BORDER :
+          t.edge === 'south' ? p.y >= WORLD_H - BORDER :
+          t.edge === 'east'  ? p.x >= WORLD_W - BORDER :
+                               p.x <= BORDER;          p.x < 2.0*TILE;
         if (inRange && atEdge && G.transitionFlash <= 0) {
           G.transitionFlash = 0.5;
           addFloat(p.x, p.y - 44, `${t.icon} Entering realm...`, t.color);
