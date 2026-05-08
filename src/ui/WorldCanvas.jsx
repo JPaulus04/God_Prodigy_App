@@ -122,103 +122,43 @@ const RESOURCE_DEFS = [
 ];
 
 const ENEMY_DEFS = [
-  // Standard goblins — northern forest
-  { type: 'goblin', x: 12*TILE, y: 18*TILE },
-  { type: 'goblin', x: 18*TILE, y: 15*TILE },
-  { type: 'goblin', x: 22*TILE, y: 20*TILE },
-  { type: 'goblin', x:  8*TILE, y: 22*TILE },
-  // Standard golems — eastern zone
-  { type: 'golem',  x: 38*TILE, y: 20*TILE },
-  { type: 'golem',  x: 42*TILE, y: 30*TILE },
-  // ⭐ Elite: Gold Goblins — deeper forest
-  { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },
-  { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },
-  // ⭐⭐ Elite: Stone Guardians — eastern rocky zone
-  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },
-  { type: 'stone_guardian', x: 45*TILE, y: 35*TILE },
+  // ── Starting area (spawn ~25,30) ────────────────────
+  { type: 'goblin',         x: 12*TILE, y: 18*TILE },
+  { type: 'goblin',         x: 18*TILE, y: 15*TILE },
+  { type: 'goblin',         x: 22*TILE, y: 20*TILE },
+  { type: 'goblin',         x:  8*TILE, y: 22*TILE },
+  { type: 'golem',          x: 38*TILE, y: 20*TILE },
+  { type: 'golem',          x: 42*TILE, y: 30*TILE },
+  { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },  // ⭐ elite
+  { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },  // ⭐ elite
+  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },  // ⭐⭐ elite
 
-  // ── Extended northern forest ──────────────────────────
-  { type: 'goblin', x: 35*TILE, y: 12*TILE },
-  { type: 'goblin', x: 48*TILE, y:  9*TILE },
-  { type: 'goblin', x: 58*TILE, y: 14*TILE },
-  { type: 'goblin', x: 68*TILE, y:  8*TILE },
+  // ── Northern forest (extended) ───────────────────────
+  { type: 'goblin',         x: 35*TILE, y: 12*TILE },
+  { type: 'goblin',         x: 48*TILE, y:  9*TILE },
+  { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },  // ⭐ elite guard near Ice portal
 
-  // ── Extended eastern rocky zone ───────────────────────
-  { type: 'golem',  x: 52*TILE, y: 22*TILE },
-  { type: 'golem',  x: 60*TILE, y: 32*TILE },
-  { type: 'golem',  x: 68*TILE, y: 45*TILE },
-  { type: 'golem',  x: 74*TILE, y: 30*TILE },
+  // ── Eastern rocky zone ───────────────────────────────
+  { type: 'golem',          x: 52*TILE, y: 22*TILE },
+  { type: 'golem',          x: 60*TILE, y: 32*TILE },
+  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // ⭐⭐ Earth portal guard
+  { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },  // ⭐⭐ Storm portal guard
 
-  // ── Southern badlands ─────────────────────────────────
-  { type: 'goblin', x: 18*TILE, y: 58*TILE },
-  { type: 'goblin', x: 35*TILE, y: 62*TILE },
-  { type: 'goblin', x: 48*TILE, y: 56*TILE },
-  { type: 'golem',  x: 28*TILE, y: 68*TILE },
-  { type: 'golem',  x: 42*TILE, y: 70*TILE },
+  // ── Western valley ───────────────────────────────────
+  { type: 'goblin',         x:  8*TILE, y: 38*TILE },
+  { type: 'goblin',         x:  6*TILE, y: 52*TILE },
+
+  // ── Southern badlands ────────────────────────────────
+  { type: 'goblin',         x: 18*TILE, y: 58*TILE },
+  { type: 'goblin',         x: 35*TILE, y: 62*TILE },
+  { type: 'golem',          x: 28*TILE, y: 68*TILE },
+  { type: 'golem',          x: 42*TILE, y: 70*TILE },
+  { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },  // ⭐⭐ Shadow portal guard
 
   // ── Deep south volcanic ───────────────────────────────
-  { type: 'golem',  x: 20*TILE, y: 72*TILE },
-  { type: 'golem',  x: 38*TILE, y: 74*TILE },
-
-  // ── Western wetlands ──────────────────────────────────
-  { type: 'goblin', x:  8*TILE, y: 38*TILE },
-  { type: 'goblin', x:  6*TILE, y: 52*TILE },
-
-  // ── Additional elites (harder, in expanded zones) ─────
-  { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },
-  { type: 'gold_goblin',    x: 72*TILE, y: 12*TILE },
-  { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },
-  { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },
-
-  // ── Portal guards & area density ─────────────────────
-  // Forest Realm portal guards (tile 15,12)
-  { type: 'goblin',         x: 13*TILE, y: 10*TILE },
-  { type: 'goblin',         x: 16*TILE, y: 14*TILE },
-  { type: 'goblin',         x: 11*TILE, y:  8*TILE },
-  { type: 'gold_goblin',    x: 14*TILE, y:  6*TILE },  // elite guard ⭐
-
-  // Wind Realm portal guards (tile 8,38)
-  { type: 'goblin',         x:  7*TILE, y: 35*TILE },
-  { type: 'goblin',         x:  9*TILE, y: 42*TILE },
-
-  // Earth Realm portal guards (tile 52,22)
-  { type: 'golem',          x: 50*TILE, y: 25*TILE },
-  { type: 'golem',          x: 54*TILE, y: 18*TILE },
-  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // elite guard ⭐⭐
-
-  // Ice Realm portal guards (tile 68,8)
-  { type: 'goblin',         x: 65*TILE, y:  6*TILE },
-  { type: 'goblin',         x: 70*TILE, y: 10*TILE },
-  { type: 'stone_guardian', x: 67*TILE, y:  5*TILE },  // elite guard ⭐⭐
-
-  // Ocean Realm portal guards (tile 5,60)
-  { type: 'goblin',         x:  5*TILE, y: 55*TILE },
-  { type: 'goblin',         x:  6*TILE, y: 63*TILE },
-
-  // Storm Realm portal guards (tile 72,38)
-  { type: 'golem',          x: 70*TILE, y: 40*TILE },
-  { type: 'golem',          x: 74*TILE, y: 35*TILE },
-  { type: 'stone_guardian', x: 73*TILE, y: 35*TILE },  // elite guard ⭐⭐
-
-  // Shadow Realm portal guards (tile 25,74)
-  { type: 'golem',          x: 22*TILE, y: 72*TILE },
-  { type: 'stone_guardian', x: 28*TILE, y: 73*TILE },  // elite guard ⭐⭐
-
-  // Lava Realm portal guards (tile 55,74)
-  { type: 'golem',          x: 53*TILE, y: 70*TILE },
-  { type: 'golem',          x: 57*TILE, y: 76*TILE },
-  { type: 'stone_guardian', x: 55*TILE, y: 70*TILE },  // elite guard ⭐⭐
-
-  // Void Realm portal guards (tile 72,65)
-  { type: 'golem',          x: 70*TILE, y: 62*TILE },
-  { type: 'stone_guardian', x: 73*TILE, y: 68*TILE },  // elite guard ⭐⭐
-
-  // Mid-map fill (sparse central areas)
-  { type: 'goblin',         x: 32*TILE, y: 18*TILE },
-  { type: 'goblin',         x: 28*TILE, y: 14*TILE },
-  { type: 'golem',          x: 48*TILE, y: 40*TILE },
-  { type: 'goblin',         x: 15*TILE, y: 48*TILE },
-  { type: 'goblin',         x: 40*TILE, y: 48*TILE },
+  { type: 'golem',          x: 55*TILE, y: 70*TILE },
+  { type: 'stone_guardian', x: 55*TILE, y: 72*TILE },  // ⭐⭐ Lava portal guard
+  { type: 'stone_guardian', x: 72*TILE, y: 65*TILE },  // ⭐⭐ Void portal guard
 ];
 
 const PATROL_RADIUS = 80;
@@ -1153,11 +1093,11 @@ export default function WorldCanvas() {
       // Elite tint colors
       let fillColor;
       if      (e.type === 'gold_goblin')    fillColor = aggroed ? '#e6a800' : '#f1c40f';
-      else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad';
+      else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad'; // purple
       else if (stunned)                     fillColor = '#FCD34D';
       else if (aggroed)                     fillColor = '#e74c3c';
-      else if (isGolem)                     fillColor = '#8e44ad';
-      else                                  fillColor = '#7ed321';
+      else if (isGolem)                     fillColor = aggroed ? '#5d4037' : '#795548'; // stone brown
+      else                                  fillColor = '#7ed321'; // goblin green
 
       ctx.fillStyle = fillColor;
       ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
