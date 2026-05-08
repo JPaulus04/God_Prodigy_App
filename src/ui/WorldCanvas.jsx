@@ -12,10 +12,12 @@ const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold: { x: 25*TILE, y: 42*TILE },
-  cp_center:  { x: 25*TILE, y: 25*TILE },
-  cp_forest:  { x: 15*TILE, y: 10*TILE },
-  cp_east:    { x: 40*TILE, y: 18*TILE },
+  stronghold:  { x: 25*TILE, y: 42*TILE },
+  cp_center:   { x: 25*TILE, y: 25*TILE },
+  cp_forest:   { x: 15*TILE, y: 10*TILE },
+  cp_east:     { x: 40*TILE, y: 18*TILE },
+  cp_south:    { x: 25*TILE, y: 60*TILE },
+  cp_far_east: { x: 65*TILE, y: 30*TILE },
 };
 
 function clampToWorld(x, y) {
@@ -51,9 +53,11 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 const CHECKPOINTS = [
-  { id: 'cp_center', x: 25*TILE, y: 25*TILE },
-  { id: 'cp_forest', x: 15*TILE, y: 10*TILE },
-  { id: 'cp_east',   x: 40*TILE, y: 18*TILE },
+  { id: 'cp_center',   x: 25*TILE, y: 25*TILE },
+  { id: 'cp_forest',   x: 15*TILE, y: 10*TILE },
+  { id: 'cp_east',     x: 40*TILE, y: 18*TILE },
+  { id: 'cp_south',    x: 25*TILE, y: 60*TILE },
+  { id: 'cp_far_east', x: 65*TILE, y: 30*TILE },
 ];
 
 const RESOURCE_DEFS = [
@@ -70,6 +74,36 @@ const RESOURCE_DEFS = [
   { type: 'ore_node', res: 'ore',   amt: 1, x: 37*TILE, y: 16*TILE },
   { type: 'ore_node', res: 'ore',   amt: 1, x: 41*TILE, y: 24*TILE },
   { type: 'ore_node', res: 'ore',   amt: 1, x: 38*TILE, y: 34*TILE },
+
+  // ── Extended northern forest ──────────────────────────
+  { type: 'tree',     res: 'wood',  amt: 3, x: 35*TILE, y:  5*TILE },
+  { type: 'tree',     res: 'wood',  amt: 3, x: 45*TILE, y:  8*TILE },
+  { type: 'tree',     res: 'wood',  amt: 3, x: 55*TILE, y:  6*TILE },
+  { type: 'tree',     res: 'wood',  amt: 2, x: 65*TILE, y: 10*TILE },
+  { type: 'tree',     res: 'wood',  amt: 2, x: 72*TILE, y:  7*TILE },
+
+  // ── Eastern rocky zone (extended) ─────────────────────
+  { type: 'rock',     res: 'stone', amt: 3, x: 52*TILE, y: 20*TILE },
+  { type: 'rock',     res: 'stone', amt: 3, x: 60*TILE, y: 35*TILE },
+  { type: 'rock',     res: 'stone', amt: 3, x: 68*TILE, y: 22*TILE },
+  { type: 'rock',     res: 'stone', amt: 3, x: 74*TILE, y: 40*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 2, x: 55*TILE, y: 30*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 2, x: 63*TILE, y: 45*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 3, x: 70*TILE, y: 28*TILE },
+
+  // ── Southern badlands ─────────────────────────────────
+  { type: 'rock',     res: 'stone', amt: 3, x: 18*TILE, y: 60*TILE },
+  { type: 'rock',     res: 'stone', amt: 3, x: 35*TILE, y: 62*TILE },
+  { type: 'rock',     res: 'stone', amt: 3, x: 45*TILE, y: 58*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 2, x: 22*TILE, y: 65*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 3, x: 40*TILE, y: 70*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 3, x: 30*TILE, y: 72*TILE },
+
+  // ── Western wetlands ──────────────────────────────────
+  { type: 'tree',     res: 'wood',  amt: 3, x:  6*TILE, y: 35*TILE },
+  { type: 'tree',     res: 'wood',  amt: 3, x:  8*TILE, y: 48*TILE },
+  { type: 'tree',     res: 'wood',  amt: 3, x:  7*TILE, y: 60*TILE },
+  { type: 'rock',     res: 'stone', amt: 2, x: 10*TILE, y: 40*TILE },
 ];
 
 const ENEMY_DEFS = [
@@ -87,6 +121,39 @@ const ENEMY_DEFS = [
   // ⭐⭐ Elite: Stone Guardians — eastern rocky zone
   { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },
   { type: 'stone_guardian', x: 45*TILE, y: 35*TILE },
+
+  // ── Extended northern forest ──────────────────────────
+  { type: 'goblin', x: 35*TILE, y: 12*TILE },
+  { type: 'goblin', x: 48*TILE, y:  9*TILE },
+  { type: 'goblin', x: 58*TILE, y: 14*TILE },
+  { type: 'goblin', x: 68*TILE, y:  8*TILE },
+
+  // ── Extended eastern rocky zone ───────────────────────
+  { type: 'golem',  x: 52*TILE, y: 22*TILE },
+  { type: 'golem',  x: 60*TILE, y: 32*TILE },
+  { type: 'golem',  x: 68*TILE, y: 45*TILE },
+  { type: 'golem',  x: 74*TILE, y: 30*TILE },
+
+  // ── Southern badlands ─────────────────────────────────
+  { type: 'goblin', x: 18*TILE, y: 58*TILE },
+  { type: 'goblin', x: 35*TILE, y: 62*TILE },
+  { type: 'goblin', x: 48*TILE, y: 56*TILE },
+  { type: 'golem',  x: 28*TILE, y: 68*TILE },
+  { type: 'golem',  x: 42*TILE, y: 70*TILE },
+
+  // ── Deep south volcanic ───────────────────────────────
+  { type: 'golem',  x: 20*TILE, y: 72*TILE },
+  { type: 'golem',  x: 38*TILE, y: 74*TILE },
+
+  // ── Western wetlands ──────────────────────────────────
+  { type: 'goblin', x:  8*TILE, y: 38*TILE },
+  { type: 'goblin', x:  6*TILE, y: 52*TILE },
+
+  // ── Additional elites (harder, in expanded zones) ─────
+  { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },
+  { type: 'gold_goblin',    x: 72*TILE, y: 12*TILE },
+  { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },
+  { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },
 ];
 
 const PATROL_RADIUS = 80;
@@ -98,10 +165,11 @@ const NPC_HINTS = [
   'Golems drop ore. They are tough — bring your best gear.',
   'Activate checkpoints to save your progress across the world.',
   'Each weapon type has a unique active ability — use it!',
-  'Sword: Whirlwind hits all nearby foes at once.',
-  'Hammer: Ground Slam stuns enemies and knocks them back.',
-  'Bow: Power Shot pierces through enemies in a line.',
-  'Dagger: Flurry lands three rapid strikes instantly.',
+  'Head south to find the Badlands. Ore is plentiful there.',
+  'The deep south smells of sulfur. The Fire God stirs...',
+  'Western wetlands hold ancient trees — good for crafting.',
+  'Far east, beyond the rocky ridge, dangerous golems guard rich ore.',
+  'Two new checkpoints await in the south and far east.',
 ];
 
 function makeEnemy(def) {
@@ -222,6 +290,7 @@ export default function WorldCanvas() {
     prevE:        false,
     prevSpace:    false,
     prevAbility:  false,
+    regenTimer:   0,
     saveTimer:    0,
     W: 390, H: 844,
     _hintIndex: 0,
@@ -419,6 +488,13 @@ export default function WorldCanvas() {
     if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
+
+    // ── Passive health regen ──────────────────────────────
+    const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol' && e.state !== 'idle');
+    if (!inCombat && store.playerHP < store.playerMaxHP) {
+      G.regenTimer += dt;
+      if (G.regenTimer >= 4) { G.regenTimer = 0; store.healPlayer(1); }
+    } else { G.regenTimer = 0; }
 
     // ── Movement ──────────────────────────────────────────
     let vx = 0, vy = 0;
@@ -737,6 +813,36 @@ export default function WorldCanvas() {
       ctx.fillStyle = '#cc88ffaa'; ctx.font = '9px sans-serif';
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
+
+    // ── Southern Shrine (placeholder for Fire God) ────────
+    const shrx = wx(40*TILE), shry = wy(72*TILE);
+    if (onScreen(shrx, shry, 80)) {
+      ctx.globalAlpha = 0.7 + Math.sin(Date.now()/800)*0.3;
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(shrx-20, shry-20, 40, 40);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ff8888'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('🔥 FIRE SHRINE', shrx, shry - 28);
+      ctx.fillStyle = '#e74c3caa'; ctx.font = '9px sans-serif';
+      ctx.fillText('Coming Soon', shrx, shry + 30);
+    }
+
+    // ── Zone labels ───────────────────────────────────────
+    const zoneLabelAlpha = 0.25;
+    [
+      { text: 'NORTHERN FOREST',   wx: wx(35*TILE), wy: wy( 8*TILE) },
+      { text: 'EASTERN REACHES',   wx: wx(62*TILE), wy: wy(25*TILE) },
+      { text: 'SOUTHERN BADLANDS', wx: wx(30*TILE), wy: wy(58*TILE) },
+      { text: 'DEEP SOUTH',        wx: wx(35*TILE), wy: wy(72*TILE) },
+      { text: 'WESTERN VALLEY',    wx: wx( 8*TILE), wy: wy(45*TILE) },
+    ].forEach(({ text, wx: lx, wy: ly }) => {
+      if (!onScreen(lx, ly, 100)) return;
+      ctx.globalAlpha = zoneLabelAlpha;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(text, lx, ly);
+      ctx.globalAlpha = 1;
+    });
 
     // NPC
     const nx = wx(23*TILE), ny = wy(28*TILE);

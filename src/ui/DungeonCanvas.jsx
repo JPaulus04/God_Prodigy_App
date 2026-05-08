@@ -121,8 +121,9 @@ export default function DungeonCanvas() {
 
     keys:        {},
     prevSpace:   false,
-    prevE:       false,
-    prevAbility: false,
+    prevE:        false,
+    prevAbility:  false,
+    regenTimer:   0,
     W: 390, H: 844,
   }).current;
 
@@ -415,7 +416,19 @@ export default function DungeonCanvas() {
       }
     }
 
-    // ── Enemy AI ───────────────────────────────────────────
+    // ── Passive regen ──────────────────────────────────────
+    // Heal 1 HP per 4 seconds when no alive enemy is nearby
+    const inCombat = allEnemies().some(e => e.alive && e.state === 'chase' || e.alive && e.state === 'attack');
+    if (!inCombat && store.playerHP < store.playerMaxHP) {
+      G.regenTimer += dt;
+      if (G.regenTimer >= 4) { G.regenTimer = 0; store.healPlayer(1); }
+    } else { G.regenTimer = 0; }
+
+    // ── Enemy AI — room gated ─────────────────────────────
+    // Enemies only activate when the player has reached their room
+    const playerInRoom2 = p.x > DOOR1_X;
+    const playerInRoom3 = p.x > DOOR2_X;
+
     allEnemies().forEach(e => {
       if (!e.alive) return;
       const cfg = EnemyConfig[e.type];
@@ -423,14 +436,22 @@ export default function DungeonCanvas() {
       // Stun check
       if (e.stunTimer > 0) { e.stunTimer -= dt; return; }
 
-      // Phase 2 stat boost
+      // Room gating — enemies sleep until player enters their area
+      const isRoom2Enemy = G.room2Enemies.includes(e);
+      const isRoom3Enemy = G.room3Enemies.includes(e);
+      if (isRoom2Enemy && !playerInRoom2) { e.state = 'idle'; return; }
+      if (isRoom3Enemy && !playerInRoom3) { e.state = 'idle'; return; }
+
+      // Phase 2 stat boost for boss
       const atkMult = (e.phase2 && cfg.phase2AtkMult) ? cfg.phase2AtkMult : 1;
       const spdMult = (e.phase2 && cfg.phase2SpeedMult) ? cfg.phase2SpeedMult : 1;
 
       const d = dist(p.x, p.y, e.x, e.y);
       e.attackTimer = Math.max(0, (e.attackTimer||0) - dt);
 
-      // Dungeon enemies always aggro — no patrol state
+      // Aggro range — shadow stalkers have wide aggro, boss always aggros in its room
+      const aggroRange = e.isBoss ? 400 : (e.type === 'stone_guardian' ? 200 : 180);
+
       if (d <= cfg.attackRange) {
         e.state = 'attack';
         if (e.attackTimer <= 0 && !p.invincible) {
@@ -439,12 +460,15 @@ export default function DungeonCanvas() {
           store.takeDamage(dmg);
           p.invincible = true; p.invTimer = 0.7;
         }
-      } else {
+      } else if (d <= aggroRange || e.state === 'chase') {
+        // Chase once aggroed — doesn't lose aggro
         e.state = 'chase';
         const angle = Math.atan2(p.y-e.y, p.x-e.x);
         const speed = cfg.speed * spdMult;
         e.x += Math.cos(angle)*speed*dt;
         e.y += Math.sin(angle)*speed*dt;
+      } else {
+        e.state = 'idle';
       }
 
       // Dungeon bounds
