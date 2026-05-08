@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useGameStore }  from './store/useGameStore';
 import WorldCanvas       from './ui/WorldCanvas';
 import DungeonCanvas     from './ui/DungeonCanvas';
-import RealmCanvas       from './ui/RealmCanvas';
 import HUD               from './ui/HUD';
 import NameEntry         from './ui/NameEntry';
 import HelpMenu          from './ui/HelpMenu';
@@ -24,16 +23,23 @@ class ErrorBoundary extends React.Component {
           alignItems: 'center', justifyContent: 'center', padding: 32, color: '#fff',
         }}>
           <div style={{ fontSize: 32, marginBottom: 16 }}>⚠️</div>
-          <h2 style={{ color: '#e74c3c', fontSize: 18, marginBottom: 12, textAlign: 'center' }}>Something crashed</h2>
+          <h2 style={{ color: '#e74c3c', fontSize: 18, marginBottom: 12, textAlign: 'center' }}>
+            Something crashed
+          </h2>
           <div style={{
             background: '#1a0000', border: '1px solid #e74c3c', borderRadius: 10, padding: 16,
             fontSize: 11, color: '#ff8888', fontFamily: 'monospace', wordBreak: 'break-all',
             maxWidth: '100%', marginBottom: 24,
-          }}>{this.state.error}</div>
-          <button onClick={() => { this.setState({ error: null }); useGameStore.getState().setGamePhase('menu'); }}
-            style={{ background: '#d4af37', border: 'none', borderRadius: 10, padding: '14px 28px', color: '#0d0d1a', fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>
-            ← Back to Menu
-          </button>
+          }}>
+            {this.state.error}
+          </div>
+          <button
+            onClick={() => { this.setState({ error: null }); useGameStore.getState().setGamePhase('menu'); }}
+            style={{
+              background: '#d4af37', border: 'none', borderRadius: 10,
+              padding: '14px 28px', color: '#0d0d1a', fontWeight: 'bold', fontSize: 15, cursor: 'pointer',
+            }}
+          >← Back to Menu</button>
         </div>
       );
     }
@@ -42,24 +48,30 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, loadSave } = useGameStore();
+  const {
+    gamePhase, showHelpMenu, showInventory,
+    showDeathModal, showLevelUp, loadSave,
+  } = useGameStore();
+
   useEffect(() => { loadSave(); }, []);
 
-  const inWorld      = gamePhase === 'world';
-  const inDungeon    = gamePhase === 'dungeon';
-  const inRealm      = gamePhase === 'realm';
+  const inWorld     = gamePhase === 'world';
+  const inDungeon   = gamePhase === 'dungeon';
   const inStronghold = gamePhase === 'stronghold';
-  const inGame       = inWorld || inDungeon || inRealm || inStronghold;
+  const inGame      = inWorld || inDungeon || inStronghold;
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0d0d1a', overflow: 'hidden' }}>
+    <div style={{
+      width: '100%', height: '100%', position: 'relative',
+      background: '#0d0d1a', overflow: 'hidden',
+    }}>
       {gamePhase === 'menu' && <NameEntry />}
 
-      {inWorld      && <ErrorBoundary><WorldCanvas /></ErrorBoundary>}
-      {inDungeon    && <ErrorBoundary><DungeonCanvas /></ErrorBoundary>}
-      {inRealm      && <ErrorBoundary><RealmCanvas /></ErrorBoundary>}
+      {inWorld     && <ErrorBoundary><WorldCanvas /></ErrorBoundary>}
+      {inDungeon   && <ErrorBoundary><DungeonCanvas /></ErrorBoundary>}
       {inStronghold && <ErrorBoundary><StrongholdMenu /></ErrorBoundary>}
 
+      {/* HUD shows in world and dungeon, not stronghold */}
       {(inWorld || inDungeon) && <ErrorBoundary><HUD /></ErrorBoundary>}
 
       {inGame && showHelpMenu   && <HelpMenu />}
