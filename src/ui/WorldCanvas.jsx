@@ -6,18 +6,23 @@ import { AbilityConfig } from '../game/config/AbilityConfig';
 
 const TILE    = 32;
 
-// ── God realm portals ────────────────────────────────────────────────────
-const REALM_PORTALS = [
-  { realm: 'forest', name: 'Forest Realm', icon: '🌿', color: '#27ae60', skulls: 1, x: 15, y: 12 },
-  { realm: 'wind',   name: 'Wind Realm',   icon: '💨', color: '#87ceeb', skulls: 1, x:  8, y: 38 },
-  { realm: 'earth',  name: 'Earth Realm',  icon: '🪨', color: '#95a5a6', skulls: 2, x: 52, y: 22 },
-  { realm: 'fire',   name: 'Fire Realm',   icon: '🔥', color: '#e74c3c', skulls: 2, x: 40, y: 72 },
-  { realm: 'ice',    name: 'Ice Realm',    icon: '❄️', color: '#3498db', skulls: 3, x: 68, y:  8 },
-  { realm: 'ocean',  name: 'Ocean Realm',  icon: '🌊', color: '#1abc9c', skulls: 3, x:  5, y: 60 },
-  { realm: 'storm',  name: 'Storm Realm',  icon: '⚡', color: '#9b59b6', skulls: 4, x: 72, y: 38 },
-  { realm: 'shadow', name: 'Shadow Realm', icon: '🌑', color: '#6c3483', skulls: 4, x: 25, y: 74 },
-  { realm: 'lava',   name: 'Lava Realm',   icon: '🌋', color: '#e67e22', skulls: 5, x: 55, y: 74 },
-  { realm: 'void',   name: 'Void Realm',   icon: '✨', color: '#f1c40f', skulls: 5, x: 72, y: 65 },
+// ── Zelda-style zone edge transitions ───────────────────────────────────
+// Walking off the colored border tile triggers a realm load
+const ZONE_TRANSITIONS = [
+  // North edge (walk off top)
+  { realm: 'forest', edge: 'north', icon: '🌿', color: '#27ae60', min: 8,  max: 20 },
+  { realm: 'ice',    edge: 'north', icon: '❄️', color: '#a8d8ea', min: 60, max: 74 },
+  // East edge (walk off right)
+  { realm: 'earth',  edge: 'east',  icon: '🪨', color: '#636e72', min: 15, max: 28 },
+  { realm: 'storm',  edge: 'east',  icon: '⚡', color: '#9b59b6', min: 32, max: 45 },
+  { realm: 'void',   edge: 'east',  icon: '✨', color: '#f1c40f', min: 58, max: 70 },
+  // South edge (walk off bottom)
+  { realm: 'shadow', edge: 'south', icon: '🌑', color: '#2c2c4a', min: 18, max: 30 },
+  { realm: 'fire',   edge: 'south', icon: '🔥', color: '#8b0000', min: 32, max: 48 },
+  { realm: 'lava',   edge: 'south', icon: '🌋', color: '#c05000', min: 50, max: 62 },
+  // West edge (walk off left)
+  { realm: 'wind',   edge: 'west',  icon: '💨', color: '#87ceeb', min: 30, max: 44 },
+  { realm: 'ocean',  edge: 'west',  icon: '🌊', color: '#0e6655', min: 52, max: 65 },
 ];
 
 const MAP_W   = 50;
@@ -43,10 +48,36 @@ function clampToWorld(x, y) {
 }
 
 function tileColor(tx, ty) {
-  if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
-  if (ty < 14 && tx > 4 && tx < MAP_W-4)                  return '#1a5c35';
-  if (tx > 34 && ty > 8  && ty < MAP_H-4)                 return '#636e72';
-  if (tx === 25 || ty === 25)                              return '#9b7a5b';
+  // ── Realm transition border tiles ────────────────────
+  if (ty < 2) {
+    if (tx >= 8  && tx <= 20) return '#1a5c35'; // 🌿 Forest
+    if (tx >= 60 && tx <= 74) return '#a8d8ea'; // ❄️ Ice
+    return '#2980b9';
+  }
+  if (ty >= MAP_H-2) {
+    if (tx >= 18 && tx <= 30) return '#1a1a38'; // 🌑 Shadow
+    if (tx >= 32 && tx <= 48) return '#8b0000'; // 🔥 Fire
+    if (tx >= 50 && tx <= 62) return '#7a3000'; // 🌋 Lava
+    return '#2980b9';
+  }
+  if (tx < 2) {
+    if (ty >= 30 && ty <= 44) return '#b8d8f0'; // 💨 Wind
+    if (ty >= 52 && ty <= 65) return '#0e4a40'; // 🌊 Ocean
+    return '#2980b9';
+  }
+  if (tx >= MAP_W-2) {
+    if (ty >= 15 && ty <= 28) return '#3a3a3a'; // 🪨 Earth
+    if (ty >= 32 && ty <= 45) return '#3a1a4a'; // ⚡ Storm
+    if (ty >= 58 && ty <= 70) return '#5a4800'; // ✨ Void
+    return '#2980b9';
+  }
+  // ── Interior zones ────────────────────────────────────
+  if (ty < 18 && tx > 4 && tx < MAP_W-4)      return '#1a5c35'; // Northern forest
+  if (tx > 46 && ty > 8  && ty < MAP_H-4)     return '#636e72'; // Eastern rocky
+  if (ty > 54 && tx > 4 && tx < 52)           return '#7d5a3c'; // Southern badlands
+  if (ty > 68 && tx > 4)                      return '#4a2010'; // Deep volcanic
+  if (tx < 12 && ty > 25 && ty < MAP_H-8)     return '#1e4d2b'; // Western wetlands
+  if (tx === 25 || ty === 25 || tx === 50 || ty === 55) return '#9b7a5b'; // Paths
   return '#2d6a3f';
 }
 
@@ -186,6 +217,7 @@ function makeEnemy(def) {
     state: 'patrol', alive: true,
     attackTimer: 0, patrolDir: 1, patrolTimer: 0,
     stunTimer: 0,
+    alerted:   false,  // permanently true once hit — bypasses aggro range
     // Elite properties
     isElite:    cfg.isElite    || false,
     isBoss:     cfg.isBoss     || false,
@@ -296,6 +328,7 @@ export default function WorldCanvas() {
     prevSpace:    false,
     prevAbility:  false,
     regenTimer:   0,
+    transitionFlash: 0,
     saveTimer:    0,
     W: 390, H: 844,
     _hintIndex: 0,
@@ -323,7 +356,7 @@ export default function WorldCanvas() {
     if (respawnTime > 0) {
       setTimeout(() => {
         e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
-        e.x = e.originX; e.y = e.originY; e.stunTimer = 0;
+        e.x = e.originX; e.y = e.originY; e.stunTimer = 0; e.alerted = false;
       }, respawnTime);
     }
   };
@@ -346,7 +379,6 @@ export default function WorldCanvas() {
           if (!e.alive || dist(p.x, p.y, e.x, e.y) > ability.range) return;
           const dmg = Math.max(1, Math.round(store.playerATK * ability.damageMult));
           e.hp -= dmg;
-          e.state = 'chase'; // alert on hit
           addFloat(e.x, e.y - 24, `-${dmg}`, '#ff4444');
           if (ability.stunDuration) e.stunTimer = ability.stunDuration;
           if (e.hp <= 0) killEnemy(e, store);
@@ -494,6 +526,7 @@ export default function WorldCanvas() {
     if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
+    if (G.transitionFlash > 0) G.transitionFlash -= dt;
 
     // ── Passive health regen ──────────────────────────────
     const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol' && e.state !== 'idle');
@@ -617,7 +650,7 @@ export default function WorldCanvas() {
         arrow.hitEnemies.add(e);
         const dmg = Math.max(1, arrow.dmg - cfg[e.type].def);
         e.hp -= dmg;
-        e.state = 'chase'; // alert on hit — no kiting from outside aggro range
+        e.alerted = true; // permanently chase — patrol reset won't override
         addFloat(e.x, e.y - 20, `-${dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
@@ -636,7 +669,7 @@ export default function WorldCanvas() {
         if (dist(proj.x, proj.y, e.x, e.y) > 22) return;
         proj.hitEnemies.add(e);
         e.hp -= proj.dmg;
-        e.state = 'chase'; // alert on hit
+        e.alerted = true; // permanently chase
         addFloat(e.x, e.y - 24, `-${proj.dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
@@ -691,15 +724,25 @@ export default function WorldCanvas() {
         return;
       }
 
-      // ── Realm portals ────────────────────────────────────
-      for (const portal of REALM_PORTALS) {
-        if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= 52) {
-          addFloat(p.x, p.y-44, `Entering ${portal.name}...`, portal.color);
-          const realm = portal.realm;
+      // ── Edge transitions (Zelda-style) ──────────────────
+      for (const t of ZONE_TRANSITIONS) {
+        const tx = p.x / TILE, ty = p.y / TILE;
+        const inRange =
+          (t.edge === 'north' || t.edge === 'south') ? (tx >= t.min && tx <= t.max) :
+                                                       (ty >= t.min && ty <= t.max);
+        const atEdge =
+          t.edge === 'north' ? p.y < 2.0*TILE :
+          t.edge === 'south' ? p.y > WORLD_H - 2.0*TILE :
+          t.edge === 'east'  ? p.x > WORLD_W - 2.0*TILE :
+                               p.x < 2.0*TILE;
+        if (inRange && atEdge && G.transitionFlash <= 0) {
+          G.transitionFlash = 0.5;
+          addFloat(p.x, p.y - 44, `${t.icon} Entering realm...`, t.color);
           setTimeout(() => {
-            store.setCurrentRealm(realm);
+            store.setCurrentRealm(t.realm);
+            store.setRealmEntryEdge(t.edge);
             store.setGamePhase('realm');
-          }, 400);
+          }, 350);
           return;
         }
       }
@@ -733,7 +776,8 @@ export default function WorldCanvas() {
           store.takeDamage(dmg);
           p.invincible = true; p.invTimer = 0.8;
         }
-      } else if (d <= ecfg.aggroRange) {
+      } else if (d <= ecfg.aggroRange || e.alerted) {
+        // Chase if in range OR if already alerted (hit by ranged attack)
         e.state = 'aggro';
         const angle = Math.atan2(p.y - e.y, p.x - e.x);
         e.x += Math.cos(angle) * ecfg.speed * dt;
@@ -834,66 +878,38 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
 
-    // ── God realm portals ──────────────────────────────────
-    REALM_PORTALS.forEach(portal => {
-      const prx = wx(portal.x*TILE), pry = wy(portal.y*TILE);
-      if (!onScreen(prx, pry, 80)) return;
+    // ── Zone transition edge labels ───────────────────────
+    // Labels sit just inside the colored border, pointing players toward each realm
+    const ZONE_LABEL_DEFS = [
+      { text: '🌿 FOREST',  color: '#27ae60', x:  14*TILE, y:  4*TILE, edge: 'north' },
+      { text: '❄️ ICE',     color: '#a8d8ea', x:  67*TILE, y:  4*TILE, edge: 'north' },
+      { text: '🪨 EARTH',   color: '#95a5a6', x:  76*TILE, y: 21*TILE, edge: 'east'  },
+      { text: '⚡ STORM',   color: '#9b59b6', x:  76*TILE, y: 38*TILE, edge: 'east'  },
+      { text: '✨ VOID',    color: '#f1c40f', x:  76*TILE, y: 64*TILE, edge: 'east'  },
+      { text: '🌑 SHADOW',  color: '#6c6c9a', x:  24*TILE, y: 76*TILE, edge: 'south' },
+      { text: '🔥 FIRE',    color: '#e74c3c', x:  40*TILE, y: 76*TILE, edge: 'south' },
+      { text: '🌋 LAVA',    color: '#e67e22', x:  56*TILE, y: 76*TILE, edge: 'south' },
+      { text: '💨 WIND',    color: '#87ceeb', x:   3*TILE, y: 37*TILE, edge: 'west'  },
+      { text: '🌊 OCEAN',   color: '#1abc9c', x:   3*TILE, y: 58*TILE, edge: 'west'  },
+    ];
+    ZONE_LABEL_DEFS.forEach(z => {
+      const lx = wx(z.x), ly = wy(z.y);
+      if (!onScreen(lx, ly, 60)) return;
 
-      const pulse     = 0.65 + Math.sin(Date.now()/700 + portal.x * 0.5) * 0.35;
-      const nearPlayer = dist(p.x, p.y, portal.x*TILE, portal.y*TILE) < 64;
+      // Arrow pointing toward edge
+      const arrows = { north: '▲', south: '▼', east: '▶', west: '◀' };
+      const pulse = 0.55 + Math.sin(Date.now()/900 + z.x) * 0.35;
 
-      // Outer glow ring
-      ctx.globalAlpha = pulse * 0.25;
-      ctx.fillStyle = portal.color;
-      ctx.beginPath(); ctx.arc(prx, pry, 34, 0, Math.PI*2); ctx.fill();
-
-      // Rotating ring
-      ctx.globalAlpha = pulse * 0.6;
-      ctx.strokeStyle = portal.color; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(prx, pry, 24, Date.now()/1000, Date.now()/1000 + Math.PI*1.4); ctx.stroke();
-
-      // Inner circle
       ctx.globalAlpha = pulse;
-      ctx.fillStyle = portal.color + '44';
-      ctx.beginPath(); ctx.arc(prx, pry, 18, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-
-      // Element icon
-      ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(portal.icon, prx, pry + 6);
-
-      // Realm name above
-      ctx.fillStyle = portal.color;
-      ctx.font = 'bold 8px sans-serif';
-      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 28);
-
-      // Skull difficulty
-      ctx.fillStyle = '#ffffff99'; ctx.font = '7px sans-serif';
-      ctx.fillText('💀'.repeat(portal.skulls), prx, pry - 38);
-
-      // Enter prompt when close
-      if (nearPlayer) {
-        ctx.fillStyle = portal.color; ctx.font = '9px sans-serif';
-        ctx.fillText('[E] Enter', prx, pry + 32);
-      }
-    });
-
-    // ── Zone labels ───────────────────────────────────────
-    const zoneLabelAlpha = 0.25;
-    [
-      { text: 'NORTHERN FOREST',   wx: wx(35*TILE), wy: wy( 8*TILE) },
-      { text: 'EASTERN REACHES',   wx: wx(62*TILE), wy: wy(25*TILE) },
-      { text: 'SOUTHERN BADLANDS', wx: wx(30*TILE), wy: wy(58*TILE) },
-      { text: 'DEEP SOUTH',        wx: wx(35*TILE), wy: wy(72*TILE) },
-      { text: 'WESTERN VALLEY',    wx: wx( 8*TILE), wy: wy(45*TILE) },
-    ].forEach(({ text, wx: lx, wy: ly }) => {
-      if (!onScreen(lx, ly, 100)) return;
-      ctx.globalAlpha = zoneLabelAlpha;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(text, lx, ly);
+      ctx.fillStyle = z.color;
+      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(z.text, lx, ly);
+      ctx.font = '10px sans-serif';
+      ctx.fillText(arrows[z.edge], lx, ly + 13);
       ctx.globalAlpha = 1;
     });
+
+
 
     // NPC
     const nx = wx(23*TILE), ny = wy(28*TILE);
@@ -1162,6 +1178,14 @@ export default function WorldCanvas() {
     ctx.globalAlpha = 1;
 
     // Float texts
+    // ── Transition flash overlay ─────────────────────────
+    if (G.transitionFlash > 0) {
+      ctx.globalAlpha = Math.min(G.transitionFlash * 2, 0.85);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);

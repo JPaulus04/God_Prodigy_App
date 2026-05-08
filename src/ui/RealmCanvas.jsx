@@ -115,7 +115,7 @@ const REALM_CONFIGS = {
 };
 
 export default function RealmCanvas() {
-  const { currentRealm, setGamePhase, bossesDefeated } = useGameStore();
+  const { currentRealm, realmEntryEdge, setGamePhase, bossesDefeated } = useGameStore();
   const cfg = REALM_CONFIGS[currentRealm] || REALM_CONFIGS.forest;
   const isDefeated = bossesDefeated?.includes(currentRealm);
 
@@ -228,6 +228,21 @@ export default function RealmCanvas() {
           </div>
         </div>
 
+        {/* Entry direction info */}
+        <div style={{
+          background: '#ffffff08', borderRadius: 10, padding: '10px 14px',
+          border: `1px solid ${cfg.color}22`, marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 16 }}>
+            {{ north:'▲', south:'▼', east:'▶', west:'◀' }[realmEntryEdge] || '▶'}
+          </span>
+          <div style={{ color: '#777', fontSize: 11 }}>
+            Entered from the <strong style={{ color: '#aaa' }}>{realmEntryEdge}</strong> edge.
+            Return to that edge to exit.
+          </div>
+        </div>
+
         {/* Status / Enter button */}
         {isDefeated ? (
           <div style={{
@@ -252,6 +267,7 @@ export default function RealmCanvas() {
         <button
           onClick={() => {
             useGameStore.getState().setCurrentRealm(null);
+            useGameStore.getState().setRealmEntryEdge(null);
             setGamePhase('world');
           }}
           style={{
