@@ -56,7 +56,8 @@ export const useGameStore = create((set, get) => ({
 
   setPlayerName:   (name)  => set({ playerName: name }),
   setGamePhase:    (phase) => set({ gamePhase: phase }),
-  setCurrentRealm: (realm) => set({ currentRealm: realm }),
+  setCurrentRealm:    (realm) => set({ currentRealm: realm }),
+  setRealmEntryEdge:  (edge)  => set({ realmEntryEdge: edge }),
   advanceTutorial: ()      => set(s => ({ tutorialStep: s.tutorialStep + 1 })),
 
   takeDamage: (amount) => {
