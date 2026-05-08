@@ -5,6 +5,21 @@ import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 
 const TILE    = 32;
+
+// ── God realm portals ────────────────────────────────────────────────────
+const REALM_PORTALS = [
+  { realm: 'forest', name: 'Forest Realm', icon: '🌿', color: '#27ae60', skulls: 1, x: 15, y: 12 },
+  { realm: 'wind',   name: 'Wind Realm',   icon: '💨', color: '#87ceeb', skulls: 1, x:  8, y: 38 },
+  { realm: 'earth',  name: 'Earth Realm',  icon: '🪨', color: '#95a5a6', skulls: 2, x: 52, y: 22 },
+  { realm: 'fire',   name: 'Fire Realm',   icon: '🔥', color: '#e74c3c', skulls: 2, x: 40, y: 72 },
+  { realm: 'ice',    name: 'Ice Realm',    icon: '❄️', color: '#3498db', skulls: 3, x: 68, y:  8 },
+  { realm: 'ocean',  name: 'Ocean Realm',  icon: '🌊', color: '#1abc9c', skulls: 3, x:  5, y: 60 },
+  { realm: 'storm',  name: 'Storm Realm',  icon: '⚡', color: '#9b59b6', skulls: 4, x: 72, y: 38 },
+  { realm: 'shadow', name: 'Shadow Realm', icon: '🌑', color: '#6c3483', skulls: 4, x: 25, y: 74 },
+  { realm: 'lava',   name: 'Lava Realm',   icon: '🌋', color: '#e67e22', skulls: 5, x: 55, y: 74 },
+  { realm: 'void',   name: 'Void Realm',   icon: '✨', color: '#f1c40f', skulls: 5, x: 72, y: 65 },
+];
+
 const MAP_W   = 50;
 const MAP_H   = 50;
 const WORLD_W = MAP_W * TILE;
@@ -154,6 +169,56 @@ const ENEMY_DEFS = [
   { type: 'gold_goblin',    x: 72*TILE, y: 12*TILE },
   { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },
   { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },
+
+  // ── Portal guards & area density ─────────────────────
+  // Forest Realm portal guards (tile 15,12)
+  { type: 'goblin',         x: 13*TILE, y: 10*TILE },
+  { type: 'goblin',         x: 16*TILE, y: 14*TILE },
+  { type: 'goblin',         x: 11*TILE, y:  8*TILE },
+  { type: 'gold_goblin',    x: 14*TILE, y:  6*TILE },  // elite guard ⭐
+
+  // Wind Realm portal guards (tile 8,38)
+  { type: 'goblin',         x:  7*TILE, y: 35*TILE },
+  { type: 'goblin',         x:  9*TILE, y: 42*TILE },
+
+  // Earth Realm portal guards (tile 52,22)
+  { type: 'golem',          x: 50*TILE, y: 25*TILE },
+  { type: 'golem',          x: 54*TILE, y: 18*TILE },
+  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // elite guard ⭐⭐
+
+  // Ice Realm portal guards (tile 68,8)
+  { type: 'goblin',         x: 65*TILE, y:  6*TILE },
+  { type: 'goblin',         x: 70*TILE, y: 10*TILE },
+  { type: 'stone_guardian', x: 67*TILE, y:  5*TILE },  // elite guard ⭐⭐
+
+  // Ocean Realm portal guards (tile 5,60)
+  { type: 'goblin',         x:  5*TILE, y: 55*TILE },
+  { type: 'goblin',         x:  6*TILE, y: 63*TILE },
+
+  // Storm Realm portal guards (tile 72,38)
+  { type: 'golem',          x: 70*TILE, y: 40*TILE },
+  { type: 'golem',          x: 74*TILE, y: 35*TILE },
+  { type: 'stone_guardian', x: 73*TILE, y: 35*TILE },  // elite guard ⭐⭐
+
+  // Shadow Realm portal guards (tile 25,74)
+  { type: 'golem',          x: 22*TILE, y: 72*TILE },
+  { type: 'stone_guardian', x: 28*TILE, y: 73*TILE },  // elite guard ⭐⭐
+
+  // Lava Realm portal guards (tile 55,74)
+  { type: 'golem',          x: 53*TILE, y: 70*TILE },
+  { type: 'golem',          x: 57*TILE, y: 76*TILE },
+  { type: 'stone_guardian', x: 55*TILE, y: 70*TILE },  // elite guard ⭐⭐
+
+  // Void Realm portal guards (tile 72,65)
+  { type: 'golem',          x: 70*TILE, y: 62*TILE },
+  { type: 'stone_guardian', x: 73*TILE, y: 68*TILE },  // elite guard ⭐⭐
+
+  // Mid-map fill (sparse central areas)
+  { type: 'goblin',         x: 32*TILE, y: 18*TILE },
+  { type: 'goblin',         x: 28*TILE, y: 14*TILE },
+  { type: 'golem',          x: 48*TILE, y: 40*TILE },
+  { type: 'goblin',         x: 15*TILE, y: 48*TILE },
+  { type: 'goblin',         x: 40*TILE, y: 48*TILE },
 ];
 
 const PATROL_RADIUS = 80;
@@ -678,10 +743,22 @@ export default function WorldCanvas() {
       if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
 
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
-        // Enter the dungeon!
         addFloat(p.x, p.y-40, '⚠ Entering Dungeon...', '#cc88ff');
         setTimeout(() => store.setGamePhase('dungeon'), 400);
         return;
+      }
+
+      // ── Realm portals ────────────────────────────────────
+      for (const portal of REALM_PORTALS) {
+        if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= 52) {
+          addFloat(p.x, p.y-44, `Entering ${portal.name}...`, portal.color);
+          const realm = portal.realm;
+          setTimeout(() => {
+            store.setCurrentRealm(realm);
+            store.setGamePhase('realm');
+          }, 400);
+          return;
+        }
       }
 
       if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
@@ -814,18 +891,49 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
 
-    // ── Southern Shrine (placeholder for Fire God) ────────
-    const shrx = wx(40*TILE), shry = wy(72*TILE);
-    if (onScreen(shrx, shry, 80)) {
-      ctx.globalAlpha = 0.7 + Math.sin(Date.now()/800)*0.3;
-      ctx.fillStyle = '#c0392b';
-      ctx.fillRect(shrx-20, shry-20, 40, 40);
+    // ── God realm portals ──────────────────────────────────
+    REALM_PORTALS.forEach(portal => {
+      const prx = wx(portal.x*TILE), pry = wy(portal.y*TILE);
+      if (!onScreen(prx, pry, 80)) return;
+
+      const pulse     = 0.65 + Math.sin(Date.now()/700 + portal.x * 0.5) * 0.35;
+      const nearPlayer = dist(p.x, p.y, portal.x*TILE, portal.y*TILE) < 64;
+
+      // Outer glow ring
+      ctx.globalAlpha = pulse * 0.25;
+      ctx.fillStyle = portal.color;
+      ctx.beginPath(); ctx.arc(prx, pry, 34, 0, Math.PI*2); ctx.fill();
+
+      // Rotating ring
+      ctx.globalAlpha = pulse * 0.6;
+      ctx.strokeStyle = portal.color; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(prx, pry, 24, Date.now()/1000, Date.now()/1000 + Math.PI*1.4); ctx.stroke();
+
+      // Inner circle
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = portal.color + '44';
+      ctx.beginPath(); ctx.arc(prx, pry, 18, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ff8888'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('🔥 FIRE SHRINE', shrx, shry - 28);
-      ctx.fillStyle = '#e74c3caa'; ctx.font = '9px sans-serif';
-      ctx.fillText('Coming Soon', shrx, shry + 30);
-    }
+
+      // Element icon
+      ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(portal.icon, prx, pry + 6);
+
+      // Realm name above
+      ctx.fillStyle = portal.color;
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 28);
+
+      // Skull difficulty
+      ctx.fillStyle = '#ffffff99'; ctx.font = '7px sans-serif';
+      ctx.fillText('💀'.repeat(portal.skulls), prx, pry - 38);
+
+      // Enter prompt when close
+      if (nearPlayer) {
+        ctx.fillStyle = portal.color; ctx.font = '9px sans-serif';
+        ctx.fillText('[E] Enter', prx, pry + 32);
+      }
+    });
 
     // ── Zone labels ───────────────────────────────────────
     const zoneLabelAlpha = 0.25;
