@@ -5,6 +5,7 @@ import { XP_THRESHOLDS } from '../game/config/ItemConfig';
 const DEFAULT_STATE = {
   playerName:  '',
   gamePhase:   'menu',
+  currentRealm: null,
   tutorialStep: 0,
 
   playerHP:      100,
@@ -55,6 +56,7 @@ export const useGameStore = create((set, get) => ({
 
   setPlayerName:   (name)  => set({ playerName: name }),
   setGamePhase:    (phase) => set({ gamePhase: phase }),
+  setCurrentRealm: (realm) => set({ currentRealm: realm }),
   advanceTutorial: ()      => set(s => ({ tutorialStep: s.tutorialStep + 1 })),
 
   takeDamage: (amount) => {
