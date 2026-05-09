@@ -27,7 +27,7 @@ const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold:    { x: 75*TILE, y: 98*TILE  },
+  stronghold:    { x: 75*TILE, y: 83*TILE  },
   cp_center:     { x: 75*TILE, y: 75*TILE  },
   cp_forest:     { x: 70*TILE, y: 30*TILE  },
   cp_east:       { x:115*TILE, y: 50*TILE  },
@@ -593,6 +593,15 @@ export default function WorldCanvas() {
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
+    // ── Boss temple step-on (automatic, no key required) ────────────────
+    for (const temple of BOSS_TEMPLES) {
+      if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 2.5) {
+        store.setCurrentRealm(temple.realm);
+        store.setGamePhase('realm');
+        return;
+      }
+    }
+
     // ── Passive health regen ──────────────────────────────
     const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol' && e.state !== 'idle');
     if (!inCombat && store.playerHP < store.playerMaxHP) {
@@ -781,22 +790,15 @@ export default function WorldCanvas() {
         G.swordPicked = true;
       }
 
-      if (dist(p.x, p.y, 75*TILE, 100*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
+      if (dist(p.x, p.y, 75*TILE, 85*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
 
-      if (dist(p.x, p.y, 105*TILE, 35*TILE) <= 52) {
+      if (dist(p.x, p.y, 90*TILE, 60*TILE) <= 52) {
         addFloat(p.x, p.y-40, '⚠ Entering Dungeon...', '#cc88ff');
         setTimeout(() => store.setGamePhase('dungeon'), 400);
         return;
       }
 
-      // ── Boss temple step-on (no key needed, instant like stronghold) ──
-      for (const temple of BOSS_TEMPLES) {
-        if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 2) {
-          store.setCurrentRealm(temple.realm);
-          store.setGamePhase('realm');
-          return;
-        }
-      }
+
 
       if (dist(p.x, p.y, 72*TILE, 68*TILE) <= 60) {
         G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], timer: 5 };
@@ -906,7 +908,7 @@ export default function WorldCanvas() {
     });
 
     // Stronghold
-    const shx = wx(25*TILE), shy = wy(44*TILE);
+    const shx = wx(75*TILE), shy = wy(85*TILE);
     if (onScreen(shx, shy, 80)) {
       ctx.globalAlpha = 0.75 + Math.sin(Date.now() / 700) * 0.25;
       ctx.fillStyle = '#d4af37';
@@ -943,7 +945,7 @@ export default function WorldCanvas() {
       ctx.fillText('BOSS TEMPLE', tx2, ty2-TILE-14);
     });
 
-    const dunx = wx(105*TILE), duny = wy(35*TILE);
+    const dunx = wx(90*TILE), duny = wy(60*TILE);
     if (onScreen(dunx, duny, 80)) {
       ctx.fillStyle = '#8e44ad';
       ctx.fillRect(dunx-24, duny-24, 48, 48);
@@ -1281,6 +1283,63 @@ export default function WorldCanvas() {
     ctx.globalAlpha = 1;
 
     // Float texts
+    // ── Zone labels (faint, appear in each biome) ───────────────
+    const ZONE_LABELS = [
+      { text: '🌿 FOREST ZONE',    x: 72*TILE, y: 35*TILE, color: '#2ecc71' },
+      { text: '💨 WIND ZONE',      x: 32*TILE, y: 70*TILE, color: '#87ceeb' },
+      { text: '🪨 EARTH ZONE',     x:118*TILE, y: 42*TILE, color: '#95a5a6' },
+      { text: '🌊 OCEAN ZONE',     x: 28*TILE, y:112*TILE, color: '#1abc9c' },
+      { text: '🔥 FIRE ZONE',      x: 75*TILE, y:112*TILE, color: '#e74c3c' },
+      { text: '❄️ ICE ZONE',       x:125*TILE, y: 22*TILE, color: '#3498db' },
+      { text: '⚡ STORM ZONE',     x:125*TILE, y: 72*TILE, color: '#9b59b6' },
+      { text: '🌑 SHADOW ZONE',    x: 30*TILE, y:122*TILE, color: '#6c3483' },
+      { text: '🌋 LAVA ZONE',      x:120*TILE, y:120*TILE, color: '#e67e22' },
+      { text: '✨ VOID ZONE',      x: 75*TILE, y:140*TILE, color: '#f1c40f' },
+    ];
+    ZONE_LABELS.forEach(z => {
+      const zlx = wx(z.x), zly = wy(z.y);
+      if (!onScreen(zlx, zly, 80)) return;
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = z.color;
+      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(z.text, zlx, zly);
+      ctx.globalAlpha = 1;
+    });
+
+    // ── Spawn compass — shows key locations relative to player near start ─
+    const distToSH = dist(p.x, p.y, 75*TILE, 85*TILE);
+    if (distToSH > TILE*3 && distToSH < TILE*25) {
+      const angle = Math.atan2(85*TILE - p.y, 75*TILE - p.x);
+      const cx2 = G.W/2 + Math.cos(angle)*60, cy2 = G.H/2 + Math.sin(angle)*60;
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#d4af37'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('🏰', cx2, cy2);
+      ctx.fillStyle = '#d4af37aa'; ctx.font = '8px sans-serif';
+      ctx.fillText('STRONGHOLD', cx2, cy2 + 14);
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Zone labels (faint biome names) ──────────────────────────────────
+    [
+      { text:'🌿 FOREST',  x: 72*TILE, y: 35*TILE, c:'#2ecc71' },
+      { text:'💨 WIND',    x: 32*TILE, y: 70*TILE, c:'#87ceeb' },
+      { text:'🪨 EARTH',   x:118*TILE, y: 42*TILE, c:'#95a5a6' },
+      { text:'🌊 OCEAN',   x: 28*TILE, y:112*TILE, c:'#1abc9c' },
+      { text:'🔥 FIRE',    x: 75*TILE, y:112*TILE, c:'#e74c3c' },
+      { text:'❄️ ICE',     x:125*TILE, y: 22*TILE, c:'#3498db' },
+      { text:'⚡ STORM',   x:125*TILE, y: 72*TILE, c:'#9b59b6' },
+      { text:'🌑 SHADOW',  x: 30*TILE, y:122*TILE, c:'#8e44ad' },
+      { text:'🌋 LAVA',    x:120*TILE, y:120*TILE, c:'#e67e22' },
+      { text:'✨ VOID',    x: 75*TILE, y:140*TILE, c:'#f1c40f' },
+    ].forEach(z => {
+      const zlx = wx(z.x), zly = wy(z.y);
+      if (!onScreen(zlx, zly, 80)) return;
+      ctx.globalAlpha = 0.22; ctx.fillStyle = z.c;
+      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(z.text, zlx, zly);
+      ctx.globalAlpha = 1;
+    });
+
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
