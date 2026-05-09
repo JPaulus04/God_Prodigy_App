@@ -46,46 +46,55 @@ function clampToWorld(x, y) {
 function tileColor(tx, ty) {
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
 
-  // Boss temple tiles (3×3)
+  // Boss temple tiles (3x3 solid per god)
   const TPLS = [
-    {x:60,y:60,c:'#1a7a40'},{x:90,y:60,c:'#5a7080'},
-    {x:60,y:90,c:'#2070a0'},{x:90,y:90,c:'#8a2010'},
-    {x:45,y:45,c:'#4080a0'},{x:105,y:45,c:'#302050'},
-    {x:45,y:105,c:'#105040'},{x:105,y:105,c:'#601010'},
-    {x:30,y:120,c:'#101030'},{x:120,y:120,c:'#080808'},
+    {x:60,y:60,c:'#27ae60'},{x:90,y:60,c:'#7f8c8d'},
+    {x:60,y:90,c:'#2980b9'},{x:90,y:90,c:'#c0392b'},
+    {x:45,y:45,c:'#85c1e9'},{x:105,y:45,c:'#6c3483'},
+    {x:45,y:105,c:'#148f77'},{x:105,y:105,c:'#922b21'},
+    {x:30,y:120,c:'#1a1a2e'},{x:120,y:120,c:'#0d0d0d'},
   ];
   for (const t of TPLS) {
     if (tx>=t.x-1&&tx<=t.x+1&&ty>=t.y-1&&ty<=t.y+1) return t.c;
+  }
+  // Hidden dungeon entrance tiles (1x1 dark stone)
+  const HDUNS = [
+    {x:57,y:50},{x:48,y:60},{x:40,y:48},
+    {x:96,y:50},{x:108,y:58},{x:88,y:45},
+  ];
+  for (const d2 of HDUNS) {
+    if (tx===d2.x && ty===d2.y) return '#1a1a1a'; // dark stone entrance
   }
 
   const dx = tx-75, dy = ty-75;
   const d  = Math.sqrt(dx*dx + dy*dy);
 
-  // Spawn safe zone — noticeably LIGHTER green than biomes
-  if (d < 6) return '#5a9e5a';
+  // Spawn safe zone — bright medium green, clearly different from biomes
+  if (d < 6) return '#52b865';
 
-  // Wide visible paths
-  if (Math.abs(dx) <= 1 || Math.abs(dy) <= 1) return '#a08850'; // 2-tile wide paths
+  // Main cross paths — sandy brown, 2 tiles wide
+  if (Math.abs(dx) <= 1 || Math.abs(dy) <= 1) return '#c4a45a';
 
-  // ── QUADRANT BIOMES — extreme contrast ───────────────────
-  // NW → Deep Forest (very dark green, clearly different from spawn)
+  // ── BIOME QUADRANTS — BRIGHT saturated colors, unmistakable on mobile ──
+
+  // NW → FOREST (rich forest green — much brighter than old dark green)
   if (dx <= 0 && dy <= 0) {
-    return d < 45 ? '#0a3818' : '#061808'; // Forest → Ancient forest
+    return d < 45 ? '#1e8a3c' : '#0d5c28';   // Forest → Deep Forest
   }
-  // NE → Rocky Earth (warm brown/tan — unmistakably NOT green)
+  // NE → EARTH (warm sandy brown — obviously NOT green)
   if (dx > 0 && dy <= 0) {
-    return d < 45 ? '#7a6040' : '#202840'; // Earth → Storm (dark blue-gray)
+    return d < 45 ? '#b8834a' : '#5c4030';   // Earth → Storm (darker brown)
   }
-  // SW → Wind Plains (bright sky blue — immediately obvious)
+  // SW → WIND (clear sky blue — impossible to mistake for green)
   if (dx <= 0 && dy > 0) {
-    return d < 45 ? '#2888b0' : '#0a4535'; // Wind → Ocean (deep teal)
+    return d < 45 ? '#4a9cc8' : '#1a5c7a';   // Wind → Ocean (deeper blue)
   }
-  // SE → Fire Zone (burnt orange-red — clearly different)
+  // SE → FIRE (bright burnt orange-red — vivid contrast)
   if (dx > 0 && dy > 0) {
-    return d < 45 ? '#8a2810' : '#500808'; // Fire → Lava (near black-red)
+    return d < 45 ? '#c84a20' : '#7a1a08';   // Fire → Lava (dark red)
   }
 
-  return '#5a9e5a';
+  return '#52b865';
 }
 
 function dist(ax, ay, bx, by) {
@@ -252,6 +261,20 @@ const BOSS_TEMPLES = [
   { realm:'void',   icon:'✨', color:'#f1c40f', name:'Nihilus',   x:120*TILE, y:120*TILE }, // SE extreme
 ];
 
+
+// ── Hidden dungeons scattered across the north ──────────────────────────
+// Off the main paths, require exploration to find.
+// All load DungeonCanvas now; unique content built out per dungeon later.
+const HIDDEN_DUNGEONS = [
+  // Forest zone NW — hidden in the trees
+  { id:'forest_cavern', name:'Forest Cavern',   icon:'🌿', color:'#27ae60', x: 57*TILE, y: 50*TILE },
+  { id:'goblin_warren', name:"Goblin's Warren",  icon:'💀', color:'#e74c3c', x: 48*TILE, y: 60*TILE },
+  { id:'ancient_grove', name:'Ancient Grove',   icon:'🌲', color:'#1e8a3c', x: 40*TILE, y: 48*TILE },
+  // Earth zone NE — buried in the rocks
+  { id:'ancient_ruins', name:'Ancient Ruins',   icon:'🪨', color:'#95a5a6', x: 96*TILE, y: 50*TILE },
+  { id:'crystal_mine',  name:'Crystal Mine',    icon:'💎', color:'#3498db', x:108*TILE, y: 58*TILE },
+  { id:'iron_keep',     name:'Iron Keep',       icon:'⚙',  color:'#7f8c8d', x: 88*TILE, y: 45*TILE },
+];
 
 const NPC_HINTS = [
   'Defeat the 10 elemental gods and ascend to godhood.',
@@ -546,7 +569,13 @@ export default function WorldCanvas() {
 
     const store = useGameStore.getState();
     if (store.position?.x) {
-      const c = clampToWorld(store.position.x, store.position.y);
+      let { x, y } = store.position;
+      // Auto-migrate old save positions — if far from 150x150 spawn center, reset
+      const spawnX = 75*TILE, spawnY = 75*TILE;
+      if (Math.abs(x - spawnX) > 55*TILE || Math.abs(y - spawnY) > 55*TILE) {
+        x = spawnX; y = spawnY; // reset to new spawn
+      }
+      const c = clampToWorld(x, y);
       G.player.x = c.x; G.player.y = c.y;
       G.camera.x = c.x; G.camera.y = c.y;
     }
@@ -590,6 +619,15 @@ export default function WorldCanvas() {
       if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 3) {
         store.setCurrentRealm(temple.realm);
         store.setGamePhase('realm');
+        return;
+      }
+    }
+
+    // ── Hidden dungeon step-on ────────────────────────────────────────────
+    for (const hd of HIDDEN_DUNGEONS) {
+      if (dist(p.x, p.y, hd.x, hd.y) <= TILE * 2) {
+        addFloat(p.x, p.y - 44, `⚠ Entering ${hd.name}...`, hd.color);
+        setTimeout(() => store.setGamePhase('dungeon'), 300);
         return;
       }
     }
@@ -1320,6 +1358,31 @@ export default function WorldCanvas() {
       ctx.fillStyle = '#ffffff'; ctx.font = '12px sans-serif';
       wrapText(ctx, msg.text, pad + 12, boxY + 40, boxW - 24, 17);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
+
+    // ── Hidden dungeon entrances ──────────────────────────
+    HIDDEN_DUNGEONS.forEach(hd => {
+      const hdx = wx(hd.x), hdy = wy(hd.y);
+      if (!onScreen(hdx, hdy, 80)) return;
+      const near  = dist(p.x, p.y, hd.x, hd.y) < TILE * 4;
+      const pulse = 0.5 + Math.sin(Date.now()/700 + hd.x*0.1)*0.3;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(hdx-TILE, hdy-TILE, TILE*2, TILE*2);
+      ctx.strokeStyle = hd.color; ctx.lineWidth = 2;
+      ctx.strokeRect(hdx-TILE, hdy-TILE, TILE*2, TILE*2);
+      if (near) {
+        ctx.globalAlpha = pulse * 0.3;
+        ctx.fillStyle = hd.color;
+        ctx.beginPath(); ctx.arc(hdx, hdy, TILE*2.5, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.font='14px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(hd.icon, hdx, hdy+5);
+      ctx.fillStyle='#ffffff99'; ctx.font='bold 8px sans-serif';
+      ctx.fillText(hd.name.toUpperCase(), hdx, hdy-TILE-6);
+      ctx.fillStyle='#ff444477'; ctx.font='7px sans-serif';
+      ctx.fillText('⚠ DUNGEON', hdx, hdy-TILE-16);
+    });
+    ctx.textAlign = 'left';
     }
   }
 
