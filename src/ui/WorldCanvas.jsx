@@ -6,23 +6,18 @@ import { AbilityConfig } from '../game/config/AbilityConfig';
 
 const TILE    = 32;
 
-// ── Zelda-style zone edge transitions ───────────────────────────────────
-// Walking off the colored border tile triggers a realm load
-const ZONE_TRANSITIONS = [
-  // North edge (walk off top)
-  { realm: 'forest', edge: 'north', icon: '🌿', color: '#27ae60', min: 8,  max: 20 },
-  { realm: 'ice',    edge: 'north', icon: '❄️', color: '#a8d8ea', min: 60, max: 74 },
-  // East edge (walk off right)
-  { realm: 'earth',  edge: 'east',  icon: '🪨', color: '#636e72', min: 15, max: 28 },
-  { realm: 'storm',  edge: 'east',  icon: '⚡', color: '#9b59b6', min: 32, max: 45 },
-  { realm: 'void',   edge: 'east',  icon: '✨', color: '#f1c40f', min: 58, max: 70 },
-  // South edge (walk off bottom)
-  { realm: 'shadow', edge: 'south', icon: '🌑', color: '#2c2c4a', min: 18, max: 30 },
-  { realm: 'fire',   edge: 'south', icon: '🔥', color: '#8b0000', min: 32, max: 48 },
-  { realm: 'lava',   edge: 'south', icon: '🌋', color: '#c05000', min: 50, max: 62 },
-  // West edge (walk off left)
-  { realm: 'wind',   edge: 'west',  icon: '💨', color: '#87ceeb', min: 30, max: 44 },
-  { realm: 'ocean',  edge: 'west',  icon: '🌊', color: '#0e6655', min: 52, max: 65 },
+// ── God realm portals ────────────────────────────────────────────────────
+const REALM_PORTALS = [
+  { realm: 'forest', name: 'Forest Realm', icon: '🌿', color: '#27ae60', skulls: 1, x: 15, y: 12 },
+  { realm: 'wind',   name: 'Wind Realm',   icon: '💨', color: '#87ceeb', skulls: 1, x:  8, y: 38 },
+  { realm: 'earth',  name: 'Earth Realm',  icon: '🪨', color: '#95a5a6', skulls: 2, x: 52, y: 22 },
+  { realm: 'fire',   name: 'Fire Realm',   icon: '🔥', color: '#e74c3c', skulls: 2, x: 40, y: 72 },
+  { realm: 'ice',    name: 'Ice Realm',    icon: '❄️', color: '#3498db', skulls: 3, x: 68, y:  8 },
+  { realm: 'ocean',  name: 'Ocean Realm',  icon: '🌊', color: '#1abc9c', skulls: 3, x:  5, y: 60 },
+  { realm: 'storm',  name: 'Storm Realm',  icon: '⚡', color: '#9b59b6', skulls: 4, x: 72, y: 38 },
+  { realm: 'shadow', name: 'Shadow Realm', icon: '🌑', color: '#6c3483', skulls: 4, x: 25, y: 74 },
+  { realm: 'lava',   name: 'Lava Realm',   icon: '🌋', color: '#e67e22', skulls: 5, x: 55, y: 74 },
+  { realm: 'void',   name: 'Void Realm',   icon: '✨', color: '#f1c40f', skulls: 5, x: 72, y: 65 },
 ];
 
 const MAP_W   = 50;
@@ -32,12 +27,13 @@ const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold:  { x: 25*TILE, y: 42*TILE },
-  cp_center:   { x: 25*TILE, y: 25*TILE },
-  cp_forest:   { x: 15*TILE, y: 10*TILE },
-  cp_east:     { x: 40*TILE, y: 18*TILE },
-  cp_south:    { x: 25*TILE, y: 60*TILE },
-  cp_far_east: { x: 65*TILE, y: 30*TILE },
+  stronghold:    { x: 75*TILE, y: 98*TILE  },
+  cp_center:     { x: 75*TILE, y: 75*TILE  },
+  cp_forest:     { x: 70*TILE, y: 30*TILE  },
+  cp_east:       { x:115*TILE, y: 50*TILE  },
+  cp_south:      { x: 75*TILE, y:112*TILE  },
+  cp_southwest:  { x: 28*TILE, y:112*TILE  },
+  cp_far_east:   { x:122*TILE, y: 80*TILE  },
 };
 
 function clampToWorld(x, y) {
@@ -48,44 +44,40 @@ function clampToWorld(x, y) {
 }
 
 function tileColor(tx, ty) {
-  // ── Realm transition border tiles ────────────────────
-  // Painted on the innermost playable rows so players can see them
-  if (ty < 2 || ty < 4 && (
-    (tx >= 8 && tx <= 20) || (tx >= 60 && tx <= 74))) {
-    if (ty >= 2 && tx >= 8  && tx <= 20) return '#1a5c35'; // 🌿 Forest
-    if (ty >= 2 && tx >= 60 && tx <= 74) return '#a8d8ea'; // ❄️ Ice
-    if (ty < 2 && tx >= 8  && tx <= 20)  return '#1a5c35';
-    if (ty < 2 && tx >= 60 && tx <= 74)  return '#a8d8ea';
-    return '#2980b9';
+  // Water border
+  if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
+
+  // ── Boss Temple tiles (3×3 colored stone per god) ────────
+  const temples = [
+    { x:70,y:28,c:'#27ae60'},{x:28,y:70,c:'#87ceeb'},
+    {x:118,y:48,c:'#636e72'},{x:28,y:112,c:'#1abc9c'},
+    {x:75,y:115,c:'#8b0000'},{x:125,y:25,c:'#a8d8ea'},
+    {x:125,y:75,c:'#4a235a'},{x:45,y:125,c:'#2c2c4a'},
+    {x:120,y:125,c:'#7a3000'},{x:75,y:142,c:'#5a4800'},
+  ];
+  for (const t of temples) {
+    if (tx >= t.x-1 && tx <= t.x+1 && ty >= t.y-1 && ty <= t.y+1) return t.c;
   }
-  if (ty < 2) return '#2980b9';
-  if (ty >= MAP_H-4 && ty < MAP_H) {
-    if (tx >= 18 && tx <= 30) return '#1a1a38'; // 🌑 Shadow
-    if (tx >= 32 && tx <= 48) return '#8b0000'; // 🔥 Fire
-    if (tx >= 50 && tx <= 62) return '#7a3000'; // 🌋 Lava
-    if (ty >= MAP_H-2) return '#2980b9';
-  }
-  if (ty >= MAP_H-2) return '#2980b9';
-  if (tx < 4 && tx >= 0) {
-    if (ty >= 30 && ty <= 44) return '#b8d8f0'; // 💨 Wind
-    if (ty >= 52 && ty <= 65) return '#0e4a40'; // 🌊 Ocean
-    if (tx < 2) return '#2980b9';
-  }
-  if (tx < 2) return '#2980b9';
-  if (tx >= MAP_W-4) {
-    if (ty >= 15 && ty <= 28) return '#3a3a3a'; // 🪨 Earth
-    if (ty >= 32 && ty <= 45) return '#3a1a4a'; // ⚡ Storm
-    if (ty >= 58 && ty <= 70) return '#5a4800'; // ✨ Void
-    if (tx >= MAP_W-2) return '#2980b9';
-  }
-  if (tx >= MAP_W-2) return '#2980b9';
-  // ── Interior zones ────────────────────────────────────
-  if (ty < 18 && tx > 4 && tx < MAP_W-4)      return '#1a5c35'; // Northern forest
-  if (tx > 46 && ty > 8  && ty < MAP_H-4)     return '#636e72'; // Eastern rocky
-  if (ty > 54 && tx > 4 && tx < 52)           return '#7d5a3c'; // Southern badlands
-  if (ty > 68 && tx > 4)                      return '#4a2010'; // Deep volcanic
-  if (tx < 12 && ty > 25 && ty < MAP_H-8)     return '#1e4d2b'; // Western wetlands
-  if (tx === 25 || ty === 25 || tx === 50 || ty === 55) return '#9b7a5b'; // Paths
+
+  // ── God biome zones (difficulty increases with distance from center 75,75) ──
+  if (tx>=55&&tx<=92&&ty>=18&&ty<=58)  return '#1a5c35'; // 🌿 Forest  (diff 1)
+  if (tx>=12&&tx<=55&&ty>=55&&ty<=92)  return '#c8e6f5'; // 💨 Wind    (diff 1)
+  if (tx>=95&&tx<=142&&ty>=22&&ty<=68) return '#5d6d7e'; // 🪨 Earth   (diff 2)
+  if (tx>=8&&tx<=52&&ty>=95&&ty<=138)  return '#0e6655'; // 🌊 Ocean   (diff 2)
+  if (tx>=55&&tx<=100&&ty>=98&&ty<=132)return '#6e2c2c'; // 🔥 Fire    (diff 3)
+  if (tx>=105&&tx<=147&&ty>=4&&ty<=48) return '#d6eaf8'; // ❄️ Ice     (diff 3)
+  if (tx>=105&&tx<=147&&ty>=55&&ty<=100)return '#1c2833'; // ⚡ Storm  (diff 4)
+  if (tx>=4&&tx<=58&&ty>=105&&ty<=147) return '#1a1a2e'; // 🌑 Shadow  (diff 4)
+  if (tx>=98&&tx<=147&&ty>=105&&ty<=147)return '#641e16'; // 🌋 Lava   (diff 5)
+  if (ty>=132&&tx>=55&&tx<=100)         return '#0d0d1a'; // ✨ Void    (diff 5)
+
+  // ── Paths ─────────────────────────────────────────────────
+  if (tx===75||ty===75) return '#9b7a5b'; // Main cross
+  if (tx===70&&ty<75)   return '#9b7a5b'; // North forest path
+  if (ty===50&&tx>75)   return '#9b7a5b'; // East path
+  if (tx===30&&ty>75)   return '#9b7a5b'; // Southwest path
+  if (ty===80&&tx>100)  return '#9b7a5b'; // Far east path
+
   return '#2d6a3f';
 }
 
@@ -107,100 +99,167 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 const CHECKPOINTS = [
-  { id: 'cp_center',   x: 25*TILE, y: 25*TILE },
-  { id: 'cp_forest',   x: 15*TILE, y: 10*TILE },
-  { id: 'cp_east',     x: 40*TILE, y: 18*TILE },
-  { id: 'cp_south',    x: 25*TILE, y: 60*TILE },
-  { id: 'cp_far_east', x: 65*TILE, y: 30*TILE },
+  { id: 'cp_center',    x:  75*TILE, y:  75*TILE },
+  { id: 'cp_forest',    x:  70*TILE, y:  30*TILE },
+  { id: 'cp_east',      x: 115*TILE, y:  50*TILE },
+  { id: 'cp_south',     x:  75*TILE, y: 112*TILE },
+  { id: 'cp_southwest', x:  28*TILE, y: 112*TILE },
+  { id: 'cp_far_east',  x: 122*TILE, y:  80*TILE },
 ];
 
 const RESOURCE_DEFS = [
-  { type: 'tree',     res: 'wood',  amt: 2, x:  8*TILE, y:  7*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 12*TILE, y:  9*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 16*TILE, y:  6*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 20*TILE, y:  8*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 24*TILE, y: 11*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 30*TILE, y:  7*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 14*TILE, y: 22*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 20*TILE, y: 38*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 10*TILE, y: 30*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 32*TILE, y: 40*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 1, x: 37*TILE, y: 16*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 1, x: 41*TILE, y: 24*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 1, x: 38*TILE, y: 34*TILE },
+  // Central starting area
+  { type:'tree',     res:'wood',  amt:2, x: 78*TILE, y: 70*TILE },
+  { type:'tree',     res:'wood',  amt:2, x: 68*TILE, y: 72*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 80*TILE, y: 80*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 72*TILE, y: 82*TILE },
+  { type:'ore_node', res:'ore',   amt:1, x: 85*TILE, y: 72*TILE },
 
-  // ── Extended northern forest ──────────────────────────
-  { type: 'tree',     res: 'wood',  amt: 3, x: 35*TILE, y:  5*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x: 45*TILE, y:  8*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x: 55*TILE, y:  6*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 65*TILE, y: 10*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 72*TILE, y:  7*TILE },
+  // Forest zone (tx 55-92, ty 18-58)
+  { type:'tree',     res:'wood',  amt:3, x: 62*TILE, y: 25*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 72*TILE, y: 22*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 80*TILE, y: 30*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 65*TILE, y: 40*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 78*TILE, y: 45*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 85*TILE, y: 35*TILE },
 
-  // ── Eastern rocky zone (extended) ─────────────────────
-  { type: 'rock',     res: 'stone', amt: 3, x: 52*TILE, y: 20*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 60*TILE, y: 35*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 68*TILE, y: 22*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 74*TILE, y: 40*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 2, x: 55*TILE, y: 30*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 2, x: 63*TILE, y: 45*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 3, x: 70*TILE, y: 28*TILE },
+  // Wind zone (tx 12-55, ty 55-92)
+  { type:'tree',     res:'wood',  amt:3, x: 20*TILE, y: 65*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 35*TILE, y: 60*TILE },
+  { type:'tree',     res:'wood',  amt:2, x: 45*TILE, y: 75*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 25*TILE, y: 78*TILE },
 
-  // ── Southern badlands ─────────────────────────────────
-  { type: 'rock',     res: 'stone', amt: 3, x: 18*TILE, y: 60*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 35*TILE, y: 62*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 45*TILE, y: 58*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 2, x: 22*TILE, y: 65*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 3, x: 40*TILE, y: 70*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 3, x: 30*TILE, y: 72*TILE },
+  // Earth zone (tx 95-142, ty 22-68)
+  { type:'rock',     res:'stone', amt:3, x:105*TILE, y: 35*TILE },
+  { type:'rock',     res:'stone', amt:3, x:118*TILE, y: 42*TILE },
+  { type:'rock',     res:'stone', amt:3, x:130*TILE, y: 55*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x:110*TILE, y: 48*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x:125*TILE, y: 35*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x:135*TILE, y: 50*TILE },
 
-  // ── Western wetlands ──────────────────────────────────
-  { type: 'tree',     res: 'wood',  amt: 3, x:  6*TILE, y: 35*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x:  8*TILE, y: 48*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x:  7*TILE, y: 60*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 10*TILE, y: 40*TILE },
+  // Ocean zone (tx 8-52, ty 95-138)
+  { type:'tree',     res:'wood',  amt:3, x: 15*TILE, y:105*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 28*TILE, y: 98*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 40*TILE, y:108*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x: 22*TILE, y:120*TILE },
+
+  // Fire zone (tx 55-100, ty 98-132)
+  { type:'ore_node', res:'ore',   amt:3, x: 65*TILE, y:108*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x: 80*TILE, y:118*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x: 92*TILE, y:105*TILE },
+  { type:'rock',     res:'stone', amt:3, x: 70*TILE, y:122*TILE },
+
+  // Ice zone (tx 105-147, ty 4-48)
+  { type:'rock',     res:'stone', amt:3, x:115*TILE, y: 15*TILE },
+  { type:'rock',     res:'stone', amt:3, x:130*TILE, y: 25*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x:140*TILE, y: 18*TILE },
+
+  // Storm zone (tx 105-147, ty 55-100)
+  { type:'ore_node', res:'ore',   amt:3, x:118*TILE, y: 70*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x:135*TILE, y: 80*TILE },
+  { type:'rock',     res:'stone', amt:3, x:128*TILE, y: 62*TILE },
+
+  // Shadow / Lava / Void zones — rich but dangerous
+  { type:'ore_node', res:'ore',   amt:3, x: 25*TILE, y:118*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x: 42*TILE, y:130*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x:112*TILE, y:118*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x:130*TILE, y:132*TILE },
 ];
 
 const ENEMY_DEFS = [
-  // ── Starting area (spawn ~25,30) ────────────────────
-  { type: 'goblin',         x: 12*TILE, y: 18*TILE },
-  { type: 'goblin',         x: 18*TILE, y: 15*TILE },
-  { type: 'goblin',         x: 22*TILE, y: 20*TILE },
-  { type: 'goblin',         x:  8*TILE, y: 22*TILE },
-  { type: 'golem',          x: 38*TILE, y: 20*TILE },
-  { type: 'golem',          x: 42*TILE, y: 30*TILE },
-  { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },  // ⭐ elite
-  { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },  // ⭐ elite
-  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },  // ⭐⭐ elite
+  // ── Starting area (near spawn 75,75) ─────────────────────
+  { type:'goblin',         x: 80*TILE, y: 68*TILE },
+  { type:'goblin',         x: 70*TILE, y: 80*TILE },
+  { type:'goblin',         x: 82*TILE, y: 82*TILE },
+  { type:'gold_goblin',    x: 85*TILE, y: 65*TILE }, // ⭐ first elite
 
-  // ── Northern forest (extended) ───────────────────────
-  { type: 'goblin',         x: 35*TILE, y: 12*TILE },
-  { type: 'goblin',         x: 48*TILE, y:  9*TILE },
-  { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },  // ⭐ elite guard near Ice portal
+  // ── Forest Zone (diff 1) ─────────────────────────────────
+  { type:'goblin',         x: 62*TILE, y: 28*TILE },
+  { type:'goblin',         x: 72*TILE, y: 22*TILE },
+  { type:'goblin',         x: 82*TILE, y: 32*TILE },
+  { type:'goblin',         x: 65*TILE, y: 42*TILE },
+  { type:'goblin',         x: 78*TILE, y: 48*TILE },
+  { type:'gold_goblin',    x: 68*TILE, y: 35*TILE }, // ⭐ forest elite
 
-  // ── Eastern rocky zone ───────────────────────────────
-  { type: 'golem',          x: 52*TILE, y: 22*TILE },
-  { type: 'golem',          x: 60*TILE, y: 32*TILE },
-  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // ⭐⭐ Earth portal guard
-  { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },  // ⭐⭐ Storm portal guard
+  // ── Wind Zone (diff 1) ───────────────────────────────────
+  { type:'goblin',         x: 22*TILE, y: 62*TILE },
+  { type:'goblin',         x: 38*TILE, y: 68*TILE },
+  { type:'goblin',         x: 25*TILE, y: 78*TILE },
+  { type:'goblin',         x: 45*TILE, y: 82*TILE },
+  { type:'gold_goblin',    x: 32*TILE, y: 72*TILE }, // ⭐ wind elite
 
-  // ── Western valley ───────────────────────────────────
-  { type: 'goblin',         x:  8*TILE, y: 38*TILE },
-  { type: 'goblin',         x:  6*TILE, y: 52*TILE },
+  // ── Earth Zone (diff 2) ──────────────────────────────────
+  { type:'golem',          x:108*TILE, y: 32*TILE },
+  { type:'golem',          x:120*TILE, y: 42*TILE },
+  { type:'golem',          x:132*TILE, y: 55*TILE },
+  { type:'golem',          x:115*TILE, y: 58*TILE },
+  { type:'stone_guardian', x:118*TILE, y: 38*TILE }, // ⭐⭐ earth elite
+  { type:'stone_guardian', x:130*TILE, y: 45*TILE }, // ⭐⭐ earth elite
 
-  // ── Southern badlands ────────────────────────────────
-  { type: 'goblin',         x: 18*TILE, y: 58*TILE },
-  { type: 'goblin',         x: 35*TILE, y: 62*TILE },
-  { type: 'golem',          x: 28*TILE, y: 68*TILE },
-  { type: 'golem',          x: 42*TILE, y: 70*TILE },
-  { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },  // ⭐⭐ Shadow portal guard
+  // ── Ocean Zone (diff 2) ──────────────────────────────────
+  { type:'goblin',         x: 18*TILE, y:102*TILE },
+  { type:'goblin',         x: 32*TILE, y:108*TILE },
+  { type:'golem',          x: 22*TILE, y:118*TILE },
+  { type:'golem',          x: 40*TILE, y:122*TILE },
+  { type:'stone_guardian', x: 30*TILE, y:115*TILE }, // ⭐⭐ ocean elite
 
-  // ── Deep south volcanic ───────────────────────────────
-  { type: 'golem',          x: 55*TILE, y: 70*TILE },
-  { type: 'stone_guardian', x: 55*TILE, y: 72*TILE },  // ⭐⭐ Lava portal guard
-  { type: 'stone_guardian', x: 72*TILE, y: 65*TILE },  // ⭐⭐ Void portal guard
+  // ── Fire Zone (diff 3) ───────────────────────────────────
+  { type:'golem',          x: 62*TILE, y:108*TILE },
+  { type:'golem',          x: 75*TILE, y:118*TILE },
+  { type:'golem',          x: 88*TILE, y:108*TILE },
+  { type:'stone_guardian', x: 70*TILE, y:112*TILE }, // ⭐⭐
+  { type:'stone_guardian', x: 85*TILE, y:120*TILE }, // ⭐⭐
+
+  // ── Ice Zone (diff 3) ────────────────────────────────────
+  { type:'goblin',         x:112*TILE, y: 15*TILE },
+  { type:'goblin',         x:125*TILE, y: 22*TILE },
+  { type:'golem',          x:135*TILE, y: 32*TILE },
+  { type:'stone_guardian', x:120*TILE, y: 28*TILE }, // ⭐⭐
+  { type:'stone_guardian', x:138*TILE, y: 18*TILE }, // ⭐⭐
+
+  // ── Storm Zone (diff 4) ──────────────────────────────────
+  { type:'golem',          x:112*TILE, y: 65*TILE },
+  { type:'golem',          x:128*TILE, y: 72*TILE },
+  { type:'golem',          x:140*TILE, y: 85*TILE },
+  { type:'stone_guardian', x:120*TILE, y: 78*TILE }, // ⭐⭐
+  { type:'stone_guardian', x:135*TILE, y: 65*TILE }, // ⭐⭐
+
+  // ── Shadow Zone (diff 4) ─────────────────────────────────
+  { type:'golem',          x: 18*TILE, y:115*TILE },
+  { type:'golem',          x: 35*TILE, y:128*TILE },
+  { type:'stone_guardian', x: 25*TILE, y:122*TILE }, // ⭐⭐
+  { type:'stone_guardian', x: 45*TILE, y:118*TILE }, // ⭐⭐
+  { type:'stone_guardian', x: 30*TILE, y:138*TILE }, // ⭐⭐ deep shadow
+
+  // ── Lava Zone (diff 5) ───────────────────────────────────
+  { type:'golem',          x:108*TILE, y:115*TILE },
+  { type:'golem',          x:125*TILE, y:125*TILE },
+  { type:'stone_guardian', x:115*TILE, y:122*TILE }, // ⭐⭐
+  { type:'stone_guardian', x:135*TILE, y:118*TILE }, // ⭐⭐
+  { type:'stone_guardian', x:128*TILE, y:138*TILE }, // ⭐⭐ deep lava
+
+  // ── Void Zone (diff 5) ───────────────────────────────────
+  { type:'stone_guardian', x: 65*TILE, y:138*TILE }, // ⭐⭐
+  { type:'stone_guardian', x: 80*TILE, y:142*TILE }, // ⭐⭐
+  { type:'stone_guardian', x: 92*TILE, y:136*TILE }, // ⭐⭐ near void temple
 ];
 
 const PATROL_RADIUS = 80;
+
+// ── Boss temple entrance tiles ─────────────────────────────────────────
+// Step on temple tile → instant transition to boss arena (no flash, no key)
+const BOSS_TEMPLES = [
+  { realm:'forest', icon:'🌿', color:'#27ae60', name:'Sylvara',       x:70*TILE, y:28*TILE },
+  { realm:'wind',   icon:'💨', color:'#87ceeb', name:'Zephyros',      x:28*TILE, y:70*TILE },
+  { realm:'earth',  icon:'🪨', color:'#636e72', name:'Terran',        x:118*TILE,y:48*TILE },
+  { realm:'ocean',  icon:'🌊', color:'#1abc9c', name:'Nepthar',       x:28*TILE, y:112*TILE},
+  { realm:'fire',   icon:'🔥', color:'#e74c3c', name:'Ignar',         x:75*TILE, y:115*TILE},
+  { realm:'ice',    icon:'❄️', color:'#3498db', name:'Glacius',       x:125*TILE,y:25*TILE },
+  { realm:'storm',  icon:'⚡', color:'#9b59b6', name:'Vortus',        x:125*TILE,y:75*TILE },
+  { realm:'shadow', icon:'🌑', color:'#6c3483', name:'Umbris',        x:45*TILE, y:125*TILE},
+  { realm:'lava',   icon:'🌋', color:'#e67e22', name:'Magmara',       x:120*TILE,y:125*TILE},
+  { realm:'void',   icon:'✨', color:'#f1c40f', name:'Nihilus',       x:75*TILE, y:142*TILE},
+];
 
 const NPC_HINTS = [
   'Defeat the 10 elemental gods and ascend to godhood.',
@@ -315,8 +374,8 @@ export default function WorldCanvas() {
   const prevDeathModal  = useRef(false);
 
   const G = useRef({
-    player:       { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
-    camera:       { x: 25*TILE, y: 30*TILE },
+    player:       { x: 75*TILE, y: 75*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
+    camera:       { x: 75*TILE, y: 75*TILE },
     enemies:      ENEMY_DEFS.map(makeEnemy),
     resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
     checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
@@ -336,7 +395,6 @@ export default function WorldCanvas() {
     prevSpace:    false,
     prevAbility:  false,
     regenTimer:   0,
-    transitionFlash: 0,
     saveTimer:    0,
     W: 390, H: 844,
     _hintIndex: 0,
@@ -534,7 +592,6 @@ export default function WorldCanvas() {
     if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
-    if (G.transitionFlash > 0) G.transitionFlash -= dt;
 
     // ── Passive health regen ──────────────────────────────
     const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol' && e.state !== 'idle');
@@ -708,7 +765,7 @@ export default function WorldCanvas() {
       });
 
       const hasSword = store.inventory.some(i => i.id === 'iron_sword');
-      if (!G.swordPicked && !hasSword && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
+      if (!G.swordPicked && !hasSword && dist(p.x, p.y, 77*TILE, 78*TILE) <= 44) {
         const item = {
           id: 'iron_sword', name: 'Iron Sword', slot: 'weapon',
           type: 'sword', tier: 'iron', rarity: 'common',
@@ -724,38 +781,24 @@ export default function WorldCanvas() {
         G.swordPicked = true;
       }
 
-      if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
+      if (dist(p.x, p.y, 75*TILE, 100*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
 
-      if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
+      if (dist(p.x, p.y, 105*TILE, 35*TILE) <= 52) {
         addFloat(p.x, p.y-40, '⚠ Entering Dungeon...', '#cc88ff');
         setTimeout(() => store.setGamePhase('dungeon'), 400);
         return;
       }
 
-      // ── Edge transitions (Zelda-style) ──────────────────
-      for (const t of ZONE_TRANSITIONS) {
-        const tx = p.x / TILE, ty = p.y / TILE;
-        const inRange =
-          (t.edge === 'north' || t.edge === 'south') ? (tx >= t.min && tx <= t.max) :
-                                                       (ty >= t.min && ty <= t.max);
-        const atEdge =
-          t.edge === 'north' ? p.y <= BORDER :
-          t.edge === 'south' ? p.y >= WORLD_H - BORDER :
-          t.edge === 'east'  ? p.x >= WORLD_W - BORDER :
-                               p.x <= BORDER;          p.x < 2.0*TILE;
-        if (inRange && atEdge && G.transitionFlash <= 0) {
-          G.transitionFlash = 0.5;
-          addFloat(p.x, p.y - 44, `${t.icon} Entering realm...`, t.color);
-          setTimeout(() => {
-            store.setCurrentRealm(t.realm);
-            store.setRealmEntryEdge(t.edge);
-            store.setGamePhase('realm');
-          }, 350);
+      // ── Boss temple step-on (no key needed, instant like stronghold) ──
+      for (const temple of BOSS_TEMPLES) {
+        if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 2) {
+          store.setCurrentRealm(temple.realm);
+          store.setGamePhase('realm');
           return;
         }
       }
 
-      if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
+      if (dist(p.x, p.y, 72*TILE, 68*TILE) <= 60) {
         G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], timer: 5 };
         G._hintIndex++;
       }
@@ -876,7 +919,31 @@ export default function WorldCanvas() {
     }
 
     // Dungeon
-    const dunx = wx(43*TILE), duny = wy(10*TILE);
+    // ── Boss temple entrances ───────────────────────────────
+    BOSS_TEMPLES.forEach(temple => {
+      const tx2 = wx(temple.x), ty2 = wy(temple.y);
+      if (!onScreen(tx2, ty2, 80)) return;
+      const nearT = dist(p.x, p.y, temple.x, temple.y) < TILE*3.5;
+      const pulse2 = 0.6 + Math.sin(Date.now()/800 + temple.x*0.1)*0.4;
+      ctx.fillStyle = temple.color + '44';
+      ctx.fillRect(tx2-TILE*1.5, ty2-TILE*1.5, TILE*3, TILE*3);
+      ctx.strokeStyle = temple.color; ctx.lineWidth = 2;
+      ctx.strokeRect(tx2-TILE*1.5, ty2-TILE*1.5, TILE*3, TILE*3);
+      if (nearT) {
+        ctx.globalAlpha = pulse2*0.25;
+        ctx.fillStyle = temple.color;
+        ctx.beginPath(); ctx.arc(tx2, ty2, TILE*2.5, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.font='18px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(temple.icon, tx2, ty2+7);
+      ctx.fillStyle=temple.color; ctx.font='bold 8px sans-serif';
+      ctx.fillText(temple.name.toUpperCase(), tx2, ty2-TILE-4);
+      ctx.fillStyle='#ffffff77'; ctx.font='7px sans-serif';
+      ctx.fillText('BOSS TEMPLE', tx2, ty2-TILE-14);
+    });
+
+    const dunx = wx(105*TILE), duny = wy(35*TILE);
     if (onScreen(dunx, duny, 80)) {
       ctx.fillStyle = '#8e44ad';
       ctx.fillRect(dunx-24, duny-24, 48, 48);
@@ -886,41 +953,69 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Enter', dunx, duny + 36);
     }
 
-    // ── Zone transition edge labels ───────────────────────
-    // Labels sit just inside the colored border, pointing players toward each realm
-    const ZONE_LABEL_DEFS = [
-      { text: '🌿 FOREST',  color: '#27ae60', x:  14*TILE, y:  4*TILE, edge: 'north' },
-      { text: '❄️ ICE',     color: '#a8d8ea', x:  67*TILE, y:  4*TILE, edge: 'north' },
-      { text: '🪨 EARTH',   color: '#95a5a6', x:  76*TILE, y: 21*TILE, edge: 'east'  },
-      { text: '⚡ STORM',   color: '#9b59b6', x:  76*TILE, y: 38*TILE, edge: 'east'  },
-      { text: '✨ VOID',    color: '#f1c40f', x:  76*TILE, y: 64*TILE, edge: 'east'  },
-      { text: '🌑 SHADOW',  color: '#6c6c9a', x:  24*TILE, y: 76*TILE, edge: 'south' },
-      { text: '🔥 FIRE',    color: '#e74c3c', x:  40*TILE, y: 76*TILE, edge: 'south' },
-      { text: '🌋 LAVA',    color: '#e67e22', x:  56*TILE, y: 76*TILE, edge: 'south' },
-      { text: '💨 WIND',    color: '#87ceeb', x:   3*TILE, y: 37*TILE, edge: 'west'  },
-      { text: '🌊 OCEAN',   color: '#1abc9c', x:   3*TILE, y: 58*TILE, edge: 'west'  },
-    ];
-    ZONE_LABEL_DEFS.forEach(z => {
-      const lx = wx(z.x), ly = wy(z.y);
-      if (!onScreen(lx, ly, 60)) return;
+    // ── God realm portals ──────────────────────────────────
+    REALM_PORTALS.forEach(portal => {
+      const prx = wx(portal.x*TILE), pry = wy(portal.y*TILE);
+      if (!onScreen(prx, pry, 80)) return;
 
-      // Arrow pointing toward edge
-      const arrows = { north: '▲', south: '▼', east: '▶', west: '◀' };
-      const pulse = 0.55 + Math.sin(Date.now()/900 + z.x) * 0.35;
+      const pulse     = 0.65 + Math.sin(Date.now()/700 + portal.x * 0.5) * 0.35;
+      const nearPlayer = dist(p.x, p.y, portal.x*TILE, portal.y*TILE) < 64;
 
+      // Outer glow ring
+      ctx.globalAlpha = pulse * 0.25;
+      ctx.fillStyle = portal.color;
+      ctx.beginPath(); ctx.arc(prx, pry, 34, 0, Math.PI*2); ctx.fill();
+
+      // Rotating ring
+      ctx.globalAlpha = pulse * 0.6;
+      ctx.strokeStyle = portal.color; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(prx, pry, 24, Date.now()/1000, Date.now()/1000 + Math.PI*1.4); ctx.stroke();
+
+      // Inner circle
       ctx.globalAlpha = pulse;
-      ctx.fillStyle = z.color;
-      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(z.text, lx, ly);
-      ctx.font = '10px sans-serif';
-      ctx.fillText(arrows[z.edge], lx, ly + 13);
+      ctx.fillStyle = portal.color + '44';
+      ctx.beginPath(); ctx.arc(prx, pry, 18, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Element icon
+      ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(portal.icon, prx, pry + 6);
+
+      // Realm name above
+      ctx.fillStyle = portal.color;
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 28);
+
+      // Skull difficulty
+      ctx.fillStyle = '#ffffff99'; ctx.font = '7px sans-serif';
+      ctx.fillText('💀'.repeat(portal.skulls), prx, pry - 38);
+
+      // Enter prompt when close
+      if (nearPlayer) {
+        ctx.fillStyle = portal.color; ctx.font = '9px sans-serif';
+        ctx.fillText('[E] Enter', prx, pry + 32);
+      }
+    });
+
+    // ── Zone labels ───────────────────────────────────────
+    const zoneLabelAlpha = 0.25;
+    [
+      { text: 'NORTHERN FOREST',   wx: wx(35*TILE), wy: wy( 8*TILE) },
+      { text: 'EASTERN REACHES',   wx: wx(62*TILE), wy: wy(25*TILE) },
+      { text: 'SOUTHERN BADLANDS', wx: wx(30*TILE), wy: wy(58*TILE) },
+      { text: 'DEEP SOUTH',        wx: wx(35*TILE), wy: wy(72*TILE) },
+      { text: 'WESTERN VALLEY',    wx: wx( 8*TILE), wy: wy(45*TILE) },
+    ].forEach(({ text, wx: lx, wy: ly }) => {
+      if (!onScreen(lx, ly, 100)) return;
+      ctx.globalAlpha = zoneLabelAlpha;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(text, lx, ly);
       ctx.globalAlpha = 1;
     });
 
-
-
     // NPC
-    const nx = wx(23*TILE), ny = wy(28*TILE);
+    const nx = wx(72*TILE), ny = wy(68*TILE);
     if (onScreen(nx, ny)) {
       ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
@@ -1186,14 +1281,6 @@ export default function WorldCanvas() {
     ctx.globalAlpha = 1;
 
     // Float texts
-    // ── Transition flash overlay ─────────────────────────
-    if (G.transitionFlash > 0) {
-      ctx.globalAlpha = Math.min(G.transitionFlash * 2, 0.85);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);

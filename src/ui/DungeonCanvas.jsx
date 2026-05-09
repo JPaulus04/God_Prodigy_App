@@ -71,7 +71,7 @@ function makeEnemy(def) {
     originX: def.x, originY: def.y,
     hp: cfg.hp, maxHp: cfg.hp,
     state: 'idle', alive: true,
-    attackTimer: 0, stunTimer: 0,
+    attackTimer: 0, stunTimer: 0, alerted: false,
     phase2: false,
     isBoss: cfg.isBoss || false,
   };
@@ -365,7 +365,8 @@ export default function DungeonCanvas() {
         proj.hitEnemies.add(e);
         const cfg = EnemyConfig[e.type];
         const dmg = Math.max(1, proj.dmg - (cfg.def||0));
-        e.hp -= dmg; addFloat(e.x,e.y-24,`-${dmg}`,'#FCD34D');
+        e.hp -= dmg; e.alerted = true;
+        addFloat(e.x,e.y-24,`-${dmg}`,'#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
       return proj.traveled < proj.maxRange;
@@ -378,7 +379,8 @@ export default function DungeonCanvas() {
         arrow.hitEnemies.add(e);
         const cfg = EnemyConfig[e.type];
         const dmg = Math.max(1, arrow.dmg-(cfg.def||0));
-        e.hp -= dmg; addFloat(e.x,e.y-20,`-${dmg}`,'#d4af37');
+        e.hp -= dmg; e.alerted = true;
+        addFloat(e.x,e.y-20,`-${dmg}`,'#d4af37');
         if (e.hp <= 0) killEnemy(e, store);
       });
       return arrow.traveled < arrow.maxRange;
@@ -460,8 +462,8 @@ export default function DungeonCanvas() {
           store.takeDamage(dmg);
           p.invincible = true; p.invTimer = 0.7;
         }
-      } else if (d <= aggroRange || e.state === 'chase') {
-        // Chase once aggroed — doesn't lose aggro
+      } else if (d <= aggroRange || e.state === 'chase' || e.alerted) {
+        // Chase if in range, already chasing, or alerted by ranged hit
         e.state = 'chase';
         const angle = Math.atan2(p.y-e.y, p.x-e.x);
         const speed = cfg.speed * spdMult;
