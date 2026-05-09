@@ -395,6 +395,7 @@ export default function WorldCanvas() {
     resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
     checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
     swordPicked:  false,
+    templeCooldown: 2.5,  // grace period on mount — prevents re-entering realm/dungeon immediately
     floats:       [],
     npcMessage:   null,
     // ── Ability state ──────────────────────────────────
@@ -614,21 +615,26 @@ export default function WorldCanvas() {
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
-    // ── Boss temple step-on (automatic every frame) ─────────────────────
-    for (const temple of BOSS_TEMPLES) {
-      if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 3) {
-        store.setCurrentRealm(temple.realm);
-        store.setGamePhase('realm');
-        return;
+    // ── Boss temple + hidden dungeon step-on ────────────────────────────
+    // Cooldown prevents immediately re-entering after returning from realm/dungeon
+    if (G.templeCooldown > 0) {
+      G.templeCooldown -= dt;
+    } else {
+      for (const temple of BOSS_TEMPLES) {
+        if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 3) {
+          G.templeCooldown = 3.0; // reset cooldown so exiting doesn't re-trigger
+          store.setCurrentRealm(temple.realm);
+          store.setGamePhase('realm');
+          return;
+        }
       }
-    }
-
-    // ── Hidden dungeon step-on ────────────────────────────────────────────
-    for (const hd of HIDDEN_DUNGEONS) {
-      if (dist(p.x, p.y, hd.x, hd.y) <= TILE * 2) {
-        addFloat(p.x, p.y - 44, `⚠ Entering ${hd.name}...`, hd.color);
-        setTimeout(() => store.setGamePhase('dungeon'), 300);
-        return;
+      for (const hd of HIDDEN_DUNGEONS) {
+        if (dist(p.x, p.y, hd.x, hd.y) <= TILE * 2) {
+          G.templeCooldown = 3.0;
+          addFloat(p.x, p.y - 44, `⚠ Entering ${hd.name}...`, hd.color);
+          setTimeout(() => store.setGamePhase('dungeon'), 300);
+          return;
+        }
       }
     }
 
