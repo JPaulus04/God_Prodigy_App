@@ -27,7 +27,7 @@ const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold:    { x: 75*TILE, y: 83*TILE  },
+  stronghold:    { x: 75*TILE, y: 98*TILE  },
   cp_center:     { x: 75*TILE, y: 75*TILE  },
   cp_forest:     { x: 70*TILE, y: 30*TILE  },
   cp_east:       { x:115*TILE, y: 50*TILE  },
@@ -47,36 +47,55 @@ function tileColor(tx, ty) {
   // Water border
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
 
-  // ── Boss Temple tiles (3×3 colored stone per god) ────────
-  const temples = [
-    { x:70,y:28,c:'#27ae60'},{x:28,y:70,c:'#87ceeb'},
-    {x:118,y:48,c:'#636e72'},{x:28,y:112,c:'#1abc9c'},
-    {x:75,y:115,c:'#8b0000'},{x:125,y:25,c:'#a8d8ea'},
-    {x:125,y:75,c:'#4a235a'},{x:45,y:125,c:'#2c2c4a'},
-    {x:120,y:125,c:'#7a3000'},{x:75,y:142,c:'#5a4800'},
+  // Boss temple tiles (3×3 colored stone)
+  const TPLS = [
+    {x:60,y:60,c:'#1a7a40'},{x:90,y:60,c:'#3a4a55'},
+    {x:60,y:90,c:'#5a8aa0'},{x:90,y:90,c:'#6e2020'},
+    {x:45,y:45,c:'#5a8ab0'},{x:105,y:45,c:'#2a1a3a'},
+    {x:45,y:105,c:'#0a3a30'},{x:105,y:105,c:'#4a1010'},
+    {x:30,y:120,c:'#1a1a30'},{x:120,y:120,c:'#0a0a10'},
   ];
-  for (const t of temples) {
-    if (tx >= t.x-1 && tx <= t.x+1 && ty >= t.y-1 && ty <= t.y+1) return t.c;
+  for (const t of TPLS) {
+    if (tx>=t.x-1&&tx<=t.x+1&&ty>=t.y-1&&ty<=t.y+1) return t.c;
   }
 
-  // ── God biome zones (difficulty increases with distance from center 75,75) ──
-  if (tx>=55&&tx<=92&&ty>=18&&ty<=58)  return '#1a5c35'; // 🌿 Forest  (diff 1)
-  if (tx>=12&&tx<=55&&ty>=55&&ty<=92)  return '#c8e6f5'; // 💨 Wind    (diff 1)
-  if (tx>=95&&tx<=142&&ty>=22&&ty<=68) return '#5d6d7e'; // 🪨 Earth   (diff 2)
-  if (tx>=8&&tx<=52&&ty>=95&&ty<=138)  return '#0e6655'; // 🌊 Ocean   (diff 2)
-  if (tx>=55&&tx<=100&&ty>=98&&ty<=132)return '#6e2c2c'; // 🔥 Fire    (diff 3)
-  if (tx>=105&&tx<=147&&ty>=4&&ty<=48) return '#d6eaf8'; // ❄️ Ice     (diff 3)
-  if (tx>=105&&tx<=147&&ty>=55&&ty<=100)return '#1c2833'; // ⚡ Storm  (diff 4)
-  if (tx>=4&&tx<=58&&ty>=105&&ty<=147) return '#1a1a2e'; // 🌑 Shadow  (diff 4)
-  if (tx>=98&&tx<=147&&ty>=105&&ty<=147)return '#641e16'; // 🌋 Lava   (diff 5)
-  if (ty>=132&&tx>=55&&tx<=100)         return '#0d0d1a'; // ✨ Void    (diff 5)
+  // ── Quadrant biomes — origin at spawn (75,75) ─────────────────────────
+  // Biomes start immediately from spawn — no neutral center desert
+  const dx = tx-75, dy = ty-75;
+  const d  = Math.sqrt(dx*dx + dy*dy);
 
-  // ── Paths ─────────────────────────────────────────────────
-  if (tx===75||ty===75) return '#9b7a5b'; // Main cross
-  if (tx===70&&ty<75)   return '#9b7a5b'; // North forest path
-  if (ty===50&&tx>75)   return '#9b7a5b'; // East path
-  if (tx===30&&ty>75)   return '#9b7a5b'; // Southwest path
-  if (ty===80&&tx>100)  return '#9b7a5b'; // Far east path
+  // Tiny safe zone right at spawn
+  if (d < 5) return '#2d6a3f';
+
+  // Paths (always override biome color)
+  if (tx === 75 || ty === 75) return '#9b7a5b';
+  if (tx === 60 && ty < 75)   return '#9b7a5b'; // NW forest path
+  if (tx === 90 && ty < 75)   return '#9b7a5b'; // NE earth path
+  if (ty === 60 && tx < 75)   return '#9b7a5b'; // W wind path
+  if (ty === 60 && tx > 75)   return '#9b7a5b'; // E earth path
+  if (tx === 60 && ty > 75)   return '#9b7a5b'; // SW wind path
+  if (tx === 90 && ty > 75)   return '#9b7a5b'; // SE fire path
+
+  // NW quadrant → Forest (close) → Deep Forest (far)
+  if (dx <= 0 && dy <= 0) {
+    if (d < 45) return '#1a5c35';   // Forest zone
+    return '#0d3a1e';               // Ancient forest (harder)
+  }
+  // NE quadrant → Earth (close) → Storm (far)
+  if (dx > 0 && dy <= 0) {
+    if (d < 45) return '#4a5568';   // Rocky earth
+    return '#1c2833';               // Storm zone (dark)
+  }
+  // SW quadrant → Wind (close) → Ocean (far)
+  if (dx <= 0 && dy > 0) {
+    if (d < 45) return '#d0e8f0';   // Wind plains (light blue-green)
+    return '#0e4a3a';               // Ocean depths (dark teal)
+  }
+  // SE quadrant → Fire (close) → Lava/Void (far)
+  if (dx > 0 && dy > 0) {
+    if (d < 45) return '#5c2020';   // Fire zone (dark red)
+    return '#4a1010';               // Lava zone (deeper red-black)
+  }
 
   return '#2d6a3f';
 }
@@ -108,158 +127,129 @@ const CHECKPOINTS = [
 ];
 
 const RESOURCE_DEFS = [
-  // Central starting area
-  { type:'tree',     res:'wood',  amt:2, x: 78*TILE, y: 70*TILE },
-  { type:'tree',     res:'wood',  amt:2, x: 68*TILE, y: 72*TILE },
-  { type:'rock',     res:'stone', amt:2, x: 80*TILE, y: 80*TILE },
-  { type:'rock',     res:'stone', amt:2, x: 72*TILE, y: 82*TILE },
-  { type:'ore_node', res:'ore',   amt:1, x: 85*TILE, y: 72*TILE },
+  // ── Near spawn — immediately accessible ──────────────────
+  { type:'tree',     res:'wood',  amt:2, x: 69*TILE, y: 71*TILE }, // NW (forest)
+  { type:'tree',     res:'wood',  amt:2, x: 67*TILE, y: 68*TILE }, // NW (forest)
+  { type:'rock',     res:'stone', amt:2, x: 80*TILE, y: 70*TILE }, // NE (earth)
+  { type:'rock',     res:'stone', amt:2, x: 78*TILE, y: 68*TILE }, // NE (earth)
+  { type:'ore_node', res:'ore',   amt:1, x: 82*TILE, y: 68*TILE }, // NE (earth)
 
-  // Forest zone (tx 55-92, ty 18-58)
-  { type:'tree',     res:'wood',  amt:3, x: 62*TILE, y: 25*TILE },
-  { type:'tree',     res:'wood',  amt:3, x: 72*TILE, y: 22*TILE },
-  { type:'tree',     res:'wood',  amt:3, x: 80*TILE, y: 30*TILE },
-  { type:'tree',     res:'wood',  amt:3, x: 65*TILE, y: 40*TILE },
-  { type:'tree',     res:'wood',  amt:3, x: 78*TILE, y: 45*TILE },
-  { type:'rock',     res:'stone', amt:2, x: 85*TILE, y: 35*TILE },
+  // ── Forest zone NW ───────────────────────────────────────
+  { type:'tree',     res:'wood',  amt:3, x: 62*TILE, y: 64*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 55*TILE, y: 58*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 50*TILE, y: 52*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 45*TILE, y: 48*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 58*TILE, y: 60*TILE },
 
-  // Wind zone (tx 12-55, ty 55-92)
-  { type:'tree',     res:'wood',  amt:3, x: 20*TILE, y: 65*TILE },
-  { type:'tree',     res:'wood',  amt:3, x: 35*TILE, y: 60*TILE },
-  { type:'tree',     res:'wood',  amt:2, x: 45*TILE, y: 75*TILE },
-  { type:'rock',     res:'stone', amt:2, x: 25*TILE, y: 78*TILE },
+  // ── Earth zone NE ────────────────────────────────────────
+  { type:'rock',     res:'stone', amt:3, x: 88*TILE, y: 64*TILE },
+  { type:'rock',     res:'stone', amt:3, x: 95*TILE, y: 58*TILE },
+  { type:'rock',     res:'stone', amt:3, x:102*TILE, y: 52*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x: 92*TILE, y: 60*TILE },
+  { type:'ore_node', res:'ore',   amt:2, x:100*TILE, y: 55*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x:108*TILE, y: 48*TILE },
 
-  // Earth zone (tx 95-142, ty 22-68)
-  { type:'rock',     res:'stone', amt:3, x:105*TILE, y: 35*TILE },
-  { type:'rock',     res:'stone', amt:3, x:118*TILE, y: 42*TILE },
-  { type:'rock',     res:'stone', amt:3, x:130*TILE, y: 55*TILE },
-  { type:'ore_node', res:'ore',   amt:2, x:110*TILE, y: 48*TILE },
-  { type:'ore_node', res:'ore',   amt:2, x:125*TILE, y: 35*TILE },
-  { type:'ore_node', res:'ore',   amt:3, x:135*TILE, y: 50*TILE },
+  // ── Wind zone SW ─────────────────────────────────────────
+  { type:'tree',     res:'wood',  amt:3, x: 64*TILE, y: 88*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 58*TILE, y: 95*TILE },
+  { type:'tree',     res:'wood',  amt:3, x: 52*TILE, y:102*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 60*TILE, y: 92*TILE },
 
-  // Ocean zone (tx 8-52, ty 95-138)
-  { type:'tree',     res:'wood',  amt:3, x: 15*TILE, y:105*TILE },
-  { type:'tree',     res:'wood',  amt:3, x: 28*TILE, y: 98*TILE },
-  { type:'rock',     res:'stone', amt:2, x: 40*TILE, y:108*TILE },
-  { type:'ore_node', res:'ore',   amt:2, x: 22*TILE, y:120*TILE },
+  // ── Fire zone SE ─────────────────────────────────────────
+  { type:'ore_node', res:'ore',   amt:2, x: 88*TILE, y: 88*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x: 95*TILE, y: 95*TILE },
+  { type:'ore_node', res:'ore',   amt:3, x:102*TILE, y:102*TILE },
+  { type:'rock',     res:'stone', amt:2, x: 92*TILE, y: 92*TILE },
 
-  // Fire zone (tx 55-100, ty 98-132)
-  { type:'ore_node', res:'ore',   amt:3, x: 65*TILE, y:108*TILE },
-  { type:'ore_node', res:'ore',   amt:3, x: 80*TILE, y:118*TILE },
-  { type:'ore_node', res:'ore',   amt:2, x: 92*TILE, y:105*TILE },
-  { type:'rock',     res:'stone', amt:3, x: 70*TILE, y:122*TILE },
-
-  // Ice zone (tx 105-147, ty 4-48)
-  { type:'rock',     res:'stone', amt:3, x:115*TILE, y: 15*TILE },
-  { type:'rock',     res:'stone', amt:3, x:130*TILE, y: 25*TILE },
-  { type:'ore_node', res:'ore',   amt:2, x:140*TILE, y: 18*TILE },
-
-  // Storm zone (tx 105-147, ty 55-100)
-  { type:'ore_node', res:'ore',   amt:3, x:118*TILE, y: 70*TILE },
-  { type:'ore_node', res:'ore',   amt:3, x:135*TILE, y: 80*TILE },
-  { type:'rock',     res:'stone', amt:3, x:128*TILE, y: 62*TILE },
-
-  // Shadow / Lava / Void zones — rich but dangerous
-  { type:'ore_node', res:'ore',   amt:3, x: 25*TILE, y:118*TILE },
-  { type:'ore_node', res:'ore',   amt:3, x: 42*TILE, y:130*TILE },
-  { type:'ore_node', res:'ore',   amt:3, x:112*TILE, y:118*TILE },
-  { type:'ore_node', res:'ore',   amt:3, x:130*TILE, y:132*TILE },
+  // ── Far zones — rich but dangerous ───────────────────────
+  { type:'ore_node', res:'ore',   amt:3, x: 40*TILE, y: 40*TILE }, // Ice NW
+  { type:'ore_node', res:'ore',   amt:3, x:108*TILE, y: 40*TILE }, // Storm NE
+  { type:'ore_node', res:'ore',   amt:3, x: 40*TILE, y:108*TILE }, // Ocean SW
+  { type:'ore_node', res:'ore',   amt:3, x:108*TILE, y:108*TILE }, // Lava SE
+  { type:'ore_node', res:'ore',   amt:3, x: 28*TILE, y:118*TILE }, // Shadow
+  { type:'ore_node', res:'ore',   amt:3, x:118*TILE, y:118*TILE }, // Void
 ];
 
 const ENEMY_DEFS = [
-  // ── Starting area (near spawn 75,75) ─────────────────────
-  { type:'goblin',         x: 80*TILE, y: 68*TILE },
-  { type:'goblin',         x: 70*TILE, y: 80*TILE },
-  { type:'goblin',         x: 82*TILE, y: 82*TILE },
-  { type:'gold_goblin',    x: 85*TILE, y: 65*TILE }, // ⭐ first elite
+  // ── Right at spawn perimeter (~8-12 tiles out) ───────────
+  { type:'goblin',         x: 66*TILE, y: 68*TILE }, // NW entry
+  { type:'goblin',         x: 83*TILE, y: 68*TILE }, // NE entry
+  { type:'goblin',         x: 66*TILE, y: 82*TILE }, // SW entry
+  { type:'goblin',         x: 83*TILE, y: 82*TILE }, // SE entry
+  { type:'gold_goblin',    x: 68*TILE, y: 66*TILE }, // ⭐ NW first elite
 
-  // ── Forest Zone (diff 1) ─────────────────────────────────
-  { type:'goblin',         x: 62*TILE, y: 28*TILE },
-  { type:'goblin',         x: 72*TILE, y: 22*TILE },
-  { type:'goblin',         x: 82*TILE, y: 32*TILE },
-  { type:'goblin',         x: 65*TILE, y: 42*TILE },
-  { type:'goblin',         x: 78*TILE, y: 48*TILE },
-  { type:'gold_goblin',    x: 68*TILE, y: 35*TILE }, // ⭐ forest elite
+  // ── Forest zone NW (easy, dist 15-40) ────────────────────
+  { type:'goblin',         x: 62*TILE, y: 62*TILE },
+  { type:'goblin',         x: 55*TILE, y: 56*TILE },
+  { type:'goblin',         x: 50*TILE, y: 50*TILE },
+  { type:'gold_goblin',    x: 57*TILE, y: 58*TILE }, // ⭐
 
-  // ── Wind Zone (diff 1) ───────────────────────────────────
-  { type:'goblin',         x: 22*TILE, y: 62*TILE },
-  { type:'goblin',         x: 38*TILE, y: 68*TILE },
-  { type:'goblin',         x: 25*TILE, y: 78*TILE },
-  { type:'goblin',         x: 45*TILE, y: 82*TILE },
-  { type:'gold_goblin',    x: 32*TILE, y: 72*TILE }, // ⭐ wind elite
+  // ── Earth zone NE (easy, dist 15-40) ─────────────────────
+  { type:'golem',          x: 88*TILE, y: 62*TILE },
+  { type:'golem',          x: 95*TILE, y: 56*TILE },
+  { type:'golem',          x:102*TILE, y: 50*TILE },
+  { type:'stone_guardian', x: 90*TILE, y: 58*TILE }, // ⭐⭐
 
-  // ── Earth Zone (diff 2) ──────────────────────────────────
-  { type:'golem',          x:108*TILE, y: 32*TILE },
-  { type:'golem',          x:120*TILE, y: 42*TILE },
-  { type:'golem',          x:132*TILE, y: 55*TILE },
-  { type:'golem',          x:115*TILE, y: 58*TILE },
-  { type:'stone_guardian', x:118*TILE, y: 38*TILE }, // ⭐⭐ earth elite
-  { type:'stone_guardian', x:130*TILE, y: 45*TILE }, // ⭐⭐ earth elite
+  // ── Wind zone SW (easy, dist 15-40) ──────────────────────
+  { type:'goblin',         x: 62*TILE, y: 88*TILE },
+  { type:'goblin',         x: 56*TILE, y: 95*TILE },
+  { type:'goblin',         x: 50*TILE, y:102*TILE },
+  { type:'gold_goblin',    x: 58*TILE, y: 90*TILE }, // ⭐
 
-  // ── Ocean Zone (diff 2) ──────────────────────────────────
-  { type:'goblin',         x: 18*TILE, y:102*TILE },
-  { type:'goblin',         x: 32*TILE, y:108*TILE },
-  { type:'golem',          x: 22*TILE, y:118*TILE },
-  { type:'golem',          x: 40*TILE, y:122*TILE },
-  { type:'stone_guardian', x: 30*TILE, y:115*TILE }, // ⭐⭐ ocean elite
+  // ── Fire zone SE (medium, dist 15-40) ────────────────────
+  { type:'golem',          x: 88*TILE, y: 88*TILE },
+  { type:'golem',          x: 95*TILE, y: 95*TILE },
+  { type:'golem',          x:102*TILE, y:102*TILE },
+  { type:'stone_guardian', x: 92*TILE, y: 92*TILE }, // ⭐⭐
 
-  // ── Fire Zone (diff 3) ───────────────────────────────────
-  { type:'golem',          x: 62*TILE, y:108*TILE },
-  { type:'golem',          x: 75*TILE, y:118*TILE },
-  { type:'golem',          x: 88*TILE, y:108*TILE },
-  { type:'stone_guardian', x: 70*TILE, y:112*TILE }, // ⭐⭐
-  { type:'stone_guardian', x: 85*TILE, y:120*TILE }, // ⭐⭐
+  // ── Ice zone NW far (medium, dist 40-60) ─────────────────
+  { type:'goblin',         x: 48*TILE, y: 48*TILE },
+  { type:'golem',          x: 42*TILE, y: 42*TILE },
+  { type:'stone_guardian', x: 44*TILE, y: 46*TILE }, // ⭐⭐
 
-  // ── Ice Zone (diff 3) ────────────────────────────────────
-  { type:'goblin',         x:112*TILE, y: 15*TILE },
-  { type:'goblin',         x:125*TILE, y: 22*TILE },
-  { type:'golem',          x:135*TILE, y: 32*TILE },
-  { type:'stone_guardian', x:120*TILE, y: 28*TILE }, // ⭐⭐
-  { type:'stone_guardian', x:138*TILE, y: 18*TILE }, // ⭐⭐
+  // ── Storm zone NE far (hard, dist 40-60) ─────────────────
+  { type:'golem',          x:108*TILE, y: 48*TILE },
+  { type:'golem',          x:112*TILE, y: 42*TILE },
+  { type:'stone_guardian', x:106*TILE, y: 44*TILE }, // ⭐⭐
 
-  // ── Storm Zone (diff 4) ──────────────────────────────────
-  { type:'golem',          x:112*TILE, y: 65*TILE },
-  { type:'golem',          x:128*TILE, y: 72*TILE },
-  { type:'golem',          x:140*TILE, y: 85*TILE },
-  { type:'stone_guardian', x:120*TILE, y: 78*TILE }, // ⭐⭐
-  { type:'stone_guardian', x:135*TILE, y: 65*TILE }, // ⭐⭐
+  // ── Ocean zone SW far (medium, dist 40-60) ───────────────
+  { type:'goblin',         x: 48*TILE, y:108*TILE },
+  { type:'golem',          x: 42*TILE, y:112*TILE },
+  { type:'stone_guardian', x: 46*TILE, y:106*TILE }, // ⭐⭐
 
-  // ── Shadow Zone (diff 4) ─────────────────────────────────
-  { type:'golem',          x: 18*TILE, y:115*TILE },
-  { type:'golem',          x: 35*TILE, y:128*TILE },
-  { type:'stone_guardian', x: 25*TILE, y:122*TILE }, // ⭐⭐
-  { type:'stone_guardian', x: 45*TILE, y:118*TILE }, // ⭐⭐
-  { type:'stone_guardian', x: 30*TILE, y:138*TILE }, // ⭐⭐ deep shadow
+  // ── Lava zone SE far (hard, dist 40-60) ──────────────────
+  { type:'golem',          x:108*TILE, y:108*TILE },
+  { type:'golem',          x:112*TILE, y:112*TILE },
+  { type:'stone_guardian', x:106*TILE, y:106*TILE }, // ⭐⭐
 
-  // ── Lava Zone (diff 5) ───────────────────────────────────
-  { type:'golem',          x:108*TILE, y:115*TILE },
-  { type:'golem',          x:125*TILE, y:125*TILE },
+  // ── Shadow extreme SW (very hard) ────────────────────────
+  { type:'stone_guardian', x: 32*TILE, y:118*TILE }, // ⭐⭐
+  { type:'stone_guardian', x: 28*TILE, y:115*TILE }, // ⭐⭐
+
+  // ── Void extreme SE (endgame) ─────────────────────────────
+  { type:'stone_guardian', x:118*TILE, y:118*TILE }, // ⭐⭐
   { type:'stone_guardian', x:115*TILE, y:122*TILE }, // ⭐⭐
-  { type:'stone_guardian', x:135*TILE, y:118*TILE }, // ⭐⭐
-  { type:'stone_guardian', x:128*TILE, y:138*TILE }, // ⭐⭐ deep lava
-
-  // ── Void Zone (diff 5) ───────────────────────────────────
-  { type:'stone_guardian', x: 65*TILE, y:138*TILE }, // ⭐⭐
-  { type:'stone_guardian', x: 80*TILE, y:142*TILE }, // ⭐⭐
-  { type:'stone_guardian', x: 92*TILE, y:136*TILE }, // ⭐⭐ near void temple
 ];
 
 const PATROL_RADIUS = 80;
 
 // ── Boss temple entrance tiles ─────────────────────────────────────────
-// Step on temple tile → instant transition to boss arena (no flash, no key)
 const BOSS_TEMPLES = [
-  { realm:'forest', icon:'🌿', color:'#27ae60', name:'Sylvara',       x:70*TILE, y:28*TILE },
-  { realm:'wind',   icon:'💨', color:'#87ceeb', name:'Zephyros',      x:28*TILE, y:70*TILE },
-  { realm:'earth',  icon:'🪨', color:'#636e72', name:'Terran',        x:118*TILE,y:48*TILE },
-  { realm:'ocean',  icon:'🌊', color:'#1abc9c', name:'Nepthar',       x:28*TILE, y:112*TILE},
-  { realm:'fire',   icon:'🔥', color:'#e74c3c', name:'Ignar',         x:75*TILE, y:115*TILE},
-  { realm:'ice',    icon:'❄️', color:'#3498db', name:'Glacius',       x:125*TILE,y:25*TILE },
-  { realm:'storm',  icon:'⚡', color:'#9b59b6', name:'Vortus',        x:125*TILE,y:75*TILE },
-  { realm:'shadow', icon:'🌑', color:'#6c3483', name:'Umbris',        x:45*TILE, y:125*TILE},
-  { realm:'lava',   icon:'🌋', color:'#e67e22', name:'Magmara',       x:120*TILE,y:125*TILE},
-  { realm:'void',   icon:'✨', color:'#f1c40f', name:'Nihilus',       x:75*TILE, y:142*TILE},
+  // Easy (near spawn, ~21 tiles away)
+  { realm:'forest', icon:'🌿', color:'#27ae60', name:'Sylvara',   x: 60*TILE, y: 60*TILE }, // NW
+  { realm:'earth',  icon:'🪨', color:'#636e72', name:'Terran',    x: 90*TILE, y: 60*TILE }, // NE
+  { realm:'wind',   icon:'💨', color:'#87ceeb', name:'Zephyros',  x: 60*TILE, y: 90*TILE }, // SW
+  { realm:'fire',   icon:'🔥', color:'#e74c3c', name:'Ignar',     x: 90*TILE, y: 90*TILE }, // SE
+  // Medium (further out, ~42 tiles)
+  { realm:'ice',    icon:'❄️', color:'#3498db', name:'Glacius',   x: 45*TILE, y: 45*TILE }, // NW far
+  { realm:'storm',  icon:'⚡', color:'#9b59b6', name:'Vortus',    x:105*TILE, y: 45*TILE }, // NE far
+  { realm:'ocean',  icon:'🌊', color:'#1abc9c', name:'Nepthar',   x: 45*TILE, y:105*TILE }, // SW far
+  { realm:'lava',   icon:'🌋', color:'#e67e22', name:'Magmara',   x:105*TILE, y:105*TILE }, // SE far
+  // Hard (extreme corners)
+  { realm:'shadow', icon:'🌑', color:'#6c3483', name:'Umbris',    x: 30*TILE, y:120*TILE }, // SW extreme
+  { realm:'void',   icon:'✨', color:'#f1c40f', name:'Nihilus',   x:120*TILE, y:120*TILE }, // SE extreme
 ];
+
 
 const NPC_HINTS = [
   'Defeat the 10 elemental gods and ascend to godhood.',
@@ -593,7 +583,7 @@ export default function WorldCanvas() {
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
-    // ── Boss temple step-on (automatic, no key required) ────────────────
+    // ── Boss temple step-on (automatic every frame) ─────────────────────
     for (const temple of BOSS_TEMPLES) {
       if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 2.5) {
         store.setCurrentRealm(temple.realm);
@@ -774,7 +764,7 @@ export default function WorldCanvas() {
       });
 
       const hasSword = store.inventory.some(i => i.id === 'iron_sword');
-      if (!G.swordPicked && !hasSword && dist(p.x, p.y, 77*TILE, 78*TILE) <= 44) {
+      if (!G.swordPicked && !hasSword && dist(p.x, p.y, 76*TILE, 74*TILE) <= 44) {
         const item = {
           id: 'iron_sword', name: 'Iron Sword', slot: 'weapon',
           type: 'sword', tier: 'iron', rarity: 'common',
@@ -790,9 +780,15 @@ export default function WorldCanvas() {
         G.swordPicked = true;
       }
 
-      if (dist(p.x, p.y, 75*TILE, 85*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
+      if (dist(p.x, p.y, 75*TILE, 82*TILE) <= 52) {
+        if (store.playerHP < store.playerMaxHP) {
+          store.healPlayer(store.playerMaxHP);
+          addFloat(75*TILE, 80*TILE, '❤ Fully Healed!', '#2ecc71');
+        }
+        store.setGamePhase('stronghold'); return;
+      }
 
-      if (dist(p.x, p.y, 90*TILE, 60*TILE) <= 52) {
+      if (dist(p.x, p.y, 92*TILE, 58*TILE) <= 52) {
         addFloat(p.x, p.y-40, '⚠ Entering Dungeon...', '#cc88ff');
         setTimeout(() => store.setGamePhase('dungeon'), 400);
         return;
@@ -800,7 +796,7 @@ export default function WorldCanvas() {
 
 
 
-      if (dist(p.x, p.y, 72*TILE, 68*TILE) <= 60) {
+      if (dist(p.x, p.y, 74*TILE, 72*TILE) <= 60) {
         G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], timer: 5 };
         G._hintIndex++;
       }
@@ -908,7 +904,7 @@ export default function WorldCanvas() {
     });
 
     // Stronghold
-    const shx = wx(75*TILE), shy = wy(85*TILE);
+    const shx = wx(75*TILE), shy = wy(82*TILE);
     if (onScreen(shx, shy, 80)) {
       ctx.globalAlpha = 0.75 + Math.sin(Date.now() / 700) * 0.25;
       ctx.fillStyle = '#d4af37';
@@ -945,7 +941,7 @@ export default function WorldCanvas() {
       ctx.fillText('BOSS TEMPLE', tx2, ty2-TILE-14);
     });
 
-    const dunx = wx(90*TILE), duny = wy(60*TILE);
+    const dunx = wx(92*TILE), duny = wy(58*TILE);
     if (onScreen(dunx, duny, 80)) {
       ctx.fillStyle = '#8e44ad';
       ctx.fillRect(dunx-24, duny-24, 48, 48);
@@ -999,25 +995,29 @@ export default function WorldCanvas() {
       }
     });
 
-    // ── Zone labels ───────────────────────────────────────
-    const zoneLabelAlpha = 0.25;
+    // ── Zone labels ─────────────────────────────────────────
     [
-      { text: 'NORTHERN FOREST',   wx: wx(35*TILE), wy: wy( 8*TILE) },
-      { text: 'EASTERN REACHES',   wx: wx(62*TILE), wy: wy(25*TILE) },
-      { text: 'SOUTHERN BADLANDS', wx: wx(30*TILE), wy: wy(58*TILE) },
-      { text: 'DEEP SOUTH',        wx: wx(35*TILE), wy: wy(72*TILE) },
-      { text: 'WESTERN VALLEY',    wx: wx( 8*TILE), wy: wy(45*TILE) },
-    ].forEach(({ text, wx: lx, wy: ly }) => {
-      if (!onScreen(lx, ly, 100)) return;
-      ctx.globalAlpha = zoneLabelAlpha;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(text, lx, ly);
+      { text:'🌿 FOREST',  x: 55*TILE, y: 55*TILE, c:'#2ecc71' },
+      { text:'🪨 EARTH',   x: 95*TILE, y: 55*TILE, c:'#95a5a6' },
+      { text:'💨 WIND',    x: 55*TILE, y: 95*TILE, c:'#87ceeb' },
+      { text:'🔥 FIRE',    x: 95*TILE, y: 95*TILE, c:'#e74c3c' },
+      { text:'❄️ ICE',     x: 42*TILE, y: 42*TILE, c:'#3498db' },
+      { text:'⚡ STORM',   x:108*TILE, y: 42*TILE, c:'#9b59b6' },
+      { text:'🌊 OCEAN',   x: 42*TILE, y:108*TILE, c:'#1abc9c' },
+      { text:'🌋 LAVA',    x:108*TILE, y:108*TILE, c:'#e67e22' },
+      { text:'🌑 SHADOW',  x: 30*TILE, y:118*TILE, c:'#8e44ad' },
+      { text:'✨ VOID',    x:118*TILE, y:118*TILE, c:'#f1c40f' },
+    ].forEach(z => {
+      const zlx = wx(z.x), zly = wy(z.y);
+      if (!onScreen(zlx, zly, 80)) return;
+      ctx.globalAlpha = 0.22; ctx.fillStyle = z.c;
+      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(z.text, zlx, zly);
       ctx.globalAlpha = 1;
     });
 
     // NPC
-    const nx = wx(72*TILE), ny = wy(68*TILE);
+    const nx = wx(74*TILE), ny = wy(72*TILE);
     if (onScreen(nx, ny)) {
       ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
@@ -1283,63 +1283,6 @@ export default function WorldCanvas() {
     ctx.globalAlpha = 1;
 
     // Float texts
-    // ── Zone labels (faint, appear in each biome) ───────────────
-    const ZONE_LABELS = [
-      { text: '🌿 FOREST ZONE',    x: 72*TILE, y: 35*TILE, color: '#2ecc71' },
-      { text: '💨 WIND ZONE',      x: 32*TILE, y: 70*TILE, color: '#87ceeb' },
-      { text: '🪨 EARTH ZONE',     x:118*TILE, y: 42*TILE, color: '#95a5a6' },
-      { text: '🌊 OCEAN ZONE',     x: 28*TILE, y:112*TILE, color: '#1abc9c' },
-      { text: '🔥 FIRE ZONE',      x: 75*TILE, y:112*TILE, color: '#e74c3c' },
-      { text: '❄️ ICE ZONE',       x:125*TILE, y: 22*TILE, color: '#3498db' },
-      { text: '⚡ STORM ZONE',     x:125*TILE, y: 72*TILE, color: '#9b59b6' },
-      { text: '🌑 SHADOW ZONE',    x: 30*TILE, y:122*TILE, color: '#6c3483' },
-      { text: '🌋 LAVA ZONE',      x:120*TILE, y:120*TILE, color: '#e67e22' },
-      { text: '✨ VOID ZONE',      x: 75*TILE, y:140*TILE, color: '#f1c40f' },
-    ];
-    ZONE_LABELS.forEach(z => {
-      const zlx = wx(z.x), zly = wy(z.y);
-      if (!onScreen(zlx, zly, 80)) return;
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = z.color;
-      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(z.text, zlx, zly);
-      ctx.globalAlpha = 1;
-    });
-
-    // ── Spawn compass — shows key locations relative to player near start ─
-    const distToSH = dist(p.x, p.y, 75*TILE, 85*TILE);
-    if (distToSH > TILE*3 && distToSH < TILE*25) {
-      const angle = Math.atan2(85*TILE - p.y, 75*TILE - p.x);
-      const cx2 = G.W/2 + Math.cos(angle)*60, cy2 = G.H/2 + Math.sin(angle)*60;
-      ctx.globalAlpha = 0.7;
-      ctx.fillStyle = '#d4af37'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('🏰', cx2, cy2);
-      ctx.fillStyle = '#d4af37aa'; ctx.font = '8px sans-serif';
-      ctx.fillText('STRONGHOLD', cx2, cy2 + 14);
-      ctx.globalAlpha = 1;
-    }
-
-    // ── Zone labels (faint biome names) ──────────────────────────────────
-    [
-      { text:'🌿 FOREST',  x: 72*TILE, y: 35*TILE, c:'#2ecc71' },
-      { text:'💨 WIND',    x: 32*TILE, y: 70*TILE, c:'#87ceeb' },
-      { text:'🪨 EARTH',   x:118*TILE, y: 42*TILE, c:'#95a5a6' },
-      { text:'🌊 OCEAN',   x: 28*TILE, y:112*TILE, c:'#1abc9c' },
-      { text:'🔥 FIRE',    x: 75*TILE, y:112*TILE, c:'#e74c3c' },
-      { text:'❄️ ICE',     x:125*TILE, y: 22*TILE, c:'#3498db' },
-      { text:'⚡ STORM',   x:125*TILE, y: 72*TILE, c:'#9b59b6' },
-      { text:'🌑 SHADOW',  x: 30*TILE, y:122*TILE, c:'#8e44ad' },
-      { text:'🌋 LAVA',    x:120*TILE, y:120*TILE, c:'#e67e22' },
-      { text:'✨ VOID',    x: 75*TILE, y:140*TILE, c:'#f1c40f' },
-    ].forEach(z => {
-      const zlx = wx(z.x), zly = wy(z.y);
-      if (!onScreen(zlx, zly, 80)) return;
-      ctx.globalAlpha = 0.22; ctx.fillStyle = z.c;
-      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(z.text, zlx, zly);
-      ctx.globalAlpha = 1;
-    });
-
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
