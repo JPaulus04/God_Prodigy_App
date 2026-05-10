@@ -43,7 +43,7 @@ export default function App() {
       {inDun   && <ErrorBoundary><DungeonCanvas /></ErrorBoundary>}
       {inRealm && <ErrorBoundary><RealmCanvas /></ErrorBoundary>}
       {inSH    && <ErrorBoundary><StrongholdMenu /></ErrorBoundary>}
-      {(inWorld || inDun) && <ErrorBoundary><HUD /></ErrorBoundary>}
+      {(inWorld || inDun || inRealm) && <ErrorBoundary><HUD /></ErrorBoundary>}
       {inGame && showHelpMenu   && <HelpMenu />}
       {inGame && showInventory  && <InventoryPanel />}
       {inGame && showDeathModal && <DeathModal />}
