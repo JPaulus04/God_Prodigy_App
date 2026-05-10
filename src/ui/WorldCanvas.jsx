@@ -46,7 +46,7 @@ function clampToWorld(x, y) {
 function tileColor(tx, ty) {
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
 
-  // Boss temple tiles (3x3 solid per god)
+  // Boss temple tiles (3x3)
   const TPLS = [
     {x:60,y:60,c:'#27ae60'},{x:90,y:60,c:'#7f8c8d'},
     {x:60,y:90,c:'#2980b9'},{x:90,y:90,c:'#c0392b'},
@@ -57,44 +57,41 @@ function tileColor(tx, ty) {
   for (const t of TPLS) {
     if (tx>=t.x-1&&tx<=t.x+1&&ty>=t.y-1&&ty<=t.y+1) return t.c;
   }
-  // Hidden dungeon entrance tiles (1x1 dark stone)
-  const HDUNS = [
-    {x:57,y:50},{x:48,y:60},{x:40,y:48},
-    {x:96,y:50},{x:108,y:58},{x:88,y:45},
-  ];
-  for (const d2 of HDUNS) {
-    if (tx===d2.x && ty===d2.y) return '#1a1a1a'; // dark stone entrance
-  }
+  // Hidden dungeon tiles
+  const HDUNS=[{x:57,y:50},{x:48,y:60},{x:40,y:48},{x:96,y:50},{x:108,y:58},{x:88,y:45}];
+  for (const d2 of HDUNS) { if(tx===d2.x&&ty===d2.y) return '#1a1a1a'; }
 
   const dx = tx-75, dy = ty-75;
   const d  = Math.sqrt(dx*dx + dy*dy);
 
-  // Spawn safe zone — bright medium green, clearly different from biomes
-  if (d < 6) return '#52b865';
+  // Spawn zone
+  if (d < 5) return '#52c86e';
 
-  // Main cross paths — sandy brown, 2 tiles wide
-  if (Math.abs(dx) <= 1 || Math.abs(dy) <= 1) return '#c4a45a';
+  // Single-tile paths (thin cross — show more biome color)
+  if (dx === 0 || dy === 0) return '#c4a45a';
 
-  // ── BIOME QUADRANTS — BRIGHT saturated colors, unmistakable on mobile ──
+  // ── TWO-RING BIOME SYSTEM ─────────────────────────────────
+  // Inner ring  d<30: primary biomes  (where easy temples sit, ~21 tiles)
+  // Outer ring  d≥30: advanced biomes (where hard temples sit, ~42 tiles)
 
-  // NW → FOREST (rich forest green — much brighter than old dark green)
-  if (dx <= 0 && dy <= 0) {
-    return d < 45 ? '#1e8a3c' : '#0d5c28';   // Forest → Deep Forest
+  if (dx < 0 && dy < 0) { // NW
+    return d < 30 ? '#1e8a3c'   // Forest  (rich green)
+                  : '#8bd4f0';  // Ice     (clear sky blue — unmistakable)
   }
-  // NE → EARTH (warm sandy brown — obviously NOT green)
-  if (dx > 0 && dy <= 0) {
-    return d < 45 ? '#b8834a' : '#5c4030';   // Earth → Storm (darker brown)
+  if (dx > 0 && dy < 0) { // NE
+    return d < 30 ? '#c49a50'   // Earth   (warm sandy brown)
+                  : '#4a3060';  // Storm   (dark purple)
   }
-  // SW → WIND (clear sky blue — impossible to mistake for green)
-  if (dx <= 0 && dy > 0) {
-    return d < 45 ? '#4a9cc8' : '#1a5c7a';   // Wind → Ocean (deeper blue)
+  if (dx < 0 && dy > 0) { // SW
+    return d < 30 ? '#4a9cc8'   // Wind    (sky blue)
+                  : '#148f77';  // Ocean   (deep teal)
   }
-  // SE → FIRE (bright burnt orange-red — vivid contrast)
-  if (dx > 0 && dy > 0) {
-    return d < 45 ? '#c84a20' : '#7a1a08';   // Fire → Lava (dark red)
+  if (dx > 0 && dy > 0) { // SE
+    return d < 30 ? '#c84a20'   // Fire    (burnt orange-red)
+                  : '#7a1a08';  // Lava    (deep dark red)
   }
 
-  return '#52b865';
+  return '#52c86e';
 }
 
 function dist(ax, ay, bx, by) {
@@ -1343,6 +1340,24 @@ export default function WorldCanvas() {
     ctx.globalAlpha = 1;
 
     // Float texts
+    // ── Zone debug banner (top of screen) ──────────────────────
+    {
+      const px = Math.floor(p.x/TILE), py = Math.floor(p.y/TILE);
+      const zc = tileColor(px, py);
+      const zdx = px-75, zdy = py-75, zd = Math.sqrt(zdx*zdx+zdy*zdy);
+      const zname = zd<5?'SPAWN':zdx===0||zdy===0?'PATH':
+        zdx<0&&zdy<0?(zd<30?'FOREST':'ICE'):
+        zdx>0&&zdy<0?(zd<30?'EARTH':'STORM'):
+        zdx<0&&zdy>0?(zd<30?'WIND':'OCEAN'):
+        zdx>0&&zdy>0?(zd<30?'FIRE':'LAVA'):'?';
+      ctx.fillStyle = zc;
+      ctx.fillRect(0, 0, G.W, 28);
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, G.W, 28);
+      ctx.fillStyle = zc; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(`${zname}  ${zc}`, G.W/2, 19);
+    }
+
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
