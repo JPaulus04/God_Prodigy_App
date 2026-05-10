@@ -571,11 +571,16 @@ export default function WorldCanvas() {
     const store = useGameStore.getState();
     if (store.position?.x) {
       let { x, y } = store.position;
-      // Auto-migrate old save positions — if far from 150x150 spawn center, reset
       const spawnX = 75*TILE, spawnY = 75*TILE;
+      // Auto-migrate old save positions
       if (Math.abs(x - spawnX) > 55*TILE || Math.abs(y - spawnY) > 55*TILE) {
-        x = spawnX; y = spawnY; // reset to new spawn
+        x = spawnX; y = spawnY;
       }
+      // If loaded position is inside any temple or hidden dungeon, reset to spawn.
+      // This prevents the re-entry loop when returning from a realm/dungeon.
+      const nearTemple = BOSS_TEMPLES.some(t => dist(x, y, t.x, t.y) < TILE * 4);
+      const nearDungeon = HIDDEN_DUNGEONS.some(d => dist(x, y, d.x, d.y) < TILE * 3);
+      if (nearTemple || nearDungeon) { x = spawnX; y = spawnY; }
       const c = clampToWorld(x, y);
       G.player.x = c.x; G.player.y = c.y;
       G.camera.x = c.x; G.camera.y = c.y;
@@ -903,7 +908,12 @@ export default function WorldCanvas() {
     G.saveTimer += dt;
     if (G.saveTimer > 5) {
       G.saveTimer = 0;
-      useGameStore.setState({ position: { zone: 'world', x: p.x, y: p.y } });
+      // Don't save position if standing on a temple — would cause re-entry loop on reload
+      const onTemple = BOSS_TEMPLES.some(t => dist(p.x, p.y, t.x, t.y) < TILE * 3);
+      const onDungeon = HIDDEN_DUNGEONS.some(d => dist(p.x, p.y, d.x, d.y) < TILE * 2.5);
+      if (!onTemple && !onDungeon) {
+        useGameStore.setState({ position: { zone: 'world', x: p.x, y: p.y } });
+      }
     }
   }
 
