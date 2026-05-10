@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
+import RealmArenaCanvas from './RealmArenaCanvas';
 
 const REALM_CONFIGS = {
   forest: {
@@ -115,6 +117,7 @@ const REALM_CONFIGS = {
 };
 
 export default function RealmCanvas() {
+  const [inArena, setInArena] = useState(false);
   const { currentRealm, realmEntryEdge, setGamePhase, bossesDefeated } = useGameStore();
   const cfg = REALM_CONFIGS[currentRealm] || REALM_CONFIGS.forest;
   const isDefeated = bossesDefeated?.includes(currentRealm);
@@ -156,6 +159,15 @@ export default function RealmCanvas() {
     rafRef.current = requestAnimationFrame(loop);
     return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener('resize', resize); };
   }, [currentRealm]);
+
+  if (inArena) {
+    return (
+      <RealmArenaCanvas
+        realmId={currentRealm || 'forest'}
+        onFlee={() => { setInArena(false); setGamePhase('world'); }}
+      />
+    );
+  }
 
   return (
     <div style={{
@@ -243,27 +255,20 @@ export default function RealmCanvas() {
           </div>
         </div>
 
-        {/* Status / Enter button */}
-        {isDefeated ? (
-          <div style={{
-            background: '#1a2a1a', border: '1px solid #27ae6066',
-            borderRadius: 14, padding: '16px', marginBottom: 16,
-            color: '#27ae60', fontSize: 14, fontWeight: 'bold',
-          }}>
-            ✓ God Defeated — Realm Conquered
-          </div>
-        ) : (
-          <div style={{
-            background: `${cfg.color}11`,
-            border: `1px solid ${cfg.color}44`,
-            borderRadius: 14, padding: '14px', marginBottom: 16,
-            color: '#888', fontSize: 12,
-          }}>
-            🚧 Realm content coming in a future update
-          </div>
-        )}
+        {/* Enter Realm button */}
+        <button
+          onPointerDown={() => setInArena(true)}
+          style={{
+            width:'100%', padding:'14px',
+            background: cfg.color, border:'none', borderRadius:12,
+            color:'#000', fontSize:15, fontWeight:'bold', cursor:'pointer',
+            marginBottom:10,
+          }}
+        >
+          ⚔ Enter Realm
+        </button>
 
-        {/* Return button */}
+                {/* Return button */}
         <button
           onPointerDown={() => {
             try { useGameStore.getState().setCurrentRealm(null); } catch(e) {}
