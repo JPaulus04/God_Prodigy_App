@@ -1,6 +1,5 @@
 import React from 'react';
 import { useGameStore }  from '../store/useGameStore';
-import { InputState }    from '../game/systems/InputState';
 import VirtualJoystick   from './VirtualJoystick';
 
 export default function HUD() {
@@ -20,8 +19,8 @@ export default function HUD() {
   // No setTimeout — WorldCanvas resets these in the same frame it reads them.
   // setTimeout was causing a race condition that could clear the flag
   // before the game loop ran.
-  const onAttack   = () => { InputState.attack   = true; };
-  const onInteract = () => { InputState.interact = true; };
+  const onAttack   = () => { window.__gameAttack   = true; };
+  const onInteract = () => { window.__gameInteract = true; };
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
