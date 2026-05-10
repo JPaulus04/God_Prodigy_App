@@ -265,9 +265,8 @@ export default function RealmCanvas() {
 
         {/* Return button */}
         <button
-          onClick={() => {
-            useGameStore.getState().setCurrentRealm(null);
-            useGameStore.getState().setRealmEntryEdge(null);
+          onPointerDown={() => {
+            try { useGameStore.getState().setCurrentRealm(null); } catch(e) {}
             setGamePhase('world');
           }}
           style={{

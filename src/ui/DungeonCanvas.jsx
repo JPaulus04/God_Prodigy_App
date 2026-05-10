@@ -276,10 +276,10 @@ export default function DungeonCanvas() {
     const wAtk = WEAPON_ATTACK[weaponType] || WEAPON_ATTACK.sword;
 
     // ── Attack ─────────────────────────────────────────────
-    const spaceNow  = G.keys['Space'] || InputState.attack;
+    const spaceNow  = G.keys['Space'] || window.__gameAttack;
     const spaceJust = spaceNow && !G.prevSpace;
     G.prevSpace = spaceNow;
-    if (InputState.attack) InputState.attack = false;
+    if (window.__gameAttack) window.__gameAttack = false;
 
     if (spaceJust && p.attackCooldown <= 0) {
       p.attackCooldown = wAtk.cooldown;
@@ -313,10 +313,10 @@ export default function DungeonCanvas() {
     }
 
     // ── Ability ────────────────────────────────────────────
-    const abilityNow  = G.keys['KeyQ'] || InputState.ability;
+    const abilityNow  = G.keys['KeyQ'] || window.__gameAbility;
     const abilityJust = abilityNow && !G.prevAbility;
     G.prevAbility = abilityNow;
-    if (InputState.ability) InputState.ability = false;
+    if (window.__gameAbility) window.__gameAbility = false;
 
     if (abilityJust && G.abilityCooldown <= 0 && store.equippedAbilityId) {
       const ability = AbilityConfig[store.equippedAbilityId];
@@ -387,10 +387,10 @@ export default function DungeonCanvas() {
     });
 
     // ── Interact ───────────────────────────────────────────
-    const eNow  = G.keys['KeyE'] || InputState.interact;
+    const eNow  = G.keys['KeyE'] || window.__gameInteract;
     const eJust = eNow && !G.prevE;
     G.prevE = eNow;
-    if (InputState.interact) InputState.interact = false;
+    if (window.__gameInteract) window.__gameInteract = false;
 
     if (eJust) {
       // Exit portal
