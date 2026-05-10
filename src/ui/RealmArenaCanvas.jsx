@@ -567,8 +567,8 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       {/* Flee button */}
       {!G.victory && (
         <button onPointerDown={onFlee}
-          style={{ position:'absolute',top:14,left:12,background:'#000000aa',border:'1px solid #ffffff44',
-            borderRadius:10,padding:'8px 14px',color:'#ffffff99',fontSize:12,cursor:'pointer' }}>
+          style={{ position:'absolute',top:54,right:14,background:'#000000cc',border:'1px solid #ffffff55',
+            borderRadius:10,padding:'10px 16px',color:'#ffffffcc',fontSize:13,fontWeight:'bold',cursor:'pointer',zIndex:100 }}>
           ✕ Flee
         </button>
       )}
