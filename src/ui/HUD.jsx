@@ -19,7 +19,7 @@ export default function HUD() {
   // No setTimeout — WorldCanvas resets these in the same frame it reads them.
   // setTimeout was causing a race condition that could clear the flag
   // before the game loop ran.
-  const onAttack   = () => { window.__gameAttack   = true; };
+  const onAttack   = () => { window.__gameAttack = true; };
   const onInteract = () => { window.__gameInteract = true; };
 
   return (

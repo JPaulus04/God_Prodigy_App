@@ -20,8 +20,8 @@ const REALM_PORTALS = [
   { realm: 'void',   name: 'Void Realm',   icon: '✨', color: '#f1c40f', skulls: 5, x: 72, y: 65 },
 ];
 
-const MAP_W   = 50;
-const MAP_H   = 50;
+const MAP_W   = 80;
+const MAP_H   = 80;
 const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
@@ -44,9 +44,13 @@ function clampToWorld(x, y) {
 
 function tileColor(tx, ty) {
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
-  if (ty < 14 && tx > 4 && tx < MAP_W-4)                  return '#1a5c35';
-  if (tx > 34 && ty > 8  && ty < MAP_H-4)                 return '#636e72';
-  if (tx === 25 || ty === 25)                              return '#9b7a5b';
+  if (ty < 18 && tx > 4 && tx < MAP_W-4)                  return '#1a5c35';  // Northern forest
+  if (tx > 46 && ty > 8  && ty < MAP_H-4)                 return '#636e72';  // Eastern rocky
+  if (ty > 54 && tx > 4 && tx < 52)                       return '#7d5a3c';  // Southern badlands
+  if (ty > 68 && tx > 4)                                  return '#4a2010';  // Deep volcanic
+  if (tx < 12 && ty > 25 && ty < MAP_H-8)                 return '#1e4d2b';  // Western wetlands
+  if (tx === 25 || ty === 25)                              return '#9b7a5b';  // Main paths
+  if (tx === 50 || ty === 55)                              return '#9b7a5b';  // Secondary paths
   return '#2d6a3f';
 }
 
@@ -122,60 +126,106 @@ const RESOURCE_DEFS = [
 ];
 
 const ENEMY_DEFS = [
-  // ── Starting area (spawn ~25,30) ────────────────────
-  { type: 'goblin',         x: 12*TILE, y: 18*TILE },
-  { type: 'goblin',         x: 18*TILE, y: 15*TILE },
-  { type: 'goblin',         x: 22*TILE, y: 20*TILE },
-  { type: 'goblin',         x:  8*TILE, y: 22*TILE },
-  { type: 'golem',          x: 38*TILE, y: 20*TILE },
-  { type: 'golem',          x: 42*TILE, y: 30*TILE },
-  { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },  // ⭐ elite
-  { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },  // ⭐ elite
-  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },  // ⭐⭐ elite
+  // Standard goblins — northern forest
+  { type: 'goblin', x: 12*TILE, y: 18*TILE },
+  { type: 'goblin', x: 18*TILE, y: 15*TILE },
+  { type: 'goblin', x: 22*TILE, y: 20*TILE },
+  { type: 'goblin', x:  8*TILE, y: 22*TILE },
+  // Standard golems — eastern zone
+  { type: 'golem',  x: 38*TILE, y: 20*TILE },
+  { type: 'golem',  x: 42*TILE, y: 30*TILE },
+  // ⭐ Elite: Gold Goblins — deeper forest
+  { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },
+  { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },
+  // ⭐⭐ Elite: Stone Guardians — eastern rocky zone
+  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },
+  { type: 'stone_guardian', x: 45*TILE, y: 35*TILE },
 
-  // ── Northern forest (extended) ───────────────────────
-  { type: 'goblin',         x: 35*TILE, y: 12*TILE },
-  { type: 'goblin',         x: 48*TILE, y:  9*TILE },
-  { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },  // ⭐ elite guard near Ice portal
+  // ── Extended northern forest ──────────────────────────
+  { type: 'goblin', x: 35*TILE, y: 12*TILE },
+  { type: 'goblin', x: 48*TILE, y:  9*TILE },
+  { type: 'goblin', x: 58*TILE, y: 14*TILE },
+  { type: 'goblin', x: 68*TILE, y:  8*TILE },
 
-  // ── Eastern rocky zone ───────────────────────────────
-  { type: 'golem',          x: 52*TILE, y: 22*TILE },
-  { type: 'golem',          x: 60*TILE, y: 32*TILE },
-  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // ⭐⭐ Earth portal guard
-  { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },  // ⭐⭐ Storm portal guard
+  // ── Extended eastern rocky zone ───────────────────────
+  { type: 'golem',  x: 52*TILE, y: 22*TILE },
+  { type: 'golem',  x: 60*TILE, y: 32*TILE },
+  { type: 'golem',  x: 68*TILE, y: 45*TILE },
+  { type: 'golem',  x: 74*TILE, y: 30*TILE },
 
-  // ── Western valley ───────────────────────────────────
-  { type: 'goblin',         x:  8*TILE, y: 38*TILE },
-  { type: 'goblin',         x:  6*TILE, y: 52*TILE },
-
-  // ── Southern badlands ────────────────────────────────
-  { type: 'goblin',         x: 18*TILE, y: 58*TILE },
-  { type: 'goblin',         x: 35*TILE, y: 62*TILE },
-  { type: 'golem',          x: 28*TILE, y: 68*TILE },
-  { type: 'golem',          x: 42*TILE, y: 70*TILE },
-  { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },  // ⭐⭐ Shadow portal guard
+  // ── Southern badlands ─────────────────────────────────
+  { type: 'goblin', x: 18*TILE, y: 58*TILE },
+  { type: 'goblin', x: 35*TILE, y: 62*TILE },
+  { type: 'goblin', x: 48*TILE, y: 56*TILE },
+  { type: 'golem',  x: 28*TILE, y: 68*TILE },
+  { type: 'golem',  x: 42*TILE, y: 70*TILE },
 
   // ── Deep south volcanic ───────────────────────────────
-  { type: 'golem',          x: 55*TILE, y: 70*TILE },
-  { type: 'stone_guardian', x: 55*TILE, y: 72*TILE },  // ⭐⭐ Lava portal guard
-  { type: 'stone_guardian', x: 72*TILE, y: 65*TILE },  // ⭐⭐ Void portal guard
+  { type: 'golem',  x: 20*TILE, y: 72*TILE },
+  { type: 'golem',  x: 38*TILE, y: 74*TILE },
+
+  // ── Western wetlands ──────────────────────────────────
+  { type: 'goblin', x:  8*TILE, y: 38*TILE },
+  { type: 'goblin', x:  6*TILE, y: 52*TILE },
+
+  // ── Additional elites (harder, in expanded zones) ─────
+  { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },
+  { type: 'gold_goblin',    x: 72*TILE, y: 12*TILE },
+  { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },
+  { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },
+
+  // ── Portal guards & area density ─────────────────────
+  // Forest Realm portal guards (tile 15,12)
+  { type: 'goblin',         x: 13*TILE, y: 10*TILE },
+  { type: 'goblin',         x: 16*TILE, y: 14*TILE },
+  { type: 'goblin',         x: 11*TILE, y:  8*TILE },
+  { type: 'gold_goblin',    x: 14*TILE, y:  6*TILE },  // elite guard ⭐
+
+  // Wind Realm portal guards (tile 8,38)
+  { type: 'goblin',         x:  7*TILE, y: 35*TILE },
+  { type: 'goblin',         x:  9*TILE, y: 42*TILE },
+
+  // Earth Realm portal guards (tile 52,22)
+  { type: 'golem',          x: 50*TILE, y: 25*TILE },
+  { type: 'golem',          x: 54*TILE, y: 18*TILE },
+  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // elite guard ⭐⭐
+
+  // Ice Realm portal guards (tile 68,8)
+  { type: 'goblin',         x: 65*TILE, y:  6*TILE },
+  { type: 'goblin',         x: 70*TILE, y: 10*TILE },
+  { type: 'stone_guardian', x: 67*TILE, y:  5*TILE },  // elite guard ⭐⭐
+
+  // Ocean Realm portal guards (tile 5,60)
+  { type: 'goblin',         x:  5*TILE, y: 55*TILE },
+  { type: 'goblin',         x:  6*TILE, y: 63*TILE },
+
+  // Storm Realm portal guards (tile 72,38)
+  { type: 'golem',          x: 70*TILE, y: 40*TILE },
+  { type: 'golem',          x: 74*TILE, y: 35*TILE },
+  { type: 'stone_guardian', x: 73*TILE, y: 35*TILE },  // elite guard ⭐⭐
+
+  // Shadow Realm portal guards (tile 25,74)
+  { type: 'golem',          x: 22*TILE, y: 72*TILE },
+  { type: 'stone_guardian', x: 28*TILE, y: 73*TILE },  // elite guard ⭐⭐
+
+  // Lava Realm portal guards (tile 55,74)
+  { type: 'golem',          x: 53*TILE, y: 70*TILE },
+  { type: 'golem',          x: 57*TILE, y: 76*TILE },
+  { type: 'stone_guardian', x: 55*TILE, y: 70*TILE },  // elite guard ⭐⭐
+
+  // Void Realm portal guards (tile 72,65)
+  { type: 'golem',          x: 70*TILE, y: 62*TILE },
+  { type: 'stone_guardian', x: 73*TILE, y: 68*TILE },  // elite guard ⭐⭐
+
+  // Mid-map fill (sparse central areas)
+  { type: 'goblin',         x: 32*TILE, y: 18*TILE },
+  { type: 'goblin',         x: 28*TILE, y: 14*TILE },
+  { type: 'golem',          x: 48*TILE, y: 40*TILE },
+  { type: 'goblin',         x: 15*TILE, y: 48*TILE },
+  { type: 'goblin',         x: 40*TILE, y: 48*TILE },
 ];
 
 const PATROL_RADIUS = 80;
-
-// Boss temples — step on to enter realm
-const BOSS_TEMPLES = [
-  { realm:'forest', icon:'🌿', color:'#27ae60', name:'Sylvara',  x:15*TILE, y: 8*TILE },
-  { realm:'earth',  icon:'🪨', color:'#95a5a6', name:'Terran',   x:35*TILE, y: 8*TILE },
-  { realm:'wind',   icon:'💨', color:'#87ceeb', name:'Zephyros', x: 8*TILE, y:18*TILE },
-  { realm:'fire',   icon:'🔥', color:'#e74c3c', name:'Ignar',    x:40*TILE, y:18*TILE },
-  { realm:'ice',    icon:'❄️', color:'#3498db', name:'Glacius',  x:10*TILE, y: 5*TILE },
-  { realm:'storm',  icon:'⚡', color:'#9b59b6', name:'Vortus',   x:38*TILE, y: 5*TILE },
-  { realm:'ocean',  icon:'🌊', color:'#1abc9c', name:'Nepthar',  x: 5*TILE, y:30*TILE },
-  { realm:'lava',   icon:'🌋', color:'#e67e22', name:'Magmara',  x:44*TILE, y:30*TILE },
-  { realm:'shadow', icon:'🌑', color:'#6c3483', name:'Umbris',   x:10*TILE, y:42*TILE },
-  { realm:'void',   icon:'✨', color:'#f1c40f', name:'Nihilus',  x:38*TILE, y:42*TILE },
-];
 
 const NPC_HINTS = [
   'Defeat the 10 elemental gods and ascend to godhood.',
@@ -200,7 +250,6 @@ function makeEnemy(def) {
     state: 'patrol', alive: true,
     attackTimer: 0, patrolDir: 1, patrolTimer: 0,
     stunTimer: 0,
-    alerted:   false,  // permanently true once hit — bypasses aggro range
     // Elite properties
     isElite:    cfg.isElite    || false,
     isBoss:     cfg.isBoss     || false,
@@ -290,8 +339,8 @@ export default function WorldCanvas() {
   const prevDeathModal  = useRef(false);
 
   const G = useRef({
-    player:       { x: 25*TILE, y: 30*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
-    camera:       { x: 25*TILE, y: 30*TILE },
+    player:       { x: 25*TILE, y: 40*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
+    camera:       { x: 25*TILE, y: 40*TILE },
     enemies:      ENEMY_DEFS.map(makeEnemy),
     resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
     checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
@@ -339,7 +388,7 @@ export default function WorldCanvas() {
     if (respawnTime > 0) {
       setTimeout(() => {
         e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
-        e.x = e.originX; e.y = e.originY; e.stunTimer = 0; e.alerted = false;
+        e.x = e.originX; e.y = e.originY; e.stunTimer = 0;
       }, respawnTime);
     }
   };
@@ -472,9 +521,9 @@ export default function WorldCanvas() {
     const store = useGameStore.getState();
     if (store.position?.x) {
       let { x, y } = store.position;
-      // If saved position is on a temple, reset to spawn to prevent re-entry loop
-      const onTemple = BOSS_TEMPLES.some(t => dist(x, y, t.x, t.y) < TILE * 3);
-      if (onTemple) { x = 25*TILE; y = 25*TILE; }
+      // Reset if standing on a portal (prevents re-entry loop)
+      const onPortal = REALM_PORTALS.some(p2 => dist(x, y, p2.x*TILE, p2.y*TILE) < TILE * 3);
+      if (onPortal) { x = 25*TILE; y = 40*TILE; }
       const c = clampToWorld(x, y);
       G.player.x = c.x; G.player.y = c.y;
       G.camera.x = c.x; G.camera.y = c.y;
@@ -514,21 +563,21 @@ export default function WorldCanvas() {
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
-    // ── Boss temple step-on ───────────────────────────────────────────────
+    // ── Boss realm portal step-on ────────────────────────────────────────
     if (G.templeCooldown > 0) {
       G.templeCooldown -= dt;
     } else {
-      for (const temple of BOSS_TEMPLES) {
-        if (dist(p.x, p.y, temple.x, temple.y) <= TILE * 2.5) {
+      for (const portal of REALM_PORTALS) {
+        if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= TILE * 2.5) {
           G.templeCooldown = 3.0;
-          store.setCurrentRealm(temple.realm);
+          store.setCurrentRealm(portal.realm);
           store.setGamePhase('realm');
           return;
         }
       }
     }
 
-    // ── Passive health regen ──────────────────────────────
+        // ── Passive health regen ──────────────────────────────
     const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol' && e.state !== 'idle');
     if (!inCombat && store.playerHP < store.playerMaxHP) {
       G.regenTimer += dt;
@@ -650,7 +699,6 @@ export default function WorldCanvas() {
         arrow.hitEnemies.add(e);
         const dmg = Math.max(1, arrow.dmg - cfg[e.type].def);
         e.hp -= dmg;
-        e.alerted = true; // permanently chase — patrol reset won't override
         addFloat(e.x, e.y - 20, `-${dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
@@ -669,7 +717,6 @@ export default function WorldCanvas() {
         if (dist(proj.x, proj.y, e.x, e.y) > 22) return;
         proj.hitEnemies.add(e);
         e.hp -= proj.dmg;
-        e.alerted = true; // permanently chase
         addFloat(e.x, e.y - 24, `-${proj.dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
@@ -766,8 +813,7 @@ export default function WorldCanvas() {
           store.takeDamage(dmg);
           p.invincible = true; p.invTimer = 0.8;
         }
-      } else if (d <= ecfg.aggroRange || e.alerted) {
-        // Chase if in range OR if already alerted (hit by ranged attack)
+      } else if (d <= ecfg.aggroRange) {
         e.state = 'aggro';
         const angle = Math.atan2(p.y - e.y, p.x - e.x);
         e.x += Math.cos(angle) * ecfg.speed * dt;
@@ -927,27 +973,6 @@ export default function WorldCanvas() {
       ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(text, lx, ly);
       ctx.globalAlpha = 1;
-    });
-
-    // Boss temples
-    BOSS_TEMPLES.forEach(t => {
-      const tx2 = wx(t.x), ty2 = wy(t.y);
-      if (!onScreen(tx2, ty2, 80)) return;
-      const pulse = 0.6 + Math.sin(Date.now()/800)*0.4;
-      ctx.globalAlpha = pulse * 0.25;
-      ctx.fillStyle = t.color;
-      ctx.beginPath(); ctx.arc(tx2, ty2, TILE*2, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = t.color; ctx.strokeStyle = '#fff3';
-      ctx.lineWidth = 2;
-      ctx.fillRect(tx2-TILE, ty2-TILE, TILE*2, TILE*2);
-      ctx.strokeRect(tx2-TILE, ty2-TILE, TILE*2, TILE*2);
-      ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(t.icon, tx2, ty2+5);
-      ctx.fillStyle = t.color; ctx.font = 'bold 8px sans-serif';
-      ctx.fillText(t.name.toUpperCase(), tx2, ty2-TILE-5);
-      ctx.fillStyle='#ffffff88'; ctx.font='7px sans-serif';
-      ctx.fillText('BOSS TEMPLE', tx2, ty2-TILE-14);
     });
 
     // NPC
@@ -1151,11 +1176,11 @@ export default function WorldCanvas() {
       // Elite tint colors
       let fillColor;
       if      (e.type === 'gold_goblin')    fillColor = aggroed ? '#e6a800' : '#f1c40f';
-      else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad'; // purple
+      else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad';
       else if (stunned)                     fillColor = '#FCD34D';
       else if (aggroed)                     fillColor = '#e74c3c';
-      else if (isGolem)                     fillColor = aggroed ? '#5d4037' : '#795548'; // stone brown
-      else                                  fillColor = '#7ed321'; // goblin green
+      else if (isGolem)                     fillColor = '#8e44ad';
+      else                                  fillColor = '#7ed321';
 
       ctx.fillStyle = fillColor;
       ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
@@ -1226,27 +1251,6 @@ export default function WorldCanvas() {
       ctx.fillStyle = f.color; ctx.fillText(f.text, fx, fy);
     });
     ctx.globalAlpha = 1;
-
-    // Boss temples
-    BOSS_TEMPLES.forEach(t => {
-      const tx2 = wx(t.x), ty2 = wy(t.y);
-      if (!onScreen(tx2, ty2, 80)) return;
-      const pulse = 0.6 + Math.sin(Date.now()/800)*0.4;
-      ctx.globalAlpha = pulse * 0.25;
-      ctx.fillStyle = t.color;
-      ctx.beginPath(); ctx.arc(tx2, ty2, TILE*2, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = t.color; ctx.strokeStyle = '#fff3';
-      ctx.lineWidth = 2;
-      ctx.fillRect(tx2-TILE, ty2-TILE, TILE*2, TILE*2);
-      ctx.strokeRect(tx2-TILE, ty2-TILE, TILE*2, TILE*2);
-      ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(t.icon, tx2, ty2+5);
-      ctx.fillStyle = t.color; ctx.font = 'bold 8px sans-serif';
-      ctx.fillText(t.name.toUpperCase(), tx2, ty2-TILE-5);
-      ctx.fillStyle='#ffffff88'; ctx.font='7px sans-serif';
-      ctx.fillText('BOSS TEMPLE', tx2, ty2-TILE-14);
-    });
 
     // NPC dialogue box — above controls
     if (G.npcMessage) {
