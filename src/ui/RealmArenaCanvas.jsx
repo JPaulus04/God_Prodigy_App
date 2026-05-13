@@ -21,53 +21,53 @@ const REALM_CFG = {
        {type:'forest_wraith',x:10*TILE,y:4*TILE},{type:'forest_wraith',x:15*TILE,y:3*TILE},
        {type:'forest_wraith',x:20*TILE,y:4*TILE}],
     ],
-    boss:{name:'Sylvara',hp:120,atk:9,color:'#2ecc71',size:28,x:15*TILE,y:5*TILE,
+    boss:{name:'Sylvara',hp:1000,atk:22,color:'#2ecc71',size:28,x:15*TILE,y:5*TILE,
           icon:'🌿',chargeInterval:3.5,chargeTelegraph:0.9,chargeSpeed:520,chargeDist:280},
     reward:{label:'Nature Essence',icon:'🌿',color:'#27ae60',key:'natureEssence'},
   },
   earth:{terrain:'#4a3828',border:'#2a1e10',accent:'#95a5a6',skyColor:'#1a1008',
     treePositions:[[3,3],[26,3],[3,26],[26,26]],waves:[],
-    boss:{name:'Terran',hp:180,atk:12,color:'#95a5a6',size:34,x:15*TILE,y:5*TILE,icon:'🪨',chargeInterval:4,chargeTelegraph:1.0,chargeSpeed:400,chargeDist:260},
+    boss:{name:'Terran',hp:1400,atk:32,color:'#95a5a6',size:34,x:15*TILE,y:5*TILE,icon:'🪨',chargeInterval:4,chargeTelegraph:1.0,chargeSpeed:400,chargeDist:260},
     reward:{label:'Earth Shard',icon:'🪨',color:'#95a5a6',key:'earthShard'},
   },
   wind:{terrain:'#1a3a4a',border:'#0a1a28',accent:'#87ceeb',skyColor:'#080e14',
     treePositions:[],waves:[],
-    boss:{name:'Zephyros',hp:150,atk:10,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,icon:'💨',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
+    boss:{name:'Zephyros',hp:1200,atk:28,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,icon:'💨',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
     reward:{label:'Wind Essence',icon:'💨',color:'#87ceeb',key:'windEssence'},
   },
   fire:{terrain:'#3a1810',border:'#1a0808',accent:'#e74c3c',skyColor:'#0f0504',
     treePositions:[],waves:[],
-    boss:{name:'Ignar',hp:200,atk:14,color:'#e74c3c',size:30,x:15*TILE,y:5*TILE,icon:'🔥',chargeInterval:3,chargeTelegraph:0.8,chargeSpeed:560,chargeDist:300},
+    boss:{name:'Ignar',hp:1600,atk:38,color:'#e74c3c',size:30,x:15*TILE,y:5*TILE,icon:'🔥',chargeInterval:3,chargeTelegraph:0.8,chargeSpeed:560,chargeDist:300},
     reward:{label:'Fire Ember',icon:'🔥',color:'#e74c3c',key:'fireEmber'},
   },
   ice:{terrain:'#1a2a40',border:'#0a1428',accent:'#3498db',skyColor:'#06080f',
     treePositions:[],waves:[],
-    boss:{name:'Glacius',hp:240,atk:11,color:'#85c1e9',size:32,x:15*TILE,y:5*TILE,icon:'❄️',chargeInterval:3.5,chargeTelegraph:1.0,chargeSpeed:460,chargeDist:300},
+    boss:{name:'Glacius',hp:1800,atk:35,color:'#85c1e9',size:32,x:15*TILE,y:5*TILE,icon:'❄️',chargeInterval:3.5,chargeTelegraph:1.0,chargeSpeed:460,chargeDist:300},
     reward:{label:'Glacial Shard',icon:'❄️',color:'#85c1e9',key:'glacialShard'},
   },
   ocean:{terrain:'#0e3a30',border:'#06181a',accent:'#1abc9c',skyColor:'#040d0e',
     treePositions:[],waves:[],
-    boss:{name:'Nepthar',hp:210,atk:11,color:'#1abc9c',size:30,x:15*TILE,y:5*TILE,icon:'🌊',chargeInterval:3,chargeTelegraph:0.9,chargeSpeed:480,chargeDist:290},
+    boss:{name:'Nepthar',hp:1600,atk:34,color:'#1abc9c',size:30,x:15*TILE,y:5*TILE,icon:'🌊',chargeInterval:3,chargeTelegraph:0.9,chargeSpeed:480,chargeDist:290},
     reward:{label:'Sea Crystal',icon:'🌊',color:'#1abc9c',key:'seaCrystal'},
   },
   storm:{terrain:'#18103a',border:'#0a0820',accent:'#9b59b6',skyColor:'#06050f',
     treePositions:[],waves:[],
-    boss:{name:'Vortus',hp:280,atk:15,color:'#9b59b6',size:32,x:15*TILE,y:5*TILE,icon:'⚡',chargeInterval:2,chargeTelegraph:0.6,chargeSpeed:700,chargeDist:340},
+    boss:{name:'Vortus',hp:2000,atk:42,color:'#9b59b6',size:32,x:15*TILE,y:5*TILE,icon:'⚡',chargeInterval:2,chargeTelegraph:0.6,chargeSpeed:700,chargeDist:340},
     reward:{label:'Storm Core',icon:'⚡',color:'#9b59b6',key:'stormCore'},
   },
   shadow:{terrain:'#10101e',border:'#060610',accent:'#6c3483',skyColor:'#040408',
     treePositions:[],waves:[],
-    boss:{name:'Umbris',hp:320,atk:16,color:'#8e44ad',size:34,x:15*TILE,y:5*TILE,icon:'🌑',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:580,chargeDist:310},
+    boss:{name:'Umbris',hp:2200,atk:48,color:'#8e44ad',size:34,x:15*TILE,y:5*TILE,icon:'🌑',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:580,chargeDist:310},
     reward:{label:'Shadow Veil',icon:'🌑',color:'#8e44ad',key:'shadowVeil'},
   },
   lava:{terrain:'#2a1008',border:'#120604',accent:'#e67e22',skyColor:'#0a0402',
     treePositions:[],waves:[],
-    boss:{name:'Magmara',hp:380,atk:18,color:'#e67e22',size:36,x:15*TILE,y:5*TILE,icon:'🌋',chargeInterval:3,chargeTelegraph:1.0,chargeSpeed:520,chargeDist:280},
+    boss:{name:'Magmara',hp:2400,atk:55,color:'#e67e22',size:36,x:15*TILE,y:5*TILE,icon:'🌋',chargeInterval:3,chargeTelegraph:1.0,chargeSpeed:520,chargeDist:280},
     reward:{label:'Lava Core',icon:'🌋',color:'#e67e22',key:'lavaCore'},
   },
   void:{terrain:'#080808',border:'#020202',accent:'#f1c40f',skyColor:'#030303',
     treePositions:[],waves:[],
-    boss:{name:'Nihilus',hp:450,atk:20,color:'#f1c40f',size:38,x:15*TILE,y:5*TILE,icon:'✨',chargeInterval:2,chargeTelegraph:0.5,chargeSpeed:760,chargeDist:360},
+    boss:{name:'Nihilus',hp:2800,atk:65,color:'#f1c40f',size:38,x:15*TILE,y:5*TILE,icon:'✨',chargeInterval:2,chargeTelegraph:0.5,chargeSpeed:760,chargeDist:360},
     reward:{label:'Void Fragment',icon:'✨',color:'#f1c40f',key:'voidFragment'},
   },
 };
@@ -266,12 +266,13 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     const spaceJust=spaceNow&&!G.prevSpace; G.prevSpace=spaceNow;
     if(window.__gameAttack)window.__gameAttack=false;
     if(spaceJust&&p.attackCooldown<=0){
-      const _w=store.gear?.weapon||{};
-      const wType=_w.type||
-        (_w.abilityId==='power_shot'||_w.abilityName==='Power Shot'?'bow':
-         _w.abilityId==='ground_slam'||_w.abilityName==='Ground Slam'?'hammer':
-         _w.abilityId==='flurry'||_w.abilityName==='Flurry'?'dagger':
-         _w.abilityId==='arcane_burst'||_w.abilityName==='Arcane Burst'?'staff':'sword');
+      // store.gear.weapon is an instanceId string, not an item object.
+      // Use equippedAbilityId which the store already resolves correctly.
+      const _aid=store.equippedAbilityId||'whirlwind';
+      const wType=_aid==='power_shot'?'bow':
+                  _aid==='ground_slam'?'hammer':
+                  _aid==='flurry'?'dagger':
+                  _aid==='arcane_burst'?'staff':'sword';
       const allT=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat().filter(e=>e.alive);
       if(wType==='bow'||wType==='staff'){
         // Ranged — fire projectile toward nearest enemy
@@ -321,7 +322,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         if(!p.invincible&&dist(proj.x,proj.y,p.x,p.y)<18){
           const dmg=Math.max(1,(proj.dmg||5)-store.playerDEF);
           store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
-          p.invincible=true; p.invTimer=0.7;
+          p.invincible=true; p.invTimer=0.5;
           return false;
         }
       }
@@ -350,7 +351,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
             e.attackTimer=e.attackCooldown;
             const dmg=Math.max(1,e.atk-store.playerDEF);
             store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
-            p.invincible=true; p.invTimer=0.7;
+            p.invincible=true; p.invTimer=0.5;
           }
         }
       } else if(d<=e.aggroRange){
@@ -419,7 +420,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         if(!p.invincible&&dist(b.x,b.y,p.x,p.y)<b.size+16){
           const dmg=Math.max(1,b.atk-store.playerDEF);
           store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
-          p.invincible=true; p.invTimer=1.0;
+          p.invincible=true; p.invTimer=0.6;
         }
         if(b.chargeTraveled>=(G.bossPhase===2?bcfg.chargeDist*1.2:bcfg.chargeDist)){
           b.chargeState='idle';
