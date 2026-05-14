@@ -428,17 +428,23 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         }
       }
 
-      // Boss dead
+      // Boss dead — spawn exit portal at death position
       if(!b.alive){
         store.gainXP(200);
-        store.defeatBoss(realmId);
-        G.victory=true; G.victoryTimer=1.5;
+        try{ store.defeatBoss && store.defeatBoss(realmId); }catch(e){}
+        G.victory=true;
+        G.victoryPortal={ x:b.x, y:b.y };
         addFloat(b.x,b.y-60,'VICTORY!','#f1c40f',true);
+        addFloat(b.x,b.y-90,`+200 XP`,'#9b59b6',true);
       }
     }
 
-    // Victory countdown
-    if(G.victory&&G.victoryTimer>0){G.victoryTimer-=dt;}
+    // Victory portal walk-in
+    if(G.victory&&G.victoryPortal){
+      if(dist(p.x,p.y,G.victoryPortal.x,G.victoryPortal.y)<48){
+        onFlee(); return;
+      }
+    }
 
     // Floats
     G.floats=G.floats.map(f=>({...f,y:f.y+f.vy*dt,life:f.life-dt})).filter(f=>f.life>0);
@@ -548,6 +554,42 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       ctx.globalAlpha=1;
     }
 
+    // Victory portal
+    if(G.victory&&G.victoryPortal){
+      const vp=G.victoryPortal;
+      const vpx=wx(vp.x),vpy=wy(vp.y);
+      const t2=Date.now()/1000;
+      const pulse=0.65+Math.sin(t2*3)*0.35;
+      // Outer glow
+      ctx.globalAlpha=pulse*0.35;
+      ctx.fillStyle=cfg.accent;
+      ctx.beginPath();ctx.arc(vpx,vpy,58,0,Math.PI*2);ctx.fill();
+      // Inner portal
+      ctx.globalAlpha=0.9;
+      ctx.fillStyle='#000000bb';
+      ctx.beginPath();ctx.arc(vpx,vpy,36,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=4;
+      ctx.beginPath();ctx.arc(vpx,vpy,36,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle=cfg.accent;ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(vpx,vpy,28,0,Math.PI*2);ctx.stroke();
+      // Rotating particles
+      for(let i=0;i<10;i++){
+        const a=(i/10)*Math.PI*2+t2*2.2;
+        const rx=vpx+Math.cos(a)*44,ry=vpy+Math.sin(a)*44;
+        ctx.globalAlpha=pulse*0.9;
+        ctx.fillStyle=cfg.accent;
+        ctx.beginPath();ctx.arc(rx,ry,4.5,0,Math.PI*2);ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      // Label
+      ctx.fillStyle='#ffffff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+      ctx.strokeStyle='#000';ctx.lineWidth=3;
+      ctx.strokeText('RETURN TO WORLD',vpx,vpy-52);
+      ctx.fillText('RETURN TO WORLD',vpx,vpy-52);
+      ctx.fillStyle='#ffffff88';ctx.font='11px sans-serif';
+      ctx.fillText('walk into the portal',vpx,vpy-36);
+    }
+
     // Attack flash
     if(G.attackFlash){
       const af=G.attackFlash,al=af.timer/0.18;
@@ -627,28 +669,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         </button>
       )}
 
-      {/* Victory overlay */}
-      {G.victory && G.victoryTimer <= 0 && (
-        <div style={{ position:'absolute',inset:0,display:'flex',flexDirection:'column',
-          alignItems:'center',justifyContent:'center',background:'#000000cc' }}>
-          <div style={{ fontSize:48,marginBottom:8 }}>{cfg.boss.icon}</div>
-          <div style={{ color:'#f1c40f',fontSize:28,fontWeight:'bold',marginBottom:4 }}>VICTORY</div>
-          <div style={{ color:'#ffffff',fontSize:16,marginBottom:20 }}>{cfg.boss.name} defeated!</div>
-          <div style={{ background:'#ffffff15',borderRadius:14,padding:'12px 28px',
-            border:`1px solid ${cfg.accent}`,marginBottom:28,display:'flex',alignItems:'center',gap:10 }}>
-            <span style={{ fontSize:28 }}>{cfg.reward.icon}</span>
-            <div>
-              <div style={{ color:cfg.accent,fontWeight:'bold',fontSize:15 }}>{cfg.reward.label}</div>
-              <div style={{ color:'#ffffff88',fontSize:12 }}>Reward obtained</div>
-            </div>
-          </div>
-          <button onPointerDown={onFlee}
-            style={{ background:cfg.accent,border:'none',borderRadius:14,
-              padding:'16px 40px',color:'#000',fontSize:16,fontWeight:'bold',cursor:'pointer' }}>
-            ← Return to World
-          </button>
-        </div>
-      )}
+      {/* Victory handled by in-world portal */}
     </div>
   );
 }
