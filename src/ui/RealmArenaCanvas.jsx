@@ -428,15 +428,35 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         }
       }
 
-      // Boss dead — spawn exit portal at death position
-      if(!b.alive){
-        store.gainXP(200);
-        try{ store.defeatBoss && store.defeatBoss(realmId); }catch(e){}
-        G.victory=true;
-        G.victoryPortal={ x:b.x, y:b.y };
-        addFloat(b.x,b.y-60,'VICTORY!','#f1c40f',true);
-        addFloat(b.x,b.y-90,`+200 XP`,'#9b59b6',true);
-      }
+      // death handled outside this block
+    }
+
+    // Victory banner (fades after 4s)
+    if(G.victoryBannerTimer>0){
+      const bt=G.victoryBannerTimer;
+      const alpha=bt>3?1:bt/3; // fade out in last 3s
+      ctx.globalAlpha=alpha*0.88;
+      ctx.fillStyle='#000000';
+      ctx.fillRect(0, G.H*0.28, G.W, 200);
+      ctx.globalAlpha=alpha;
+      // Victory text
+      ctx.textAlign='center';
+      ctx.font='bold 32px sans-serif';
+      ctx.fillStyle='#f1c40f';
+      ctx.fillText('VICTORY!', G.W/2, G.H*0.28+52);
+      // God name
+      ctx.font='16px sans-serif';
+      ctx.fillStyle='#ffffff';
+      ctx.fillText(`${cfg.boss.icon}  ${cfg.boss.name} Defeated`, G.W/2, G.H*0.28+82);
+      // Reward
+      ctx.fillStyle=cfg.accent;
+      ctx.font='bold 15px sans-serif';
+      ctx.fillText(`${cfg.reward.icon}  ${cfg.reward.label} Awarded`, G.W/2, G.H*0.28+114);
+      // Portal hint
+      ctx.fillStyle='#ffffff88';
+      ctx.font='12px sans-serif';
+      ctx.fillText('Walk into the portal to return', G.W/2, G.H*0.28+148);
+      ctx.globalAlpha=1;
     }
 
     // Victory portal walk-in
@@ -444,6 +464,19 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       if(dist(p.x,p.y,G.victoryPortal.x,G.victoryPortal.y)<48){
         onFlee(); return;
       }
+    }
+
+    if(G.victoryBannerTimer>0) G.victoryBannerTimer-=dt;
+
+    // Boss death check — runs every frame, catches kills from any source
+    if(G.boss && !G.boss.alive && !G.victory){
+      try{ store.gainXP(200); }catch(e){}
+      try{ store.defeatBoss && store.defeatBoss(realmId); }catch(e){}
+      G.victory=true;
+      G.victoryPortal={ x:G.boss.x, y:G.boss.y };
+      G.victoryBannerTimer=4.0;
+      addFloat(G.boss.x, G.boss.y-60,'VICTORY!','#f1c40f',true);
+      addFloat(G.boss.x, G.boss.y-90,'+200 XP','#9b59b6',true);
     }
 
     // Floats
@@ -551,6 +584,34 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         const r=fx.maxRadius*pr; ctx.strokeStyle=col.primary;ctx.lineWidth=3;
         ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.stroke();
       }
+      ctx.globalAlpha=1;
+    }
+
+    // Victory banner (fades after 4s)
+    if(G.victoryBannerTimer>0){
+      const bt=G.victoryBannerTimer;
+      const alpha=bt>3?1:bt/3; // fade out in last 3s
+      ctx.globalAlpha=alpha*0.88;
+      ctx.fillStyle='#000000';
+      ctx.fillRect(0, G.H*0.28, G.W, 200);
+      ctx.globalAlpha=alpha;
+      // Victory text
+      ctx.textAlign='center';
+      ctx.font='bold 32px sans-serif';
+      ctx.fillStyle='#f1c40f';
+      ctx.fillText('VICTORY!', G.W/2, G.H*0.28+52);
+      // God name
+      ctx.font='16px sans-serif';
+      ctx.fillStyle='#ffffff';
+      ctx.fillText(`${cfg.boss.icon}  ${cfg.boss.name} Defeated`, G.W/2, G.H*0.28+82);
+      // Reward
+      ctx.fillStyle=cfg.accent;
+      ctx.font='bold 15px sans-serif';
+      ctx.fillText(`${cfg.reward.icon}  ${cfg.reward.label} Awarded`, G.W/2, G.H*0.28+114);
+      // Portal hint
+      ctx.fillStyle='#ffffff88';
+      ctx.font='12px sans-serif';
+      ctx.fillText('Walk into the portal to return', G.W/2, G.H*0.28+148);
       ctx.globalAlpha=1;
     }
 
