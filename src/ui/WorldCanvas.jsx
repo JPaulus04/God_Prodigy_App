@@ -1,9 +1,10 @@
-// GP_WORLD_PASS2
+// GP_WORLD_PASS7
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
+import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect } from '../utils/haptics';
 
 const TILE = 32;
 
@@ -989,12 +990,14 @@ export default function WorldCanvas() {
   const lastTimeRef     = useRef(0);
   const showDeathModal  = useGameStore(state => state.showDeathModal);
   const prevDeathModal  = useRef(false);
+  const showLevelUp     = useGameStore(state => state.showLevelUp);
+  const prevLevelUp     = useRef(false);
 
   const G = useRef({
     player:       { x: 25*TILE, y: 40*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
     camera:       { x: 25*TILE, y: 40*TILE },
     enemies:      ENEMY_DEFS.map(makeEnemy),
-    resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false })),
+    resources:    RESOURCE_DEFS.map(d => ({ ...d, depleted: false, respawnAt: 0 })),
     checkpoints:  CHECKPOINTS.map(c => ({ ...c, activated: false })),
     swordPicked:  false,
     templeCooldown: 2.5,
@@ -1124,6 +1127,11 @@ export default function WorldCanvas() {
   }, [showDeathModal]);
 
   useEffect(() => {
+    if (!prevLevelUp.current && showLevelUp) hapticLevelUp();
+    prevLevelUp.current = showLevelUp;
+  }, [showLevelUp]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const resize = () => {
@@ -1251,6 +1259,15 @@ export default function WorldCanvas() {
     if (p.attackCooldown > 0) p.attackCooldown -= dt;
     if (p.invincible) { p.invTimer -= dt; if (p.invTimer <= 0) p.invincible = false; }
 
+    // ── Ore respawn (3-min timer) ───────────────────────────────────────────
+    const now3m = Date.now();
+    G.resources.forEach(r => {
+      if (r.depleted && r.respawnAt > 0 && now3m >= r.respawnAt) {
+        r.depleted = false;
+        r.respawnAt = 0;
+      }
+    });
+
     const weaponInstanceId = store.gear?.weapon;
     const equippedWeapon   = weaponInstanceId ? store.inventory.find(i => i.instanceId === weaponInstanceId) : null;
     const weaponType = equippedWeapon?.type || 'sword';
@@ -1272,6 +1289,7 @@ export default function WorldCanvas() {
 
     if (spaceJust && p.attackCooldown <= 0) {
       p.attackCooldown = wAtk.cooldown;
+      hapticAttack();
       if (wAtk.ranged) {
         let targetX = p.x + G.lastMoveDir.x * 150, targetY = p.y + G.lastMoveDir.y * 150, nd = Infinity;
         G.enemies.forEach(e => { if (!e.alive) return; const d = dist(p.x, p.y, e.x, e.y); if (d < nd) { nd = d; targetX = e.x; targetY = e.y; } });
@@ -1337,12 +1355,13 @@ export default function WorldCanvas() {
         if (r.depleted || dist(p.x, p.y, r.x, r.y) > 48) return;
         store.addResource(r.res, r.amt);
         addFloat(r.x, r.y - 20, `+${r.amt} ${r.res}`, '#7ed321');
+        hapticCollect();
         r.depleted = true;
-        setTimeout(() => { r.depleted = false; }, 30000);
+        r.respawnAt = Date.now() + 180_000;
       });
       G.checkpoints.forEach(cp => {
         if (dist(p.x, p.y, cp.x, cp.y) > 55) return;
-        if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); }
+        if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); hapticCheckpoint(); }
         addFloat(cp.x, cp.y - 30, '✓ Checkpoint saved!', '#f1c40f');
       });
       const hasSword = store.inventory.some(i => i.id === 'iron_sword');
@@ -1396,6 +1415,7 @@ export default function WorldCanvas() {
           e.attackTimer = ecfg.attackCooldown / 1000;
           const dmg = Math.max(1, ecfg.atk - store.playerDEF);
           store.takeDamage(dmg);
+          hapticHit();
           p.invincible = true; p.invTimer = 0.8;
         }
       } else if (d <= ecfg.aggroRange) {
@@ -1515,16 +1535,58 @@ export default function WorldCanvas() {
       }
     });
 
-    // ── Checkpoints ────────────────────────────────────────────────────────
+    // ── Checkpoints (flag pole art) ──────────────────────────────────────────
     G.checkpoints.forEach(cp => {
       const sx = wx(cp.x), sy = wy(cp.y);
       if (!onScreen(sx, sy)) return;
-      ctx.globalAlpha = cp.activated ? 1 : 0.6 + Math.sin(t * 1.67) * 0.4;
-      ctx.fillStyle   = cp.activated ? '#00ff88' : '#f1c40f';
-      ctx.fillRect(sx-8, sy-18, 16, 26);
+
+      const activated = cp.activated;
+      const flagColor = activated ? '#00ff88' : '#f1c40f';
+      const pulse = 0.65 + Math.sin(t * 2.1) * 0.35;
+
+      // Glow halo
+      ctx.globalAlpha = activated ? 0.22 : pulse * 0.32;
+      ctx.fillStyle   = flagColor;
+      ctx.beginPath(); ctx.arc(sx, sy - 14, 22, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ffffffaa'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(cp.activated ? 'SAVED' : 'SAVE', sx, sy + 28);
+
+      // Base stone
+      ctx.fillStyle = '#7a6a50';
+      ctx.fillRect(sx - 5, sy + 2, 10, 6);
+
+      // Pole
+      ctx.strokeStyle = '#aaaaaa';
+      ctx.lineWidth   = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(sx, sy + 2); ctx.lineTo(sx, sy - 34); ctx.stroke();
+
+      // Flag body (waves when inactive)
+      const wave = activated ? 0 : Math.sin(t * 4) * 2;
+      ctx.fillStyle   = flagColor;
+      ctx.globalAlpha = activated ? 1 : pulse;
+      ctx.beginPath();
+      ctx.moveTo(sx,      sy - 34);
+      ctx.lineTo(sx + 15, sy - 28 + wave);
+      ctx.lineTo(sx + 15, sy - 21 + wave);
+      ctx.lineTo(sx,      sy - 20);
+      ctx.closePath(); ctx.fill();
+
+      // Flag shine
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(sx,     sy - 34);
+      ctx.lineTo(sx + 7, sy - 30 + wave);
+      ctx.lineTo(sx + 7, sy - 26 + wave);
+      ctx.lineTo(sx,     sy - 28);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Label
+      ctx.fillStyle = '#ffffffcc';
+      ctx.font      = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(activated ? '✓ SAVED' : 'SAVE', sx, sy + 18);
     });
 
     // ── Village of Kaelford ──────────────────────────────────────────────────
@@ -2483,4 +2545,5 @@ export default function WorldCanvas() {
     }} />
   );
 }
+
 
