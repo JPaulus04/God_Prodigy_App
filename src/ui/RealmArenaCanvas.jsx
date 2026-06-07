@@ -32,7 +32,7 @@ const REALM_CFG = {
        {type:'forest_wraith',x:20*TILE,y:4*TILE}],
     ],
     boss:{name:'Sylvara',hp:900,atk:18,color:'#2ecc71',size:28,x:15*TILE,y:5*TILE,
-          icon:'🌿',chargeInterval:1.8.5.2.5,chargeTelegraph:0.9,chargeSpeed:420,chargeDist:280},
+          icon:'🌿',chargeInterval:4.5,chargeTelegraph:0.9,chargeSpeed:420,chargeDist:280},
     reward:{label:'Nature Essence',icon:'🌿',color:'#27ae60',key:'natureEssence'},
   },
   earth:{
@@ -67,7 +67,7 @@ const REALM_CFG = {
        {type:'wind_sprite',x:14*TILE,y:4*TILE}],
     ],
     boss:{name:'Zephyros',hp:1100,atk:22,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,
-          icon:'💨',chargeInterval:1.1.4.0,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
+          icon:'💨',chargeInterval:3.0,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
     reward:{label:'Wind Essence',icon:'💨',color:'#87ceeb',key:'windEssence'},
   },
   fire:{
