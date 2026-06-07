@@ -64,6 +64,14 @@ const DEFAULT_STATE = {
   showLevelUp:    false,
   showShop:       false,
   showVictory:    false,
+  showPrestigeSelect: false,
+
+  // ── Prestige / Legacy ──────────────────────────────────────────
+  prestigeLevel:  0,
+  prestigeClass:  'warrior',   // current class id
+  fragments:      { rune: 0, shard: 0, seal: 0 },
+  legacyWeapons:  [],          // array of weapon ids permanently unlocked
+  challengeCleared: false,     // did the mini-challenge room fire this run?
 };
 
 export const useGameStore = create((set, get) => ({
@@ -94,6 +102,10 @@ export const useGameStore = create((set, get) => ({
   gainXP: (amount) => {
     const { xp, level, passActive } = get();
     amount = passActive ? Math.floor(amount * 1.25) : amount;
+    // Prestige class XP bonus (inlined)
+    const XP_MULTS = { warrior: 1.0, mage: 1.5, assassin: 1.0, god: 1.75 };
+    const xpMult = XP_MULTS[get().prestigeClass || 'warrior'] || 1;
+    if (xpMult !== 1) amount = Math.floor(amount * xpMult);
     if (level >= 30) return;
     const newXP  = xp + amount;
     const nextTh = XP_THRESHOLDS[level] || Infinity;
@@ -164,7 +176,7 @@ export const useGameStore = create((set, get) => ({
   },
 
   recalculateStats: () => {
-    const { gear, inventory, playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus } = get();
+    const { gear, inventory, playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus, prestigeClass, level } = get();
     let atk = (playerBaseATK || 8); // base already includes training + stat points
     let def = (playerBaseDEF || 4); // base already includes training + stat points
     let spd = (get().playerBaseSPD || 5);
@@ -181,6 +193,17 @@ export const useGameStore = create((set, get) => ({
       if (item.slot === 'weapon' && item.abilityId) abilityId = item.abilityId;
     });
 
+    // Apply prestige class bonuses (inlined to avoid circular imports)
+    const CLASS_BONUSES = {
+      warrior:  { atkMult: 1.0,  defPerLevel: 2, spdMult: 1.0  },
+      mage:     { atkMult: 1.2,  defPerLevel: 0, spdMult: 1.0  },
+      assassin: { atkMult: 1.35, defPerLevel: 0, spdMult: 1.5  },
+      god:      { atkMult: 1.5,  defPerLevel: 1, spdMult: 1.3  },
+    };
+    const cb = CLASS_BONUSES[prestigeClass || 'warrior'] || CLASS_BONUSES.warrior;
+    atk = Math.round(atk * cb.atkMult);
+    def = Math.round(def + (cb.defPerLevel * (level || 1)));
+    spd = Math.round(spd * cb.spdMult);
     set({ playerATK: atk, playerDEF: def, playerSPD: spd, equippedAbilityId: abilityId });
   },
 
@@ -340,6 +363,84 @@ export const useGameStore = create((set, get) => ({
 
   toggleInventory: () => set(s => ({ showInventory: !s.showInventory })),
   toggleHelpMenu:  () => set(s => ({ showHelpMenu:  !s.showHelpMenu  })),
+
+  // ── Fragment actions ──────────────────────────────────────────
+  addFragment: (type, count = 1) => {
+    const { fragments } = get();
+    const FRAG_MAX = { rune: 3, shard: 3, seal: 3 };
+    const cur = fragments[type] || 0;
+    const newVal = Math.min(FRAG_MAX[type] || 3, cur + count);
+    set({ fragments: { ...fragments, [type]: newVal } });
+    SaveSystem.save(get());
+  },
+
+  spendFragments: (cost) => {
+    const { fragments } = get();
+    // Check affordability
+    for (const [type, amt] of Object.entries(cost)) {
+      if ((fragments[type] || 0) < amt) return false;
+    }
+    const updated = { ...fragments };
+    for (const [type, amt] of Object.entries(cost)) updated[type] -= amt;
+    set({ fragments: updated });
+    SaveSystem.save(get());
+    return true;
+  },
+
+  unlockLegacyWeapon: (weaponId) => {
+    const { legacyWeapons } = get();
+    if (!legacyWeapons.includes(weaponId)) {
+      set({ legacyWeapons: [...legacyWeapons, weaponId] });
+      SaveSystem.save(get());
+    }
+  },
+
+  // ── Prestige actions ──────────────────────────────────────────
+  openPrestigeSelect: () => set({ showPrestigeSelect: true }),
+
+  doPrestige: (chosenClass) => {
+    const { prestigeLevel, legacyWeapons, fragments } = get();
+    const newPrestigeLevel = prestigeLevel + 1;
+    SaveSystem.clear();
+    // Full reset, preserving only legacy fields
+    set({
+      playerName:         get().playerName,
+      gamePhase:          'world',
+      currentRealm:       null,
+      tutorialStep:       4,   // skip tutorial on prestige
+      playerHP:           100, playerMaxHP: 100,
+      playerBaseATK:      8,   playerBaseDEF: 4, playerBaseSPD: 5,
+      playerATK:          8,   playerDEF: 4,     playerSPD: 5,
+      level:              1,   xp: 0, xpToNextLevel: 100, statPoints: 0,
+      trainingATKBonus:   0,   trainingDEFBonus: 0,
+      equippedAbilityId:  null,
+      position:           { zone: 'world', x: 800, y: 960 },
+      activeZone:         'world',
+      respawnAt:          null,
+      gear:               { weapon: null, armor: null, accessory: null },
+      inventory:          [],  itemUpgrades: {},
+      resources:          { wood: 0, stone: 0, ore: 0, fire_shard: 0 },
+      checkpoints:        [],  lastCheckpoint: 'stronghold',
+      stronghold:         { forge: 0, storage: 0, trainingGrounds: 0 },
+      bossesDefeated:     [],  ascensionProgress: 0,
+      killCount:          0,   totalDamageDealt: 0,
+      // Preserved
+      prestigeLevel:      newPrestigeLevel,
+      prestigeClass:      chosenClass,
+      legacyWeapons,
+      fragments,
+      passActive:         get().passActive,
+      ownedSkins:         get().ownedSkins,
+      ownedTrails:        get().ownedTrails,
+      // UI reset
+      showInventory: false, showHelpMenu: false, showDeathModal: false,
+      showLevelUp:   false, showShop:     false,
+      showVictory:   false, showPrestigeSelect: false,
+      challengeCleared: false,
+    });
+    setTimeout(() => get().recalculateStats(), 0);
+    SaveSystem.save(get());
+  },
 
   loadSave: () => {
     const saved = SaveSystem.load();
