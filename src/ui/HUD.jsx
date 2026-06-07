@@ -476,21 +476,21 @@ export default function HUD() {
 
       {/* ── Settings panel ────────────────────────────────────── */}
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {/* Auto-save flash toast */}
+      {savedToast && (
+        <div style={{
+          position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+          background: '#1a2a1a', border: '1px solid #2ecc71',
+          borderRadius: 20, padding: '6px 16px',
+          color: '#2ecc71', fontSize: 13, fontWeight: 'bold',
+          pointerEvents: 'none', zIndex: 120,
+          animation: 'gpSavedFade 2s ease forwards',
+          whiteSpace: 'nowrap',
+        }}>
+          Saved ✓
+        </div>
+      )}
     </div>
-    {/* Auto-save flash toast */}
-    {savedToast && (
-      <div style={{
-        position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-        background: '#1a2a1a', border: '1px solid #2ecc71',
-        borderRadius: 20, padding: '6px 16px',
-        color: '#2ecc71', fontSize: 13, fontWeight: 'bold',
-        pointerEvents: 'none', zIndex: 120,
-        animation: 'gpSavedFade 2s ease forwards',
-        whiteSpace: 'nowrap',
-      }}>
-        Saved ✓
-      </div>
-    )}
   );
 }
 
