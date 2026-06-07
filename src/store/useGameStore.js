@@ -45,10 +45,21 @@ const DEFAULT_STATE = {
   bossesDefeated:    [],
   ascensionProgress: 0,
 
+  // IAP state
+  passActive:           false,
+  respawnShields:       0,
+  ownedSkins:           [],   // e.g. ['shadow_knight', 'gods_chosen']
+  ownedTrail:           null, // active trail id
+  ownedTrails:          [],
+  extraInventorySlots:  0,
+  bossSkipPending:      false, // true after God's Mercy purchase — next portal E triggers skip
+  bossSkipUsed:         false,
+
   showInventory:  false,
   showHelpMenu:   false,
   showDeathModal: false,
   showLevelUp:    false,
+  showShop:       false,
 };
 
 export const useGameStore = create((set, get) => ({
@@ -74,7 +85,8 @@ export const useGameStore = create((set, get) => ({
   },
 
   gainXP: (amount) => {
-    const { xp, level } = get();
+    const { xp, level, passActive } = get();
+    amount = passActive ? Math.floor(amount * 1.25) : amount;
     if (level >= 30) return;
     const newXP  = xp + amount;
     const nextTh = XP_THRESHOLDS[level] || Infinity;
@@ -245,6 +257,63 @@ export const useGameStore = create((set, get) => ({
     if (spdBonus) set(s => ({ playerSPD: s.playerSPD + spdBonus, playerBaseSPD: (s.playerBaseSPD || 5) + spdBonus }));
     SaveSystem.save(get());
   },
+
+  // ── IAP Actions ────────────────────────────────────────────────────────────
+  grantRespawnShield: (count = 1) => {
+    set(s => ({ respawnShields: (s.respawnShields || 0) + count }));
+    SaveSystem.save(get());
+  },
+
+  useRespawnShield: () => {
+    const { respawnShields } = get();
+    if (!respawnShields) return false;
+    set({ respawnShields: respawnShields - 1 });
+    SaveSystem.save(get());
+    return true;
+  },
+
+  grantStatPoints: (n) => {
+    set(s => ({ statPoints: (s.statPoints || 0) + n }));
+    SaveSystem.save(get());
+  },
+
+  unlockSkin: (skinId) => {
+    const { ownedSkins } = get();
+    if (!ownedSkins.includes(skinId)) set({ ownedSkins: [...ownedSkins, skinId] });
+    SaveSystem.save(get());
+  },
+
+  unlockTrail: (trailId) => {
+    const { ownedTrails } = get();
+    const updated = ownedTrails.includes(trailId) ? ownedTrails : [...ownedTrails, trailId];
+    set({ ownedTrails: updated, ownedTrail: trailId });
+    SaveSystem.save(get());
+  },
+
+  expandInventory: (slots) => {
+    set(s => ({ extraInventorySlots: (s.extraInventorySlots || 0) + slots }));
+    SaveSystem.save(get());
+  },
+
+  grantBossSkip: () => {
+    set({ bossSkipPending: true });
+    SaveSystem.save(get());
+  },
+
+  consumeBossSkip: (realmId) => {
+    if (!realmId) return;
+    get().defeatBoss(realmId);
+    set({ bossSkipPending: false, bossSkipUsed: true });
+    SaveSystem.save(get());
+  },
+
+  activatePass: () => {
+    set({ passActive: true });
+    SaveSystem.save(get());
+  },
+
+  showShop:       false,
+  toggleShop:    () => set(s => ({ showShop: !s.showShop })),
 
   defeatBoss: (bossId) => {
     if (!bossId) return;  // guard against undefined/null realmId
