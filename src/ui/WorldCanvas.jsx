@@ -95,6 +95,13 @@ const LANDMARK_DEFS = [
   { type: 'ice_fortress',  x: 62, y: 10, label: 'Ice Fortress'    },
 ];
 
+// Simple deterministic noise for tile variation
+function tileHash(tx, ty) {
+  let h = (tx * 2654435761 ^ ty * 2246822519) >>> 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x45d9f3b) >>> 0; h ^= h >>> 16;
+  return (h >>> 0) / 0xffffffff;
+}
+
 function tileColor(tx, ty) {
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#1a6fa8';
   // Expanded zones
@@ -103,21 +110,23 @@ function tileColor(tx, ty) {
   if (tx >= 80 && ty < 50) return '#4a4258';
   if (tx >= 80 && ty >= 50 && tx < 90) return '#1e3050';
   if (tx >= 80 && ty >= 80) return '#18141e';
-  // Original zones
-  if (ty < 8  && tx > 10 && tx < 75) return '#0f3d22';
-  if (ty < 18 && tx > 4  && tx < 80) return '#1a5c35';
-  if (tx > 60 && ty > 8  && ty < 45) return '#3a2e24';
-  if (tx > 46 && ty > 8  && ty < 55) return '#4a3e32';
+  // Original zones — with tile variation
+  const h = tileHash(tx, ty);
+  if (ty < 8  && tx > 10 && tx < 75) return h < 0.3 ? '#0e3620' : h > 0.7 ? '#134428' : '#0f3d22';
+  if (ty < 18 && tx > 4  && tx < 80) return h < 0.3 ? '#175230' : h > 0.7 ? '#1f6a3e' : '#1a5c35';
+  if (tx > 60 && ty > 8  && ty < 45) return h < 0.3 ? '#32261e' : h > 0.7 ? '#44342a' : '#3a2e24';
+  if (tx > 46 && ty > 8  && ty < 55) return h < 0.3 ? '#40342a' : h > 0.7 ? '#564840' : '#4a3e32';
   if (ty > 72 && tx > 4 && tx < 80 && ((tx + ty) % 7 < 2)) return '#4a0a00';
-  if (ty > 68 && tx > 4 && tx < 80) return '#2a1208';
-  if (ty > 54 && tx > 4 && tx < 52) return '#6b4a2e';
-  if (tx < 7  && ty > 35 && ty < 65) return '#0f2814';
-  if (tx < 12 && ty > 25 && ty < 80) return '#1a3d20';
+  if (ty > 68 && tx > 4 && tx < 80) return h < 0.3 ? '#220e06' : h > 0.7 ? '#32160a' : '#2a1208';
+  if (ty > 54 && tx > 4 && tx < 52) return h < 0.3 ? '#5e4026' : h > 0.7 ? '#7a5636' : '#6b4a2e';
+  if (tx < 7  && ty > 35 && ty < 65) return h < 0.3 ? '#0d2310' : h > 0.7 ? '#122e18' : '#0f2814';
+  if (tx < 12 && ty > 25 && ty < 80) return h < 0.3 ? '#163418' : h > 0.7 ? '#1e4624' : '#1a3d20';
   if (tx === 25 || tx === 26) return '#8a6a4a';
   if (ty === 25 || ty === 26) return '#8a6a4a';
   if (tx === 50 || ty === 55) return '#7a5a3a';
   if (tx === 78 || tx === 79) return '#6a5070';
-  return '#2d6a3f';
+  const base = h < 0.25 ? '#276038' : h > 0.75 ? '#348a4a' : '#2d6a3f';
+  return base;
 }
 
 function dist(ax, ay, bx, by) {
@@ -532,6 +541,150 @@ function drawLandmarks(ctx, wxFn, wyFn, onScreen, t) {
   });
 }
 
+// ── Ground detail overlay (Zelda-style grass tufts, cracks, etc.) ──────────
+function drawGroundDetail(ctx, wxFn, wyFn, cx, cy, W, H, t) {
+  const txS = Math.max(0, Math.floor((cx - W/2) / TILE));
+  const txE = Math.min(MAP_W, Math.ceil((cx + W/2) / TILE) + 1);
+  const tyS = Math.max(0, Math.floor((cy - H/2) / TILE));
+  const tyE = Math.min(MAP_H, Math.ceil((cy + H/2) / TILE) + 1);
+
+  for (let ty = tyS; ty < tyE; ty++) {
+    for (let tx = txS; tx < txE; tx++) {
+      const h = tileHash(tx, ty);
+      if (h > 0.85) continue; // skip most tiles for perf
+      const sx = wxFn(tx * TILE + 16);
+      const sy = wyFn(ty * TILE + 16);
+      const isBorder = tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2;
+      if (isBorder) continue;
+
+      // Northern forest — grass tufts
+      if (ty < 18 && tx > 4 && tx < 80 && h < 0.18) {
+        ctx.strokeStyle = h < 0.09 ? '#2ecc71' : '#27ae60';
+        ctx.lineWidth = 1.5; ctx.globalAlpha = 0.45;
+        const bx = wxFn(tx * TILE + (h * 26 | 0));
+        const by = wyFn(ty * TILE + (tileHash(tx+1,ty) * 26 | 0));
+        ctx.beginPath(); ctx.moveTo(bx-3,by+4); ctx.lineTo(bx,by-5); ctx.lineTo(bx+3,by+4); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // Flower dots in forest
+      if (ty < 18 && tx > 4 && tx < 80 && h > 0.82 && h < 0.84) {
+        ctx.globalAlpha = 0.55; ctx.fillStyle = h > 0.83 ? '#f1c40f' : '#ffffff';
+        ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Eastern rock zone — pebbles
+      if (tx > 46 && ty > 8 && ty < 55 && h < 0.12) {
+        ctx.globalAlpha = 0.4; ctx.fillStyle = '#6b5a45';
+        ctx.beginPath(); ctx.ellipse(sx, sy, 4, 3, h*Math.PI, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Southern badlands — cracked earth
+      if (ty > 54 && tx > 4 && tx < 52 && h < 0.10) {
+        ctx.strokeStyle = '#4a3020'; ctx.lineWidth = 1; ctx.globalAlpha = 0.45;
+        ctx.beginPath();
+        ctx.moveTo(sx-8,sy-2); ctx.lineTo(sx+5,sy+3);
+        ctx.moveTo(sx+4,sy+2); ctx.lineTo(sx+10,sy-4);
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      // Fire badlands — ember glow
+      if (ty > 68 && tx > 4 && tx < 80 && h < 0.06) {
+        const pulse = 0.35 + Math.sin(t*3 + h*15)*0.2;
+        ctx.globalAlpha = pulse; ctx.fillStyle = '#e67e22';
+        ctx.beginPath(); ctx.ellipse(sx, sy, 6, 4, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Western wetlands — small root lines
+      if (tx < 12 && ty > 25 && ty < 80 && h < 0.08) {
+        ctx.strokeStyle = '#0a2a0d'; ctx.lineWidth = 1; ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.moveTo(sx-6,sy); ctx.lineTo(sx+6,sy+4); ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      // Expanded eastern highlands — rock shards
+      if (tx > 80 && ty < 50 && h < 0.10) {
+        ctx.globalAlpha = 0.35; ctx.fillStyle = '#6b5a6a';
+        ctx.beginPath(); ctx.ellipse(sx, sy, 5, 3, h*Math.PI*2, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Ashen wastes — ash piles
+      if (tx > 88 && ty > 48 && tx < 100 && ty < 80 && h < 0.08) {
+        ctx.globalAlpha = 0.3; ctx.fillStyle = '#333';
+        ctx.beginPath(); ctx.ellipse(sx, sy, 6, 4, h*Math.PI, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Void approach — star sparkles
+      if (tx > 95 && ty > 75 && h > 0.78) {
+        const twinkle = 0.35 + Math.sin(t*3 + h*25)*0.3;
+        ctx.globalAlpha = twinkle; ctx.fillStyle = h > 0.82 ? '#f1c40f' : '#ffffff';
+        ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
+
+// ── Obstacle cluster art (trees and rock ridges, replaces blank circles) ──
+function drawObstacleArt(ctx, wxFn, wyFn, onScreen, t) {
+  OBSTACLE_CLUSTERS.forEach(c => {
+    const osx = wxFn(c.cx * TILE);
+    const osy = wyFn(c.cy * TILE);
+    if (!onScreen(osx, osy, c.r * TILE + 60)) return;
+    const r = c.r;
+
+    if (c.type === 'trees') {
+      // Draw a cluster of trees around center
+      const positions = [
+        [0,0],[r*0.5,r*0.4],[-(r*0.5),r*0.4],[r*0.4,-(r*0.5)],[-(r*0.4),-(r*0.5)],
+        [0,r*0.7],[r*0.7,0],[-(r*0.7),0],
+      ];
+      positions.forEach(([dx, dy]) => {
+        const tx2 = osx + dx * TILE * 0.8;
+        const ty2 = osy + dy * TILE * 0.8;
+        // Trunk
+        ctx.fillStyle = '#5c3a1e';
+        ctx.fillRect(tx2 - 4, ty2 + 6, 8, 14);
+        // Canopy layers
+        ctx.fillStyle = '#1a5e20';
+        ctx.beginPath(); ctx.arc(tx2, ty2 - 2, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#1e7026';
+        ctx.beginPath(); ctx.arc(tx2 - 4, ty2 - 6, 9, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(tx2 + 4, ty2 - 5, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#25892e';
+        ctx.beginPath(); ctx.arc(tx2, ty2 - 10, 7, 0, Math.PI*2); ctx.fill();
+        // Shadow
+        ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(tx2, ty2 + 14, 12, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+    } else {
+      // Rock ridge — polygon rocks scattered around center
+      const rockPositions = [
+        [0,0,1.0],[r*0.6,r*0.4,0.7],[-(r*0.6),r*0.4,0.8],
+        [r*0.4,-(r*0.6),0.6],[-(r*0.4),-(r*0.5),0.9],[0,r*0.8,0.7],[r*0.8,0,0.6],
+      ];
+      rockPositions.forEach(([dx, dy, scale]) => {
+        const rx2 = osx + dx * TILE * 0.7;
+        const ry2 = osy + dy * TILE * 0.7;
+        const rs = 10 * scale;
+        // Rock shadow
+        ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(rx2+2, ry2+rs*0.5+3, rs*1.1, rs*0.4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Rock body — irregular polygon
+        ctx.fillStyle = '#6b6060';
+        ctx.beginPath();
+        ctx.moveTo(rx2 - rs*0.9, ry2 + rs*0.4);
+        ctx.lineTo(rx2 - rs*0.5, ry2 - rs*0.7);
+        ctx.lineTo(rx2 + rs*0.3, ry2 - rs*0.9);
+        ctx.lineTo(rx2 + rs*1.0, ry2 - rs*0.3);
+        ctx.lineTo(rx2 + rs*0.8, ry2 + rs*0.5);
+        ctx.lineTo(rx2 - rs*0.2, ry2 + rs*0.6);
+        ctx.closePath(); ctx.fill();
+        // Highlight
+        ctx.fillStyle = '#9a9090';
+        ctx.beginPath();
+        ctx.moveTo(rx2 - rs*0.4, ry2 - rs*0.5);
+        ctx.lineTo(rx2 + rs*0.2, ry2 - rs*0.7);
+        ctx.lineTo(rx2 + rs*0.6, ry2 - rs*0.1);
+        ctx.lineTo(rx2 + rs*0.1, ry2 + rs*0.1);
+        ctx.closePath(); ctx.fill();
+      });
+    }
+  });
+}
+
 export default function WorldCanvas() {
   const canvasRef       = useRef(null);
   const rafRef          = useRef(null);
@@ -941,15 +1094,11 @@ export default function WorldCanvas() {
         ctx.fillRect(wx(tx*TILE), wy(ty*TILE), TILE+1, TILE+1);
       }
 
-    // ── Obstacle cluster tinting ───────────────────────────────────────────
-    OBSTACLE_CLUSTERS.forEach(c => {
-      const osx = wx(c.cx * TILE), osy = wy(c.cy * TILE);
-      if (!onScreen(osx, osy, c.r * TILE + 40)) return;
-      ctx.globalAlpha = 0.18;
-      ctx.fillStyle = c.type === 'trees' ? '#003300' : '#1a1a1a';
-      ctx.beginPath(); ctx.arc(osx, osy, c.r * TILE * 0.9, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    });
+    // ── Ground detail overlay (grass tufts, cracks, embers, starfield) ───────
+    drawGroundDetail(ctx, wx, wy, cx, cy, W, H, t);
+
+    // ── Obstacle cluster art (drawn trees + rock ridges, no blank circles) ───
+    drawObstacleArt(ctx, wx, wy, onScreen, t);
 
     // ── Landmarks ─────────────────────────────────────────────────────────
     drawLandmarks(ctx, wx, wy, onScreen, t);
