@@ -205,11 +205,20 @@ export default function RealmCanvas() {
           {cfg.god}
         </p>
 
-        {/* Difficulty */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 20 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span key={i} style={{ fontSize: 16, opacity: i < cfg.skulls ? 1 : 0.15 }}>💀</span>
-          ))}
+        {/* Difficulty + defeated badge */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <span key={i} style={{ fontSize: 16, opacity: i < cfg.skulls ? 1 : 0.15 }}>💀</span>
+            ))}
+          </div>
+          {isDefeated && (
+            <div style={{
+              background: '#1a3a1a', border: '1px solid #2ecc71',
+              borderRadius: 20, padding: '3px 12px',
+              color: '#2ecc71', fontSize: 11, fontWeight: 'bold',
+            }}>✓ DEFEATED</div>
+          )}
         </div>
 
         {/* Divider */}
@@ -255,35 +264,39 @@ export default function RealmCanvas() {
           </div>
         </div>
 
-        {/* Enter Realm button */}
-        <button
-          onPointerDown={() => setInArena(true)}
-          style={{
-            width:'100%', padding:'14px',
-            background: cfg.color, border:'none', borderRadius:12,
-            color:'#000', fontSize:15, fontWeight:'bold', cursor:'pointer',
-            marginBottom:10,
-          }}
-        >
-          ⚔ Enter Realm
-        </button>
+        {/* CTA row */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          {/* Return to World */}
+          <button
+            onPointerDown={() => {
+              try { useGameStore.getState().setCurrentRealm(null); } catch(e) {}
+              setGamePhase('world');
+            }}
+            style={{
+              flex: 1, padding: '14px',
+              background: '#1a1a2e', border: `1px solid ${cfg.color}66`,
+              borderRadius: 12, color: cfg.color,
+              fontSize: 14, fontWeight: 'bold', cursor: 'pointer',
+            }}
+          >
+            ← World
+          </button>
 
-                {/* Return button */}
-        <button
-          onPointerDown={() => {
-            try { useGameStore.getState().setCurrentRealm(null); } catch(e) {}
-            setGamePhase('world');
-          }}
-          style={{
-            width: '100%', padding: '16px',
-            background: cfg.color, border: 'none', borderRadius: 14,
-            color: '#000', fontSize: 16, fontWeight: 'bold',
-            cursor: 'pointer',
-          }}
-        >
-          ← Return to World
-        </button>
+          {/* Enter Realm */}
+          <button
+            onPointerDown={() => setInArena(true)}
+            style={{
+              flex: 2, padding: '16px',
+              background: cfg.color, border: 'none', borderRadius: 12,
+              color: '#000', fontSize: 16, fontWeight: 'bold', cursor: 'pointer',
+              boxShadow: `0 0 20px ${cfg.color}66`,
+            }}
+          >
+            ⚔ Enter Realm
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
