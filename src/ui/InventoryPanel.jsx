@@ -1,4 +1,4 @@
-// GP_INV_COMPACT_v3
+// GP_INV_FINAL_v4
 import React from 'react';
 import { useGameStore } from '../store/useGameStore';
 
@@ -110,7 +110,7 @@ function GearSlot({ label, item, onUnequip }) {
     <div
       style={{
         flex: 1,
-        minHeight: 66,
+        minHeight: 64,
         borderRadius: 12,
         border: `1px solid ${item ? accent.border : '#30303a'}`,
         background: item ? accent.bg : '#101014',
@@ -180,7 +180,6 @@ export default function InventoryPanel() {
   const {
     inventory,
     gear,
-    resources,
     equipItem,
     unequipItem,
     playerATK,
@@ -210,12 +209,12 @@ export default function InventoryPanel() {
         left: 0,
         right: 0,
         zIndex: 120,
-        background: 'linear-gradient(0deg, #050712 84%, #050712ee 94%, #05071200 100%)',
+        background: 'linear-gradient(0deg, #050712 86%, #050712f2 95%, #05071266 100%)',
         borderTop: '2px solid #d4af3755',
-        padding: '14px 14px 30px',
-        maxHeight: '62vh',
+        padding: '14px 14px 24px',
+        maxHeight: '61vh',
         overflowY: 'auto',
-        backdropFilter: 'blur(4px)',
+        backdropFilter: 'blur(6px)',
       }}
     >
       <div
@@ -305,7 +304,6 @@ export default function InventoryPanel() {
           gridTemplateColumns: `repeat(4, ${SLOT_SIZE}px)`,
           gap: 8,
           justifyContent: 'center',
-          marginBottom: 14,
         }}
       >
         {slots.map((item, i) => {
@@ -322,7 +320,7 @@ export default function InventoryPanel() {
               onClick={() => handleItemPress(item)}
               style={{
                 width: SLOT_SIZE,
-                minHeight: 84,
+                minHeight: 80,
                 background: item ? accent.bg : '#0c0f18',
                 border: `1px solid ${item ? accent.border : '#1c2230'}`,
                 borderRadius: 12,
@@ -371,7 +369,7 @@ export default function InventoryPanel() {
                     />
                   )}
 
-                  <div style={{ fontSize: 22, lineHeight: 1, marginTop: 10, marginBottom: 5 }}>
+                  <div style={{ fontSize: 22, lineHeight: 1, marginTop: 10, marginBottom: 4 }}>
                     {getItemIcon(item)}
                   </div>
 
@@ -391,8 +389,8 @@ export default function InventoryPanel() {
                       color: '#f2f2f2',
                       fontSize: 9,
                       fontWeight: 700,
-                      lineHeight: 1.08,
-                      minHeight: 20,
+                      lineHeight: 1.05,
+                      minHeight: 18,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -405,7 +403,7 @@ export default function InventoryPanel() {
                     style={{
                       color: item.atk ? '#ff7b7b' : item.def ? '#66b3ff' : '#7bed9f',
                       fontSize: 9,
-                      marginTop: 3,
+                      marginTop: 2,
                       fontWeight: 700,
                     }}
                   >
@@ -413,49 +411,11 @@ export default function InventoryPanel() {
                   </div>
                 </>
               ) : (
-                <div style={{ color: '#1f2633', fontSize: 22, marginTop: 24 }}>+</div>
+                <div style={{ color: '#1f2633', fontSize: 22, marginTop: 22 }}>+</div>
               )}
             </button>
           );
         })}
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        {[
-          { k: 'wood', icon: '🪵', label: 'Wood' },
-          { k: 'stone', icon: '🪨', label: 'Stone' },
-          { k: 'ore', icon: '⛏️', label: 'Ore' },
-        ].map(({ k, icon, label }) => (
-          <div
-            key={k}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              background: '#ffffff08',
-              padding: '7px 12px',
-              borderRadius: 12,
-              border: '1px solid #ffffff10',
-              minWidth: 86,
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 15 }}>{icon}</span>
-            <div>
-              <div style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>
-                {resources[k] ?? 0}
-              </div>
-              <div style={{ color: '#777', fontSize: 8 }}>{label}</div>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
