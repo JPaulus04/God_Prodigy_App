@@ -4,7 +4,7 @@ import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
-import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect } from '../utils/haptics';
+import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxCollect, sfxCheckpoint, sfxLevelUp, sfxPortal, resumeAudio } from '../utils/sfx';
 
 const TILE = 32;
