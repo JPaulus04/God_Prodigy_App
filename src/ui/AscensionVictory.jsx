@@ -2,16 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 
 const GODS = [
-  { realm: 'forest',   name: 'Sylvara',    icon: '🌿', color: '#27ae60' },
-  { realm: 'wind',     name: 'Zephyros',   icon: '💨', color: '#87ceeb' },
-  { realm: 'earth',    name: 'Terran',     icon: '🪨', color: '#95a5a6' },
-  { realm: 'fire',     name: 'Pyraxis',    icon: '🔥', color: '#e74c3c' },
-  { realm: 'water',    name: 'Thalassa',   icon: '🌊', color: '#3498db' },
-  { realm: 'shadow',   name: 'Umbrix',     icon: '🌑', color: '#9b59b6' },
-  { realm: 'ice',      name: 'Glaciun',    icon: '❄️', color: '#aed6f1' },
-  { realm: 'thunder',  name: 'Voltaran',   icon: '⚡', color: '#f1c40f' },
-  { realm: 'void',     name: 'Vexarath',   icon: '🌀', color: '#8e44ad' },
-  { realm: 'celestial',name: 'Aetherion',  icon: '✨', color: '#d4af37' },
+  { realm: 'forest', name: 'Sylvara',  icon: '🌿', color: '#27ae60' },
+  { realm: 'wind',   name: 'Zephyros', icon: '💨', color: '#87ceeb' },
+  { realm: 'earth',  name: 'Terran',   icon: '🪨', color: '#95a5a6' },
+  { realm: 'fire',   name: 'Ignar',    icon: '🔥', color: '#e74c3c' },
+  { realm: 'ice',    name: 'Glacius',  icon: '❄️', color: '#3498db' },
+  { realm: 'ocean',  name: 'Nepthar',  icon: '🌊', color: '#1abc9c' },
+  { realm: 'storm',  name: 'Vortus',   icon: '⚡', color: '#9b59b6' },
+  { realm: 'shadow', name: 'Umbris',   icon: '🌑', color: '#6c3483' },
+  { realm: 'lava',   name: 'Magmara',  icon: '🌋', color: '#e67e22' },
+  { realm: 'void',   name: 'Nihilus',  icon: '✨', color: '#f1c40f' },
 ];
 
 export default function AscensionVictory() {
