@@ -136,6 +136,25 @@ export default function DungeonCanvas() {
 
   const allEnemies = () => [...G.room1Enemies, ...G.room2Enemies, ...G.room3Enemies];
 
+  // ── Godkiller passive helpers ────────────────────────────────────────────
+  const getGodkillerPassive = (store) => {
+    const wId = store.gear?.weapon;
+    const w   = wId ? store.inventory.find(i => i.instanceId === wId) : null;
+    if (!w || w.rarity !== 'godkiller') return {};
+    return { lifesteal: w.id === 'soulbreaker', defPierce: w.id === 'voidpiercer', aoeStun: w.id === 'godsplitter' };
+  };
+  const applyGodkillerPassives = (dmg, e, p, store, enemies, addFloat) => {
+    const passive = getGodkillerPassive(store);
+    if (passive.lifesteal) { const heal = Math.max(1, Math.round(dmg * 0.15)); store.healPlayer(heal); addFloat(p.x, p.y - 30, `+${heal}`, '#2ecc71'); }
+    if (passive.aoeStun && e) { enemies.forEach(en => { if (!en.alive) return; const dx = en.x - (e.x ?? p.x), dy = en.y - (e.y ?? p.y); if (Math.sqrt(dx * dx + dy * dy) <= 80) en.stunTimer = Math.max(en.stunTimer || 0, 1.5); }); addFloat(e.x ?? p.x, (e.y ?? p.y) - 36, '⚡ STUNNED', '#f1c40f', true); }
+  };
+  const applyDefPierce = (baseDmg, enemyDef, store) => {
+    const passive = getGodkillerPassive(store);
+    if (passive.defPierce) return Math.max(1, baseDmg);
+    return Math.max(1, baseDmg - enemyDef);
+  };
+  // ───────────────────────────────────────────────────────────────────────────
+
   const killEnemy = (e, store) => {
     e.alive = false;
     store.addKill();
@@ -303,13 +322,14 @@ export default function DungeonCanvas() {
         allEnemies().forEach(e => {
           if (!e.alive || dist(p.x,p.y,e.x,e.y) > wAtk.range) return;
           const cfg = EnemyConfig[e.type];
-          const dmg = Math.max(1, store.playerATK - (cfg.def||0));
+          const dmg = applyDefPierce(store.playerATK, cfg.def||0, store);
           e.hp -= dmg;
           if (e.isBoss && !e.phase2 && e.hp <= e.maxHp * 0.5) {
             e.phase2 = true;
             addFloat(e.x, e.y-60, '⚠ ENRAGED!', '#e74c3c', true);
           }
           addFloat(e.x, e.y-20, `-${dmg}`, '#ff4444');
+          applyGodkillerPassives(dmg, e, p, store, allEnemies(), addFloat);
           if (e.hp <= 0) killEnemy(e, store);
         });
         if (weaponType !== 'sword') {
@@ -370,9 +390,10 @@ export default function DungeonCanvas() {
         if (!e.alive || proj.hitEnemies.has(e) || dist(proj.x,proj.y,e.x,e.y)>22) return;
         proj.hitEnemies.add(e);
         const cfg = EnemyConfig[e.type];
-        const dmg = Math.max(1, proj.dmg - (cfg.def||0));
+        const dmg = applyDefPierce(proj.dmg, cfg.def||0, store);
         e.hp -= dmg; e.alerted = true;
         addFloat(e.x,e.y-24,`-${dmg}`,'#FCD34D');
+        applyGodkillerPassives(dmg, e, G.player, store, allEnemies(), addFloat);
         if (e.hp <= 0) killEnemy(e, store);
       });
       return proj.traveled < proj.maxRange;
@@ -384,9 +405,10 @@ export default function DungeonCanvas() {
         if (!e.alive || arrow.hitEnemies.has(e) || dist(arrow.x,arrow.y,e.x,e.y)>18) return;
         arrow.hitEnemies.add(e);
         const cfg = EnemyConfig[e.type];
-        const dmg = Math.max(1, arrow.dmg-(cfg.def||0));
+        const dmg = applyDefPierce(arrow.dmg, cfg.def||0, store);
         e.hp -= dmg; e.alerted = true;
         addFloat(e.x,e.y-20,`-${dmg}`,'#d4af37');
+        applyGodkillerPassives(dmg, e, G.player, store, allEnemies(), addFloat);
         if (e.hp <= 0) killEnemy(e, store);
       });
       return arrow.traveled < arrow.maxRange;
