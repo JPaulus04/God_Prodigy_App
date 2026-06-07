@@ -10,6 +10,7 @@ import DeathModal        from './ui/DeathModal';
 import StrongholdMenu    from './ui/StrongholdMenu';
 import InventoryPanel    from './ui/InventoryPanel';
 import LevelUpModal      from './ui/LevelUpModal';
+import IAPShop           from './ui/IAPShop';
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -29,7 +30,7 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, loadSave } = useGameStore();
+  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave } = useGameStore();
   useEffect(() => { loadSave(); }, []);
   const inWorld = gamePhase === 'world';
   const inDun   = gamePhase === 'dungeon';
@@ -48,6 +49,8 @@ export default function App() {
       {inGame && showInventory  && <InventoryPanel />}
       {inGame && showDeathModal && <DeathModal />}
       {inGame && showLevelUp    && <LevelUpModal />}
+      {inGame && showShop      && <IAPShop onClose={toggleShop} />}
     </div>
   );
 }
+
