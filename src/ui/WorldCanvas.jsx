@@ -2622,24 +2622,43 @@ export default function WorldCanvas() {
     // ── NPC dialogue ────────────────────────────────────────────────────────
     if (G.npcMessage) {
       const msg   = G.npcMessage;
-      const alpha = Math.min(1, msg.timer * 1.5);
-      const pad   = 16, boxH = 90, boxY = H - boxH - 260, boxW = W - pad * 2;
+      const alpha = Math.min(1, msg.timer * 2);
+      // Place dialog above the virtual controls (roughly 260px from bottom on phone)
+      const pad   = 14, boxH = 110, boxW = W - pad * 2;
+      const boxY  = H - boxH - 270;
+      ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.fillStyle   = '#000000ee';
+      // Shadow backdrop for contrast
+      ctx.shadowColor = '#000'; ctx.shadowBlur = 20;
+      ctx.fillStyle = '#0a0a18f0';
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
+      if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 12);
       else ctx.rect(pad, boxY, boxW, boxH);
       ctx.fill();
-      ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 0;
+      // Border — speaker color accent
+      ctx.strokeStyle = msg.speakerColor || '#d4af37'; ctx.lineWidth = 2;
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
+      if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 12);
       else ctx.rect(pad, boxY, boxW, boxH);
       ctx.stroke();
-      ctx.fillStyle = msg.speakerColor || '#1abc9c'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
-      ctx.fillText(msg.speaker || 'Elder Kael', pad + 12, boxY + 20);
-      ctx.fillStyle = '#ffffff'; ctx.font = '12px sans-serif';
-      wrapText(ctx, msg.text, pad + 12, boxY + 40, boxW - 24, 17);
-      ctx.globalAlpha = 1; ctx.textAlign = 'left';
+      // Color bar on left edge
+      ctx.fillStyle = msg.speakerColor || '#d4af37';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(pad, boxY, 4, boxH, [12, 0, 0, 12]);
+      else ctx.rect(pad, boxY, 4, boxH);
+      ctx.fill();
+      // Speaker name
+      ctx.fillStyle = msg.speakerColor || '#1abc9c';
+      ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(msg.speaker || 'Elder Kael', pad + 16, boxY + 24);
+      // Dialog text — white, slightly larger, line-wrapped
+      ctx.fillStyle = '#f0f0f0'; ctx.font = '13px sans-serif';
+      wrapText(ctx, msg.text, pad + 16, boxY + 46, boxW - 32, 19);
+      // [E] dismiss hint
+      ctx.fillStyle = '#ffffff66'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText('[E] to close', pad + boxW - 8, boxY + boxH - 8);
+      ctx.restore();
     }
 
     // ── Minimap ────────────────────────────────────────────────────────────
