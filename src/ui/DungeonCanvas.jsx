@@ -478,7 +478,7 @@ export default function DungeonCanvas() {
           G.challengeDone = true;
         } else if (ch.timer <= 0) {
           ch.failed = true;
-          addFloat(p.x, p.y - 60, '✗ Time's up!', '#e74c3c', true);
+          addFloat(p.x, p.y - 60, "✗ Time's up!", '#e74c3c', true);
           G.challengeDone = true;
         }
       } else if (ch.type === 'no_damage') {
