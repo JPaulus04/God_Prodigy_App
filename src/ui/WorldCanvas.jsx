@@ -1,10 +1,11 @@
-// GP_WORLD_PASS7
+// GP_WORLD_PASS8
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect } from '../utils/haptics';
+import { sfxAttack, sfxHit, sfxCollect, sfxCheckpoint, sfxLevelUp, sfxPortal, resumeAudio } from '../utils/sfx';
 
 const TILE = 32;
 
@@ -314,6 +315,31 @@ const ENEMY_DEFS = [
   { type: 'stone_guardian', x: 34*TILE, y:112*TILE },
   { type: 'stone_guardian', x: 62*TILE, y:108*TILE },
   { type: 'gold_goblin',    x: 50*TILE, y:112*TILE },
+
+  // ── Fire imps (badlands / lava zone) ───────────────────────────
+  { type: 'fire_imp', x: 12*TILE, y: 78*TILE },
+  { type: 'fire_imp', x: 22*TILE, y: 82*TILE },
+  { type: 'fire_imp', x: 35*TILE, y: 88*TILE },
+  { type: 'fire_imp', x: 46*TILE, y: 75*TILE },
+  { type: 'fire_imp', x: 58*TILE, y: 86*TILE },
+  { type: 'fire_imp', x: 68*TILE, y: 80*TILE },
+  { type: 'fire_imp', x:  8*TILE, y: 94*TILE },
+  { type: 'fire_imp', x: 30*TILE, y: 96*TILE },
+  { type: 'fire_imp', x: 54*TILE, y:100*TILE },
+
+  // ── Lava titans (deep lava zone) ────────────────────────────
+  { type: 'lava_titan', x: 18*TILE, y: 92*TILE },
+  { type: 'lava_titan', x: 42*TILE, y: 98*TILE },
+  { type: 'lava_titan', x: 60*TILE, y: 94*TILE },
+  { type: 'lava_titan', x: 32*TILE, y:106*TILE },
+
+  // ── Shadow wraiths (shadow/void approach zone) ────────────────
+  { type: 'shadow_wraith', x: 22*TILE, y: 68*TILE },
+  { type: 'shadow_wraith', x: 28*TILE, y: 76*TILE },
+  { type: 'shadow_wraith', x: 38*TILE, y: 72*TILE },
+  { type: 'shadow_wraith', x: 50*TILE, y: 70*TILE },
+  { type: 'shadow_wraith', x: 62*TILE, y: 78*TILE },
+  { type: 'shadow_wraith', x: 72*TILE, y: 70*TILE },
 ];
 
 const PATROL_RADIUS = 80;
@@ -1127,7 +1153,7 @@ export default function WorldCanvas() {
   }, [showDeathModal]);
 
   useEffect(() => {
-    if (!prevLevelUp.current && showLevelUp) hapticLevelUp();
+    if (!prevLevelUp.current && showLevelUp) { hapticLevelUp(); sfxLevelUp(); }
     prevLevelUp.current = showLevelUp;
   }, [showLevelUp]);
 
@@ -1158,6 +1184,9 @@ export default function WorldCanvas() {
     const ku = e => { G.keys[e.code] = false; };
     window.addEventListener('keydown', kd);
     window.addEventListener('keyup',   ku);
+    // Resume Web Audio on first touch (iOS requirement)
+    const onTouch = () => resumeAudio();
+    canvas.addEventListener('pointerdown', onTouch, { once: true });
     const ctx = canvas.getContext('2d');
     const loop = (ts) => {
       const dt = Math.min((ts - lastTimeRef.current) / 1000, 0.05);
@@ -1289,7 +1318,7 @@ export default function WorldCanvas() {
 
     if (spaceJust && p.attackCooldown <= 0) {
       p.attackCooldown = wAtk.cooldown;
-      hapticAttack();
+      hapticAttack(); sfxAttack();
       if (wAtk.ranged) {
         let targetX = p.x + G.lastMoveDir.x * 150, targetY = p.y + G.lastMoveDir.y * 150, nd = Infinity;
         G.enemies.forEach(e => { if (!e.alive) return; const d = dist(p.x, p.y, e.x, e.y); if (d < nd) { nd = d; targetX = e.x; targetY = e.y; } });
@@ -1355,13 +1384,13 @@ export default function WorldCanvas() {
         if (r.depleted || dist(p.x, p.y, r.x, r.y) > 48) return;
         store.addResource(r.res, r.amt);
         addFloat(r.x, r.y - 20, `+${r.amt} ${r.res}`, '#7ed321');
-        hapticCollect();
+        hapticCollect(); sfxCollect();
         r.depleted = true;
         r.respawnAt = Date.now() + 180_000;
       });
       G.checkpoints.forEach(cp => {
         if (dist(p.x, p.y, cp.x, cp.y) > 55) return;
-        if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); hapticCheckpoint(); }
+        if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); hapticCheckpoint(); sfxCheckpoint(); }
         addFloat(cp.x, cp.y - 30, '✓ Checkpoint saved!', '#f1c40f');
       });
       const hasSword = store.inventory.some(i => i.id === 'iron_sword');
@@ -1378,6 +1407,7 @@ export default function WorldCanvas() {
       for (const portal of REALM_PORTALS) {
         if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= 52) {
           addFloat(p.x, p.y-44, `Entering ${portal.name}...`, portal.color);
+          sfxPortal();
           const realm = portal.realm;
           setTimeout(() => { store.setCurrentRealm(realm); store.setGamePhase('realm'); }, 400);
           return;
@@ -1415,7 +1445,7 @@ export default function WorldCanvas() {
           e.attackTimer = ecfg.attackCooldown / 1000;
           const dmg = Math.max(1, ecfg.atk - store.playerDEF);
           store.takeDamage(dmg);
-          hapticHit();
+          hapticHit(); sfxHit();
           p.invincible = true; p.invTimer = 0.8;
         }
       } else if (d <= ecfg.aggroRange) {
@@ -1944,6 +1974,19 @@ export default function WorldCanvas() {
             ctx.fillText('[E] Talk', nx2, ny2 - 13);
           }
         }
+
+        // ❗ Quest bubble — shows when player hasn’t talked to this NPC recently
+        if (!nearNPC && npc.role !== 'guard') {
+          const bub = npc._hintIdx === undefined || npc._hintIdx === 0;
+          const bubPulse = 0.8 + Math.sin(t * 2.5 + nx2 * 0.01) * 0.2;
+          ctx.globalAlpha = bubPulse;
+          // Bubble background
+          ctx.fillStyle = '#d4af37';
+          ctx.beginPath(); ctx.arc(nx2, ny2 - 30, 8, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#000'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText('!', nx2, ny2 - 27);
+          ctx.globalAlpha = 1;
+        }
       });
 
       // ── Proximity prompt ────────────────────────────────────────────────
@@ -2249,8 +2292,10 @@ export default function WorldCanvas() {
       const ex = wx(e.x), ey = wy(e.y);
       if (!onScreen(ex, ey)) return;
       const ecfg    = EnemyConfig[e.type];
-      const isGolem = e.type === 'golem' || e.type === 'stone_guardian';
-      const r       = isGolem ? (e.isElite ? 22 : 18) : (e.isElite ? 15 : 12);
+      const isGolem   = e.type === 'golem' || e.type === 'stone_guardian' || e.type === 'lava_titan';
+      const isFireImp  = e.type === 'fire_imp';
+      const isShadow   = e.type === 'shadow_wraith';
+      const r          = isGolem ? (e.isElite ? 22 : 18) : (e.isElite ? 15 : 12);
       const aggroed = e.state !== 'patrol';
       const stunned = e.stunTimer > 0;
       const isGold  = e.type === 'gold_goblin';
@@ -2373,6 +2418,68 @@ export default function WorldCanvas() {
         ctx.strokeStyle = isGold ? '#c8860a' : (stunned ? '#FCD34D' : aggroed ? '#922b21' : '#1a7a3a');
         ctx.lineWidth = e.isElite ? 2.5 : 1.5;
         ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.stroke();
+      }
+
+      // ── Fire Imp ────────────────────────────────────────────────────────────
+      if (isFireImp) {
+        const fr = 11;
+        // Body glow
+        ctx.globalAlpha = 0.35 + Math.sin(t * 5 + ex * 0.05) * 0.2;
+        ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(ex, ey, fr + 5, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = stunned ? (Math.sin(t*12.5)>0?0.4:1) : 1;
+        // Body
+        ctx.fillStyle = aggroed ? '#c0392b' : '#e74c3c';
+        ctx.beginPath(); ctx.arc(ex, ey, fr, 0, Math.PI*2); ctx.fill();
+        // Belly
+        ctx.fillStyle = '#f1948a'; ctx.beginPath(); ctx.arc(ex, ey + 2, fr*0.55, 0, Math.PI*2); ctx.fill();
+        // Horns
+        ctx.fillStyle = '#922b21';
+        ctx.beginPath(); ctx.moveTo(ex-fr*0.5, ey-fr*0.6); ctx.lineTo(ex-fr*0.7, ey-fr*1.3); ctx.lineTo(ex-fr*0.2, ey-fr*0.8); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(ex+fr*0.5, ey-fr*0.6); ctx.lineTo(ex+fr*0.7, ey-fr*1.3); ctx.lineTo(ex+fr*0.2, ey-fr*0.8); ctx.closePath(); ctx.fill();
+        // Eyes (white + glowing)
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex-fr*0.3, ey-fr*0.1, fr*0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex+fr*0.3, ey-fr*0.1, fr*0.22, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#f39c12'; ctx.beginPath(); ctx.arc(ex-fr*0.3, ey-fr*0.1, fr*0.12, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex+fr*0.3, ey-fr*0.1, fr*0.12, 0, Math.PI*2); ctx.fill();
+        // Outline
+        ctx.strokeStyle = aggroed ? '#7b241c' : '#922b21'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(ex, ey, fr, 0, Math.PI*2); ctx.stroke();
+      }
+
+      // ── Shadow Wraith ───────────────────────────────────────────────────────
+      if (isShadow) {
+        const sr = 11;
+        // Ethereal trail
+        ctx.globalAlpha = 0.2 + Math.sin(t*3+ex*0.03)*0.15;
+        ctx.fillStyle = '#6c3483'; ctx.beginPath(); ctx.arc(ex, ey+4, sr+6, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = stunned ? (Math.sin(t*12.5)>0?0.4:1) : 1;
+        // Cloak body
+        ctx.fillStyle = aggroed ? '#4a235a' : '#6c3483';
+        ctx.beginPath();
+        ctx.moveTo(ex, ey - sr);
+        ctx.bezierCurveTo(ex+sr*1.1, ey-sr*0.3, ex+sr*0.9, ey+sr*1.0, ex, ey+sr*1.2);
+        ctx.bezierCurveTo(ex-sr*0.9, ey+sr*1.0, ex-sr*1.1, ey-sr*0.3, ex, ey-sr);
+        ctx.fill();
+        // Inner face area
+        ctx.fillStyle = '#1a0a2e';
+        ctx.beginPath(); ctx.arc(ex, ey-sr*0.1, sr*0.6, 0, Math.PI*2); ctx.fill();
+        // Glowing eyes
+        ctx.fillStyle = aggroed ? '#e74c3c' : '#9b59b6';
+        const eyeGlow = 0.7 + Math.sin(t*4)*0.3;
+        ctx.globalAlpha = eyeGlow;
+        ctx.beginPath(); ctx.arc(ex-sr*0.28, ey-sr*0.15, sr*0.16, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex+sr*0.28, ey-sr*0.15, sr*0.16, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = stunned ? (Math.sin(t*12.5)>0?0.4:1) : 1;
+        ctx.strokeStyle = aggroed ? '#7d3c98' : '#8e44ad'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(ex, ey-sr*0.1, sr*0.6, 0, Math.PI*2); ctx.stroke();
+      }
+
+      // Lava titan — extend golem glow with lava tint
+      if (e.type === 'lava_titan' && !stunned) {
+        ctx.globalAlpha = 0.25 + Math.sin(t*3)*0.15;
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath(); ctx.arc(ex, ey, (e.isElite?22:18)+8, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
       }
 
       ctx.globalAlpha = 1;
@@ -2534,6 +2641,49 @@ export default function WorldCanvas() {
       wrapText(ctx, msg.text, pad + 12, boxY + 40, boxW - 24, 17);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
     }
+
+    // ── Minimap ────────────────────────────────────────────────────────────
+    const MM_W = 120, MM_H = 90, MM_PAD = 10;
+    const mmX = W - MM_W - MM_PAD;
+    const mmY = MM_PAD + (typeof window !== 'undefined' ? (parseInt(window.getComputedStyle(document.documentElement).getPropertyValue('--sat') || 0) || 0) : 0) + 50;
+    const scaleX = MM_W / WORLD_W;
+    const scaleY = MM_H / WORLD_H;
+    // Background
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = '#0d0d1a';
+    if (ctx.roundRect) ctx.roundRect(mmX - 2, mmY - 2, MM_W + 4, MM_H + 4, 6);
+    else ctx.rect(mmX - 2, mmY - 2, MM_W + 4, MM_H + 4);
+    ctx.fill();
+    ctx.strokeStyle = '#d4af3766'; ctx.lineWidth = 1;
+    if (ctx.roundRect) ctx.roundRect(mmX - 2, mmY - 2, MM_W + 4, MM_H + 4, 6);
+    else ctx.rect(mmX - 2, mmY - 2, MM_W + 4, MM_H + 4);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Village dot
+    ctx.fillStyle = '#f1c40f88';
+    ctx.beginPath(); ctx.arc(mmX + 25*TILE*scaleX, mmY + 44*TILE*scaleY, 4, 0, Math.PI*2); ctx.fill();
+
+    // Checkpoints
+    G.checkpoints.forEach(cp => {
+      const mx = mmX + cp.x * scaleX, my = mmY + cp.y * scaleY;
+      ctx.fillStyle = cp.activated ? '#00ff8888' : '#f1c40f66';
+      ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Realm portals
+    REALM_PORTALS.forEach(portal => {
+      const mx = mmX + portal.x*TILE*scaleX, my = mmY + portal.y*TILE*scaleY;
+      ctx.fillStyle = portal.color + 'bb';
+      ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Player dot
+    const px2 = mmX + p.x * scaleX, py2 = mmY + p.y * scaleY;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(px2, py2, 3.5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px2, py2, 3.5, 0, Math.PI*2); ctx.stroke();
   }
 
   return (
