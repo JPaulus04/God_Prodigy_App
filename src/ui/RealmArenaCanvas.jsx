@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { InputState }   from '../game/systems/InputState';
 import { AbilityConfig } from '../game/config/AbilityConfig';
+import { hapticAttack, hapticHit, hapticBossDeath, hapticLevelUp } from '../utils/haptics';
 
 const TILE    = 32;
 const ARENA_W = 30;
@@ -1121,6 +1122,12 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
   const rafRef      = useRef(null);
   const lastTimeRef = useRef(0);
   const cfg = REALM_CFG[realmId] || REALM_CFG.forest;
+  const showLevelUp  = useGameStore(s => s.showLevelUp);
+  const prevLevelUp  = useRef(false);
+  useEffect(() => {
+    if (!prevLevelUp.current && showLevelUp) hapticLevelUp();
+    prevLevelUp.current = showLevelUp;
+  }, [showLevelUp]);
 
   const G = useRef({
     player:       { x:15*TILE, y:24*TILE, attackCooldown:0, invincible:true, invTimer:2.0 },
@@ -1292,6 +1299,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     const spaceJust=spaceNow&&!G.prevSpace; G.prevSpace=spaceNow;
     if(window.__gameAttack)window.__gameAttack=false;
     if(spaceJust&&p.attackCooldown<=0){
+      hapticAttack();
       const _aid=store.equippedAbilityId||'whirlwind';
       const wType=_aid==='power_shot'?'bow':_aid==='ground_slam'?'hammer':_aid==='flurry'?'dagger':_aid==='arcane_burst'?'staff':'sword';
       const allT=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat().filter(e=>e.alive);
@@ -1311,6 +1319,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           if(dist(p.x,p.y,e.x,e.y)>rng) return;
           const dmg=Math.max(1,store.playerATK-(e.def||0));
           e.hp-=dmg; addFloat(e.x,e.y-20,`-${dmg}`,'#ff4444');
+          hapticHit();
           if(e.hp<=0){if(e===G.boss)G.boss.alive=false;else killEnemy(e,store);}
         });
         G.attackFlash={x:p.x,y:p.y,timer:0.18,type:'melee',rng};
@@ -1333,6 +1342,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           if(!e.alive||proj.hitTargets.has(e)||dist(proj.x,proj.y,e.x,e.y)>22) return;
           proj.hitTargets.add(e); e.hp-=proj.dmg;
           addFloat(e.x,e.y-24,`-${proj.dmg}`,'#FCD34D');
+          hapticHit();
           if(e.hp<=0){ if(e===G.boss) G.boss.alive=false; else killEnemy(e,store); }
         });
       } else {
@@ -1444,6 +1454,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     if(G.boss && !G.boss.alive && !G.victory){
       try{ store.gainXP(200); }catch(e){}
       try{ if(realmId && store.defeatBoss) store.defeatBoss(realmId); }catch(e){}
+      hapticBossDeath();
       G.victory=true;
       G.victoryPortal={ x:G.boss.x, y:G.boss.y };
       G.victoryBannerTimer=5.0;
