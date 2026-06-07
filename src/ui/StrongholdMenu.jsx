@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
+import LegacyArmory from './LegacyArmory';
 import {
   WEAPON_RECIPES, ARMOR_ITEMS, ACCESSORY_ITEMS,
   UPGRADE_COSTS, RARITY, computeWeaponATK,
@@ -289,11 +290,27 @@ export default function StrongholdMenu() {
           <h2 style={{ color: '#d4af37', fontSize: 22, margin: 0, letterSpacing: 1 }}>🏰 Stronghold</h2>
           <p style={{ color: '#888', fontSize: 11, margin: '3px 0 0' }}>Build · Craft · Upgrade</p>
         </div>
-        <button onClick={() => setGamePhase('world')} style={{
-          background: '#d4af3722', border: '2px solid #d4af37',
-          color: '#d4af37', borderRadius: 12, padding: '10px 20px',
-          cursor: 'pointer', fontSize: 15, fontWeight: 'bold',
-        }}>← Return</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setShowArmory(true)} style={{
+            background: '#1a120022', border: '2px solid #d4af3766',
+            color: '#d4af37', borderRadius: 12, padding: '10px 14px',
+            cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            🏛
+            {(legacyWeapons || []).length > 0 && (
+              <span style={{
+                background: '#d4af37', color: '#000', borderRadius: 8,
+                fontSize: 9, padding: '1px 5px', fontWeight: 'bold',
+              }}>{(legacyWeapons || []).length}</span>
+            )}
+          </button>
+          <button onClick={() => setGamePhase('world')} style={{
+            background: '#d4af3722', border: '2px solid #d4af37',
+            color: '#d4af37', borderRadius: 12, padding: '10px 20px',
+            cursor: 'pointer', fontSize: 15, fontWeight: 'bold',
+          }}>← Return</button>
+        </div>
       </div>
 
       {/* Stats bar */}
@@ -747,6 +764,7 @@ export default function StrongholdMenu() {
           </div>
         )}
       </div>
+      {showArmory && <LegacyArmory onClose={() => setShowArmory(false)} />}
     </div>
   );
 }
