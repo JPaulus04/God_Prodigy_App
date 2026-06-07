@@ -33,6 +33,7 @@ export default function HUD() {
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [dailyCollected, setDailyCollected] = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
+  const [savedToast,     setSavedToast]     = useState(false);
 
   // Daily reward — fires once per session when pass is active
   useEffect(() => {
@@ -476,5 +477,32 @@ export default function HUD() {
       {/* ── Settings panel ────────────────────────────────────── */}
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
+    {/* Auto-save flash toast */}
+    {savedToast && (
+      <div style={{
+        position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+        background: '#1a2a1a', border: '1px solid #2ecc71',
+        borderRadius: 20, padding: '6px 16px',
+        color: '#2ecc71', fontSize: 13, fontWeight: 'bold',
+        pointerEvents: 'none', zIndex: 120,
+        animation: 'gpSavedFade 2s ease forwards',
+        whiteSpace: 'nowrap',
+      }}>
+        Saved ✓
+      </div>
+    )}
   );
+}
+
+// Inject keyframe once
+if (typeof document !== 'undefined' && !document.getElementById('gp-saved-style')) {
+  const s = document.createElement('style');
+  s.id = 'gp-saved-style';
+  s.textContent = `@keyframes gpSavedFade {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    70%  { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  }`;
+  document.head.appendChild(s);
 }
