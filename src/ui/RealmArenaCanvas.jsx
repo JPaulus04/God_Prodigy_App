@@ -1168,14 +1168,14 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       return{...d,type:d.type,hp:s.hp,maxHp:s.hp,atk:s.atk,def:s.def,speed:s.speed,
         aggroRange:s.aggroRange,attackRange:s.attackRange,attackCooldown:s.attackCooldown,
         color:s.color,size:s.size,xp:s.xp,ranged:s.ranged||false,projColor:s.projColor,
-        alive:true,attackTimer:0,state:'patrol',patrolTimer:0,patrolDir:1};
+        alive:true,attackTimer:0,stunTimer:0,state:'patrol',patrolTimer:0,patrolDir:1};
     });
   };
 
   const spawnBoss=()=>{
     const b=cfg.boss;
     G.boss={ ...b, hp:b.hp, maxHp:b.hp, alive:true,
-      attackTimer:0, chargeTimer:b.chargeInterval, chargeState:'idle',
+      attackTimer:0, stunTimer:0, chargeTimer:b.chargeInterval, chargeState:'idle',
       telegraphTimer:0, chargeVx:0, chargeVy:0, spawnTimer:10,
       patrolDir:1, patrolTimer:0 };
     G.bossChargeTimer=b.chargeInterval;
@@ -1222,6 +1222,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
             const dmg=Math.max(1,Math.round(cs.playerATK*ability.damageMult));
             e.hp-=dmg;
             addFloat(e.x,e.y-20-i*8,`-${dmg}`,'#f39c12');
+            applyGodkillerPassives(dmg,e,G.player,cs,[...G.enemies,(G.boss&&G.boss.alive?G.boss:null)].filter(Boolean),addFloat);
             if(e.hp<=0){ if(e===G.boss) G.boss.alive=false; else killEnemy(e,cs); }
           });
         },i*ability.hitDelay*1000);
@@ -1367,6 +1368,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     if (!G.victory) {
       G.enemies.forEach(e=>{
         if(!e.alive) return;
+        if(e.stunTimer>0){ e.stunTimer=Math.max(0,e.stunTimer-dt); return; }
         e.attackTimer=Math.max(0,e.attackTimer-dt);
         const d=dist(p.x,p.y,e.x,e.y);
         if(d<=e.attackRange){
@@ -1411,6 +1413,8 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     // Boss AI
     if(G.boss&&G.boss.alive&&!G.victory){
       const b=G.boss; const bcfg=cfg.boss;
+      if(b.stunTimer>0){ b.stunTimer=Math.max(0,b.stunTimer-dt); }
+      else {
       b.attackTimer=Math.max(0,(b.attackTimer||0)-dt);
       if(b.hp<=b.maxHp*0.5&&G.bossPhase===1){
         G.bossPhase=2; addFloat(b.x,b.y-60,'⚠ Phase 2!','#e74c3c',true);
@@ -1419,8 +1423,8 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       if(G.bossPhase===2){ G.bossSpawnTimer-=dt;
         if(G.bossSpawnTimer<=0){ G.bossSpawnTimer=6;
           const s=ENEMY_STATS.thornling;
-          G.enemies.push({type:'thornling',x:b.x+60,y:b.y+40,...s,alive:true,attackTimer:0,state:'patrol',patrolTimer:0,patrolDir:1});
-          G.enemies.push({type:'thornling',x:b.x-60,y:b.y+40,...s,alive:true,attackTimer:0,state:'patrol',patrolTimer:0,patrolDir:-1});
+          G.enemies.push({type:'thornling',x:b.x+60,y:b.y+40,...s,alive:true,attackTimer:0,stunTimer:0,state:'patrol',patrolTimer:0,patrolDir:1});
+          G.enemies.push({type:'thornling',x:b.x-60,y:b.y+40,...s,alive:true,attackTimer:0,stunTimer:0,state:'patrol',patrolTimer:0,patrolDir:-1});
         }
       }
       if(b.chargeState==='idle'){
@@ -1455,6 +1459,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           G.bossChargeTimer=G.bossPhase===2?bcfg.chargeInterval*0.6:bcfg.chargeInterval;
         }
       }
+      } // end stun else
     }
 
     // Boss death → victory (only once)
