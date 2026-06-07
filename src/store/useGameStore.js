@@ -78,7 +78,11 @@ export const useGameStore = create((set, get) => ({
   ...DEFAULT_STATE,
 
   setPlayerName:   (name)  => set({ playerName: name }),
-  setGamePhase:    (phase) => set({ gamePhase: phase }),
+  setGamePhase:    (phase) => set(s => ({
+    gamePhase: phase,
+    // Reset challenge room flag each time a new dungeon run begins
+    ...(phase === 'dungeon' ? { challengeCleared: false } : {}),
+  })),
   setCurrentRealm: (realm) => set({ currentRealm: realm }),
   advanceTutorial: ()      => set(s => ({ tutorialStep: s.tutorialStep + 1 })),
 
@@ -432,13 +436,15 @@ export const useGameStore = create((set, get) => ({
       passActive:         get().passActive,
       ownedSkins:         get().ownedSkins,
       ownedTrails:        get().ownedTrails,
+      ownedTrail:         get().ownedTrail,
       // UI reset
       showInventory: false, showHelpMenu: false, showDeathModal: false,
       showLevelUp:   false, showShop:     false,
       showVictory:   false, showPrestigeSelect: false,
       challengeCleared: false,
     });
-    setTimeout(() => get().recalculateStats(), 0);
+    // recalculateStats must run AFTER prestigeClass is committed to state
+    get().recalculateStats();
     SaveSystem.save(get());
   },
 
