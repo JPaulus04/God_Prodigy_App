@@ -279,7 +279,7 @@ export default function StrongholdMenu() {
       {/* Header — padded below status bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        paddingTop: 'calc(env(safe-area-inset-top) + 18px)',
+        paddingTop: 'calc(env(safe-area-inset-top) + 52px)',
         paddingBottom: 14, paddingLeft: 20, paddingRight: 20,
         borderBottom: '1px solid #d4af3733',
         background: '#0d0d1a',
