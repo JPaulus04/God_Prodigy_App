@@ -378,9 +378,9 @@ export default function IAPShop({ onClose }) {
     }}>
       {/* ── Header ── */}
       <div style={{
-        padding: '16px 20px 0',
-        paddingTop: 'calc(16px + env(safe-area-inset-top))',
-        background: 'linear-gradient(180deg, #0d0d1a 80%, transparent)',
+        padding: '0 20px 0',
+        paddingTop: 'calc(env(safe-area-inset-top) + 22px)',
+        background: '#0d0d1a',
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -418,9 +418,10 @@ export default function IAPShop({ onClose }) {
         )}
 
         {/* Category tabs */}
+        <div style={{ height: 1, background: '#d4af3733', margin: '10px 0 0' }} />
         <div style={{
           display: 'flex', gap: 6, overflowX: 'auto',
-          paddingBottom: 12, marginTop: 8,
+          padding: '10px 0 12px',
           scrollbarWidth: 'none',
         }}>
           {CATEGORIES.map(cat => (
@@ -486,3 +487,4 @@ export default function IAPShop({ onClose }) {
     </div>
   );
 }
+
