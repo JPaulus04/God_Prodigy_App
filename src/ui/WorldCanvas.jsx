@@ -379,164 +379,374 @@ const ABILITY_COLORS = {
 function drawLandmarks(ctx, wxFn, wyFn, onScreen, t) {
   LANDMARK_DEFS.forEach(lm => {
     const sx = wxFn(lm.x * TILE), sy = wyFn(lm.y * TILE);
-    if (!onScreen(sx, sy, 120)) return;
-
+    if (!onScreen(sx, sy, 140)) return;
     ctx.save();
+
     switch (lm.type) {
+
       case 'ruins': {
-        const cols = ['#7a7a7a', '#666', '#888', '#6a6a6a', '#757575'];
+        // Ground shadow plate
+        ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 10, 44, 10, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Rubble base stones
+        [[-30,8],[-14,10],[0,9],[16,10],[28,8]].forEach(([dx,dy]) => {
+          ctx.fillStyle = '#5a5a5a';
+          ctx.beginPath(); ctx.ellipse(sx+dx, sy+dy, 7, 4, 0, 0, Math.PI*2); ctx.fill();
+        });
+        // Columns with tilt + depth
+        const cols = ['#7a7a7a','#666','#888','#6a6a6a','#757575'];
         for (let i = 0; i < 5; i++) {
           const px = sx + (i - 2) * 14;
-          const h = 18 + (i % 3) * 8;
-          const tilt = (i - 2) * 0.08;
+          const h = 20 + (i % 3) * 10;
+          const tilt = (i - 2) * 0.09;
           ctx.save(); ctx.translate(px, sy); ctx.rotate(tilt);
+          // Side face (depth)
+          ctx.fillStyle = '#444';
+          ctx.fillRect(3, -h, 4, h);
+          // Front face
           ctx.fillStyle = cols[i % cols.length];
           ctx.fillRect(-4, -h, 8, h);
-          // Broken top
-          ctx.fillStyle = '#555';
-          ctx.fillRect(-4, -h, 8, 4);
+          // Capital (top slab)
+          ctx.fillStyle = '#999';
+          ctx.fillRect(-6, -h, 12, 4);
+          // Moss line
+          ctx.fillStyle = '#2e7d32'; ctx.globalAlpha = 0.4;
+          ctx.fillRect(-4, -h + 4, 8, 3);
+          ctx.globalAlpha = 1;
+          // Crack
+          ctx.strokeStyle = '#33333366'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(-1, -h*0.7); ctx.lineTo(2, -h*0.3); ctx.stroke();
           ctx.restore();
         }
+        // Fallen column block on ground
+        ctx.fillStyle = '#666';
+        ctx.save(); ctx.translate(sx + 20, sy + 4); ctx.rotate(0.3);
+        ctx.fillRect(-14, -4, 28, 7); ctx.restore();
         break;
       }
+
       case 'goblin_camp': {
-        // Campfire glow
-        const flicker = 0.7 + Math.sin(t * 8) * 0.3;
-        ctx.globalAlpha = flicker * 0.4;
-        ctx.fillStyle = '#e67e22';
-        ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI*2); ctx.fill();
+        // Ground dirt patch
+        ctx.globalAlpha = 0.35; ctx.fillStyle = '#5a3a1a';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 4, 38, 16, 0, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
-        // Fire
-        ctx.fillStyle = '#e67e22';
-        ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#f1c40f';
-        ctx.beginPath(); ctx.arc(sx, sy - 2, 3, 0, Math.PI*2); ctx.fill();
-        // Tents
-        [[-22, 5], [22, 5], [0, -20]].forEach(([dx, dy]) => {
-          ctx.fillStyle = '#7d5a3c';
-          ctx.beginPath();
-          ctx.moveTo(sx + dx, sy + dy + 12);
-          ctx.lineTo(sx + dx - 10, sy + dy + 12);
-          ctx.lineTo(sx + dx, sy + dy - 4);
-          ctx.closePath(); ctx.fill();
-          ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = 1; ctx.stroke();
+        // Log ring around fire
+        [[-12,8],[12,8],[0,-14],[-14,-2],[14,-2]].forEach(([dx,dy]) => {
+          ctx.fillStyle = '#5c3a1e'; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.ellipse(sx+dx, sy+dy, 5, 3, Math.atan2(dy,dx), 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
         });
+        // Fire glow
+        const flicker = 0.7 + Math.sin(t * 8.5) * 0.3;
+        ctx.globalAlpha = flicker * 0.35; ctx.fillStyle = '#e67e22';
+        ctx.beginPath(); ctx.arc(sx, sy, 28, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = flicker * 0.15; ctx.fillStyle = '#f1c40f';
+        ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Fire flames — layered
+        [[0,0,'#c0392b',7],[0,-3,'#e67e22',5],[0,-7,'#f39c12',3],[0,-10,'#f1c40f',2]].forEach(([dx,dy,col,r]) => {
+          const ff = 0.85 + Math.sin(t*9+dx)*0.15;
+          ctx.globalAlpha = ff; ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy, r, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        // Tents — 3 with shadow and pole
+        [[-24,4,0.06],[24,4,-0.06],[0,-22,0]].forEach(([dx,dy,tilt]) => {
+          ctx.save(); ctx.translate(sx+dx, sy+dy); ctx.rotate(tilt);
+          // Shadow
+          ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+          ctx.beginPath(); ctx.ellipse(0, 14, 12, 4, 0, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+          // Tent body
+          ctx.fillStyle = '#7d5a3c';
+          ctx.beginPath(); ctx.moveTo(0,-16); ctx.lineTo(-13,14); ctx.lineTo(13,14); ctx.closePath(); ctx.fill();
+          // Tent stripe
+          ctx.fillStyle = '#6a4a2e'; ctx.globalAlpha = 0.5;
+          ctx.beginPath(); ctx.moveTo(0,-16); ctx.lineTo(-4,14); ctx.lineTo(4,14); ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1;
+          // Flap opening
+          ctx.fillStyle = '#1a0a00';
+          ctx.beginPath(); ctx.moveTo(0,14); ctx.lineTo(-4,4); ctx.lineTo(4,4); ctx.closePath(); ctx.fill();
+          // Pole
+          ctx.strokeStyle = '#4a2e10'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(0,14); ctx.lineTo(0,-18); ctx.stroke();
+          ctx.restore();
+        });
+        // Skull on stake
+        ctx.fillStyle = '#e8e8d0';
+        ctx.beginPath(); ctx.arc(sx - 32, sy - 18, 5, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(sx-32, sy-14); ctx.lineTo(sx-32, sy-2); ctx.stroke();
+        ctx.fillStyle = '#333';
+        ctx.beginPath(); ctx.arc(sx-33, sy-19, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx-31, sy-19, 1.5, 0, Math.PI*2); ctx.fill();
         break;
       }
+
       case 'stone_circle': {
-        const r = 28;
+        // Ground rune circle
+        ctx.globalAlpha = 0.12 + Math.sin(t*1.2)*0.06; ctx.strokeStyle = '#8888ff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy, 32, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx, sy, 16, 0, Math.PI*2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        const r = 30;
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * Math.PI * 2;
           const stx = sx + Math.cos(a) * r, sty = sy + Math.sin(a) * r;
-          ctx.fillStyle = '#7a7a8a';
-          ctx.fillRect(stx - 4, sty - 14, 8, 18);
+          // Shadow
+          ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+          ctx.beginPath(); ctx.ellipse(stx + 3, sty + 14, 6, 3, 0, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+          // Side depth
+          ctx.fillStyle = '#555';
+          ctx.fillRect(stx + 3, sty - 16, 4, 20);
+          // Front stone
+          ctx.fillStyle = i % 2 === 0 ? '#7a7a8a' : '#686878';
+          ctx.fillRect(stx - 4, sty - 18, 8, 22);
+          // Top cap
           ctx.fillStyle = '#9a9aaa';
-          ctx.fillRect(stx - 4, sty - 14, 8, 3);
+          ctx.fillRect(stx - 5, sty - 20, 10, 5);
+          // Moss
+          ctx.fillStyle = '#2e7d32'; ctx.globalAlpha = 0.35;
+          ctx.fillRect(stx - 4, sty - 18, 8, 4);
+          ctx.globalAlpha = 1;
         }
-        // Center glow
-        ctx.globalAlpha = 0.15 + Math.sin(t * 1.5) * 0.08;
-        ctx.fillStyle = '#8888ff';
+        // Center altar glow — animated pulse
+        const pulse2 = 0.18 + Math.sin(t * 1.6) * 0.1;
+        ctx.globalAlpha = pulse2; ctx.fillStyle = '#8888ff';
         ctx.beginPath(); ctx.arc(sx, sy, 20, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = pulse2 * 0.5; ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Rune lines from center to stones
+        for (let i = 0; i < 8; i += 2) {
+          const a = (i / 8) * Math.PI * 2;
+          ctx.globalAlpha = 0.08 + Math.sin(t*2+i)*0.06; ctx.strokeStyle = '#aaaaff'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx+Math.cos(a)*r, sy+Math.sin(a)*r); ctx.stroke();
+        }
         ctx.globalAlpha = 1;
         break;
       }
+
       case 'lava_vents': {
+        // Cracked rock base
+        ctx.fillStyle = '#1a0800';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 4, 36, 14, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#2a1000';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 4, 28, 10, 0, 0, Math.PI*2); ctx.fill();
+        // Crack lines on base
+        ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 1.5;
+        [[-12,0],[10,4],[0,-8]].forEach(([dx,dy]) => {
+          ctx.globalAlpha = 0.35 + Math.sin(t*3+dx)*0.2;
+          ctx.beginPath(); ctx.moveTo(sx+dx-6, sy+dy+4); ctx.lineTo(sx+dx+6, sy+dy-4); ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
         [[-18, 0], [18, 0], [0, -16]].forEach(([dx, dy]) => {
+          // Outer glow halo
+          const pulse = 0.4 + Math.sin(t * 4.5 + dx * 0.3) * 0.35;
+          ctx.globalAlpha = pulse * 0.45; ctx.fillStyle = '#e67e22';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy, 18, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+          // Vent rock ring
+          ctx.fillStyle = '#2a1200';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy, 10, 0, Math.PI*2); ctx.fill();
           // Vent hole
-          ctx.fillStyle = '#1a0800';
-          ctx.beginPath(); ctx.arc(sx + dx, sy + dy, 8, 0, Math.PI*2); ctx.fill();
-          // Glow
-          const pulse = 0.5 + Math.sin(t * 4 + dx) * 0.4;
-          ctx.globalAlpha = pulse * 0.6;
-          ctx.fillStyle = '#e67e22';
-          ctx.beginPath(); ctx.arc(sx + dx, sy + dy, 14, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#0a0400';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy, 7, 0, Math.PI*2); ctx.fill();
+          // Lava core glow
+          ctx.globalAlpha = pulse; ctx.fillStyle = '#e74c3c';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy, 4, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = pulse * 0.7; ctx.fillStyle = '#f1c40f';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy, 2, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+          // Rising smoke puff
+          const smoke = ((t * 30 + Math.abs(dx)) % 40);
+          ctx.globalAlpha = Math.max(0, 0.3 - smoke/40*0.3);
+          ctx.fillStyle = '#555';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy - smoke, 4 + smoke*0.15, 0, Math.PI*2); ctx.fill();
           ctx.globalAlpha = 1;
         });
         break;
       }
+
       case 'shrine': {
-        // Two pillars
-        ctx.fillStyle = '#8a8a8a';
-        ctx.fillRect(sx - 18, sy - 22, 7, 24);
-        ctx.fillRect(sx + 11, sy - 22, 7, 24);
+        // Stone base platform
+        ctx.fillStyle = '#555';
+        ctx.fillRect(sx - 22, sy + 4, 44, 8);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(sx - 20, sy + 2, 40, 5);
+        // Steps
+        ctx.fillStyle = '#6a6a6a';
+        ctx.fillRect(sx - 16, sy - 1, 32, 5);
+        // Shadow
+        ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 12, 26, 6, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Pillars — with side depth
+        [[-16, 0],[12, 0]].forEach(([px]) => {
+          ctx.fillStyle = '#555'; ctx.fillRect(sx+px+7, sy-28, 4, 32); // depth
+          ctx.fillStyle = '#8a8a8a'; ctx.fillRect(sx+px, sy-28, 8, 32);
+          ctx.fillStyle = '#aaaaaa'; ctx.fillRect(sx+px, sy-28, 8, 5);
+          ctx.fillStyle = '#aaaaaa'; ctx.fillRect(sx+px, sy+2, 8, 5);
+          // Weathering
+          ctx.strokeStyle = '#55555555'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(sx+px+3, sy-22); ctx.lineTo(sx+px+5, sy-10); ctx.stroke();
+        });
         // Lintel
-        ctx.fillRect(sx - 20, sy - 24, 40, 6);
-        // Teal glow at base
-        ctx.globalAlpha = 0.4 + Math.sin(t * 2) * 0.2;
-        ctx.fillStyle = '#1abc9c';
-        ctx.beginPath(); ctx.arc(sx, sy + 2, 10, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#555'; ctx.fillRect(sx-23, sy-30, 46, 4);
+        ctx.fillStyle = '#8a8a8a'; ctx.fillRect(sx-22, sy-32, 44, 6);
+        ctx.fillStyle = '#aaa'; ctx.fillRect(sx-22, sy-32, 44, 3);
+        // Altar
+        ctx.fillStyle = '#4a4a4a'; ctx.fillRect(sx-6, sy-18, 12, 20);
+        ctx.fillStyle = '#606060'; ctx.fillRect(sx-7, sy-20, 14, 4);
+        // Teal spirit glow — animated
+        const shrineGlow = 0.35 + Math.sin(t * 2.2) * 0.2;
+        ctx.globalAlpha = shrineGlow; ctx.fillStyle = '#1abc9c';
+        ctx.beginPath(); ctx.arc(sx, sy - 8, 12, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = shrineGlow * 0.5; ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(sx, sy - 8, 5, 0, Math.PI*2); ctx.fill();
+        // Floating particles
+        for (let i = 0; i < 4; i++) {
+          const pa = t * 1.4 + i * Math.PI / 2;
+          ctx.globalAlpha = 0.4 + Math.sin(t*3+i)*0.3;
+          ctx.fillStyle = '#1abc9c';
+          ctx.beginPath(); ctx.arc(sx+Math.cos(pa)*14, sy-8+Math.sin(pa)*10, 2.5, 0, Math.PI*2); ctx.fill();
+        }
         ctx.globalAlpha = 1;
         break;
       }
+
       case 'crystal_spire': {
-        [[-14, 0, 28], [0, -8, 38], [14, 0, 28]].forEach(([dx, dy, h]) => {
+        // Base rock mound
+        ctx.fillStyle = '#0e2040';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 8, 30, 12, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#142850';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 4, 22, 8, 0, 0, Math.PI*2); ctx.fill();
+        // Shadow
+        ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(sx+6, sy+12, 28, 7, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Crystal clusters
+        [[-16, 2, 24], [0, -10, 38], [16, 2, 26], [-8, -4, 18], [9, -3, 20]].forEach(([dx, dy, h]) => {
+          const shimmer = 0.55 + Math.sin(t * 2.5 + dx) * 0.3;
+          // Dark back face
+          ctx.fillStyle = '#0d2040';
+          ctx.beginPath(); ctx.moveTo(sx+dx+5, sy+dy+10); ctx.lineTo(sx+dx+8, sy+dy+10); ctx.lineTo(sx+dx+5, sy+dy-h); ctx.closePath(); ctx.fill();
+          // Main crystal face
           ctx.fillStyle = '#1a3a6a';
-          ctx.beginPath();
-          ctx.moveTo(sx + dx, sy + dy + 12);
-          ctx.lineTo(sx + dx - 7, sy + dy + 12);
-          ctx.lineTo(sx + dx, sy + dy - h);
-          ctx.closePath(); ctx.fill();
-          // Inner shimmer
-          ctx.globalAlpha = 0.5 + Math.sin(t * 3 + dx) * 0.3;
-          ctx.fillStyle = '#5a9fd4';
-          ctx.beginPath();
-          ctx.moveTo(sx + dx, sy + dy - h + 10);
-          ctx.lineTo(sx + dx - 3, sy + dy + 8);
-          ctx.lineTo(sx + dx + 1, sy + dy + 8);
-          ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(sx+dx, sy+dy+10); ctx.lineTo(sx+dx+5, sy+dy+10); ctx.lineTo(sx+dx, sy+dy-h); ctx.closePath(); ctx.fill();
+          // Left face
+          ctx.fillStyle = '#1f4a80';
+          ctx.beginPath(); ctx.moveTo(sx+dx-6, sy+dy+10); ctx.lineTo(sx+dx, sy+dy+10); ctx.lineTo(sx+dx, sy+dy-h); ctx.closePath(); ctx.fill();
+          // Inner shimmer vein
+          ctx.globalAlpha = shimmer; ctx.fillStyle = '#5a9fd4';
+          ctx.beginPath(); ctx.moveTo(sx+dx, sy+dy-h+8); ctx.lineTo(sx+dx-2, sy+dy+6); ctx.lineTo(sx+dx+2, sy+dy+6); ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = shimmer*0.5; ctx.fillStyle = '#aaddff';
+          ctx.beginPath(); ctx.arc(sx+dx, sy+dy-h+4, 3, 0, Math.PI*2); ctx.fill();
           ctx.globalAlpha = 1;
         });
         break;
       }
+
       case 'void_gate': {
-        // Two tall dark pillars
-        ctx.fillStyle = '#1a0a2a';
-        ctx.fillRect(sx - 28, sy - 36, 10, 44);
-        ctx.fillRect(sx + 18, sy - 36, 10, 44);
-        // Void swirl between
-        const swirl = t * 1.2;
-        ctx.globalAlpha = 0.6 + Math.sin(t * 2) * 0.2;
-        ctx.fillStyle = '#2a0a4a';
-        ctx.beginPath(); ctx.ellipse(sx, sy - 12, 16, 22, 0, 0, Math.PI*2); ctx.fill();
+        // Ground shadow
+        ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 12, 36, 8, 0, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
-        // Rotating arc
-        ctx.globalAlpha = 0.7;
-        ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(sx, sy - 12, 12, swirl, swirl + Math.PI * 1.3); ctx.stroke();
+        // Two tall dark pillars with depth
+        [[-22, 0], [16, 0]].forEach(([px]) => {
+          ctx.fillStyle = '#0d0018'; ctx.fillRect(sx+px+8, sy-42, 5, 52); // depth
+          ctx.fillStyle = '#1a0a2a'; ctx.fillRect(sx+px, sy-42, 10, 52);
+          // Pillar cap
+          ctx.fillStyle = '#2a1040';
+          ctx.fillRect(sx+px-2, sy-44, 14, 6);
+          // Rune etching
+          ctx.globalAlpha = 0.4; ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(sx+px+5, sy-36); ctx.lineTo(sx+px+5, sy-14); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(sx+px+2, sy-28); ctx.lineTo(sx+px+8, sy-28); ctx.stroke();
+          ctx.globalAlpha = 1;
+        });
+        // Void portal between pillars
+        const voidPulse = 0.55 + Math.sin(t*2.5)*0.25;
+        ctx.globalAlpha = voidPulse * 0.65; ctx.fillStyle = '#0a0014';
+        ctx.beginPath(); ctx.ellipse(sx, sy-14, 14, 24, 0, 0, Math.PI*2); ctx.fill();
+        // Swirling arcs
+        for (let ring = 0; ring < 3; ring++) {
+          const ra = t * (1.5 + ring*0.4) + ring * 1.0;
+          ctx.globalAlpha = 0.6 - ring*0.15; ctx.strokeStyle = ring===0?'#9b59b6':ring===1?'#6c3483':'#ffffff';
+          ctx.lineWidth = 2.5-ring*0.5;
+          ctx.beginPath(); ctx.arc(sx, sy-14, 10-ring*2, ra, ra+Math.PI*1.4); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        // Purple glow
+        ctx.globalAlpha = voidPulse * 0.3; ctx.fillStyle = '#6c3483';
+        ctx.beginPath(); ctx.arc(sx, sy-14, 22, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
         break;
       }
+
       case 'ice_fortress': {
+        // Shadow
+        ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(sx+4, sy+14, 44, 8, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Side depth of main walls
+        ctx.fillStyle = '#1a3050';
+        ctx.fillRect(sx-22, sy-12, 4, 22); // left depth
+        ctx.fillRect(sx+20, sy-12, 4, 22); // right depth
         // Base wall
         ctx.fillStyle = '#2a4a6a';
-        ctx.fillRect(sx - 24, sy - 14, 48, 20);
+        ctx.fillRect(sx-24, sy-14, 48, 22);
+        // Wall highlight
+        ctx.fillStyle = '#3a6080'; ctx.globalAlpha = 0.5;
+        ctx.fillRect(sx-24, sy-14, 48, 5);
+        ctx.globalAlpha = 1;
         // Battlements
         for (let i = 0; i < 6; i++) {
-          ctx.fillRect(sx - 22 + i * 9, sy - 22, 6, 10);
+          ctx.fillStyle = '#1a3050'; ctx.fillRect(sx-22+i*9, sy-24, 7, 3); // depth
+          ctx.fillStyle = '#2a4a6a'; ctx.fillRect(sx-22+i*9, sy-25, 6, 12);
+          ctx.fillStyle = '#3a6080'; ctx.globalAlpha = 0.4;
+          ctx.fillRect(sx-22+i*9, sy-25, 6, 3);
+          ctx.globalAlpha = 1;
         }
-        // Tower
-        ctx.fillStyle = '#3a5a7a';
-        ctx.fillRect(sx - 10, sy - 36, 20, 24);
-        // Tower point
+        // Side towers
+        [[-28, -8],[22, -8]].forEach(([tx2,ty2]) => {
+          ctx.fillStyle = '#1a3050'; ctx.fillRect(sx+tx2+12, sy+ty2-22, 4, 36);
+          ctx.fillStyle = '#2a4a6a'; ctx.fillRect(sx+tx2, sy+ty2-22, 14, 36);
+          ctx.fillStyle = '#3a6080'; ctx.globalAlpha = 0.4; ctx.fillRect(sx+tx2, sy+ty2-22, 14, 4); ctx.globalAlpha=1;
+          // Tower top cone
+          ctx.fillStyle = '#4a7a9a';
+          ctx.beginPath(); ctx.moveTo(sx+tx2+7, sy+ty2-36); ctx.lineTo(sx+tx2, sy+ty2-22); ctx.lineTo(sx+tx2+14, sy+ty2-22); ctx.closePath(); ctx.fill();
+        });
+        // Central tower
+        ctx.fillStyle = '#1a3050'; ctx.fillRect(sx-6, sy-40, 4, 52);
+        ctx.fillStyle = '#3a5a7a'; ctx.fillRect(sx-10, sy-40, 20, 52);
+        ctx.fillStyle = '#4a7090'; ctx.globalAlpha=0.4; ctx.fillRect(sx-10, sy-40, 20, 5); ctx.globalAlpha=1;
+        // Tower cone
         ctx.fillStyle = '#5a8aaa';
-        ctx.beginPath();
-        ctx.moveTo(sx, sy - 50);
-        ctx.lineTo(sx - 10, sy - 36);
-        ctx.lineTo(sx + 10, sy - 36);
-        ctx.closePath(); ctx.fill();
-        // Ice shimmer
-        ctx.globalAlpha = 0.2 + Math.sin(t * 1.8) * 0.1;
-        ctx.fillStyle = '#aaddff';
-        ctx.fillRect(sx - 24, sy - 36, 48, 44);
+        ctx.beginPath(); ctx.moveTo(sx, sy-56); ctx.lineTo(sx-10, sy-40); ctx.lineTo(sx+10, sy-40); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.globalAlpha=0.3;
+        ctx.beginPath(); ctx.moveTo(sx, sy-56); ctx.lineTo(sx-3, sy-40); ctx.lineTo(sx+3, sy-40); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha=1;
+        // Arrow slit windows
+        ctx.fillStyle = '#0a1828';
+        ctx.fillRect(sx-2, sy-32, 4, 8);
+        ctx.fillRect(sx-2, sy-18, 4, 8);
+        // Ice shimmer overlay
+        ctx.globalAlpha = 0.12 + Math.sin(t*1.8)*0.06; ctx.fillStyle = '#aaddff';
+        ctx.fillRect(sx-24, sy-40, 48, 54);
         ctx.globalAlpha = 1;
         break;
       }
     }
 
-    // Label
-    ctx.fillStyle = '#ffffff55';
+    // Label — with outline for readability
     ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(lm.label.toUpperCase(), sx, sy + 38);
+    ctx.strokeStyle = '#000000aa'; ctx.lineWidth = 2.5;
+    ctx.strokeText(lm.label.toUpperCase(), sx, sy + 46);
+    ctx.fillStyle = '#ffffffaa';
+    ctx.fillText(lm.label.toUpperCase(), sx, sy + 46);
     ctx.restore();
   });
 }
