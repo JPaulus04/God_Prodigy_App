@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore }  from './store/useGameStore';
 import WorldCanvas       from './ui/WorldCanvas';
 import DungeonCanvas     from './ui/DungeonCanvas';
@@ -33,13 +33,27 @@ class ErrorBoundary extends React.Component {
 export default function App() {
   const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave, tutorialStep } = useGameStore();
   useEffect(() => { loadSave(); }, []);
+
+  // ── Phase transition fade ──────────────────────────────────────
+  const prevPhaseRef = useRef(gamePhase);
+  const [fading, setFading] = useState(false);
+
+  useEffect(() => {
+    if (prevPhaseRef.current !== gamePhase) {
+      prevPhaseRef.current = gamePhase;
+      setFading(true);
+      const t = setTimeout(() => setFading(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [gamePhase]);
+
   const inWorld = gamePhase === 'world';
   const inDun   = gamePhase === 'dungeon';
   const inRealm = gamePhase === 'realm';
   const inSH    = gamePhase === 'stronghold';
   const inGame  = inWorld || inDun || inRealm || inSH;
-  // Show tutorial overlay only on world phase for new players (tutorialStep < 4)
   const showTutorial = inWorld && tutorialStep < 4;
+
   return (
     <div style={{ width:'100%', height:'100%', position:'relative', background:'#0d0d1a', overflow:'hidden' }}>
       {gamePhase === 'menu' && <NameEntry />}
@@ -54,6 +68,28 @@ export default function App() {
       {inGame && showLevelUp    && <LevelUpModal />}
       {inGame && showShop      && <IAPShop onClose={toggleShop} />}
       {showTutorial && <TutorialOverlay />}
+
+      {/* Phase transition fade overlay */}
+      {fading && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 999,
+          background: '#000',
+          pointerEvents: 'none',
+          animation: 'gpPhaseFade 350ms ease forwards',
+        }} />
+      )}
     </div>
   );
+}
+
+// Inject phase-fade keyframe once
+if (typeof document !== 'undefined' && !document.getElementById('gp-phase-fade-style')) {
+  const s = document.createElement('style');
+  s.id = 'gp-phase-fade-style';
+  s.textContent = `@keyframes gpPhaseFade {
+    0%   { opacity: 1; }
+    40%  { opacity: 0.9; }
+    100% { opacity: 0; }
+  }`;
+  document.head.appendChild(s);
 }
