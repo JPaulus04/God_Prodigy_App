@@ -259,17 +259,28 @@ function PurchaseConfirmModal({ item, onConfirm, onCancel }) {
   );
 }
 
-function ItemCard({ item, onBuy, purchased }) {
+function ItemCard({ item, onBuy, purchased, flashing }) {
   const isLimited = item.limitedKey && purchased;
   return (
     <div style={{
-      background: '#0d0d1a',
-      border: `1px solid ${isLimited ? '#333' : item.color + '55'}`,
+      background: flashing ? '#0a200a' : '#0d0d1a',
+      border: `1px solid ${flashing ? '#2ecc71' : (isLimited ? '#333' : item.color + '55')}`,
       borderRadius: 14, padding: '14px 16px',
       display: 'flex', alignItems: 'center', gap: 14,
-      opacity: isLimited ? 0.5 : 1,
+      opacity: isLimited ? 0.45 : 1,
       position: 'relative', overflow: 'hidden',
+      transition: 'background 0.4s ease, border-color 0.4s ease, opacity 0.6s ease',
+      pointerEvents: isLimited ? 'none' : 'auto',
     }}>
+      {/* Purchase flash overlay */}
+      {flashing && (
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 14,
+          background: 'linear-gradient(90deg, #2ecc7122, #27ae6044, #2ecc7122)',
+          animation: 'gpFlash 1.2s ease forwards',
+          pointerEvents: 'none', zIndex: 5,
+        }} />
+      )}
       {/* Subtle glow bg */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -335,6 +346,7 @@ export default function IAPShop({ onClose }) {
   const [activeTab, setActiveTab]   = useState('Resources');
   const [confirmItem, setConfirmItem] = useState(null);
   const [toast, setToast]           = useState(null);
+  const [flashId,   setFlashId]     = useState(null);  // item id that just got purchased
 
   const passActive  = store.passActive;
   const ownedSkins  = store.ownedSkins  || [];
@@ -365,6 +377,8 @@ export default function IAPShop({ onClose }) {
     }
     setToast(`${confirmItem.name} unlocked!`);
     setTimeout(() => setToast(null), 3000);
+    setFlashId(confirmItem.id);
+    setTimeout(() => setFlashId(null), 1200);
     setConfirmItem(null);
   };
 
@@ -449,6 +463,7 @@ export default function IAPShop({ onClose }) {
             item={item}
             onBuy={handleBuy}
             purchased={isPurchased(item)}
+            flashing={flashId === item.id}
           />
         ))}
 
@@ -488,3 +503,15 @@ export default function IAPShop({ onClose }) {
   );
 }
 
+// Inject purchase-flash keyframe once
+if (typeof document !== 'undefined' && !document.getElementById('gp-iap-flash-style')) {
+  const s = document.createElement('style');
+  s.id = 'gp-iap-flash-style';
+  s.textContent = `@keyframes gpFlash {
+    0%   { opacity: 0; }
+    20%  { opacity: 1; }
+    70%  { opacity: 0.8; }
+    100% { opacity: 0; }
+  }`;
+  document.head.appendChild(s);
+}
