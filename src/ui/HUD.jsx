@@ -24,11 +24,34 @@ export default function HUD() {
     playerName, level, xp, xpToNextLevel, statPoints,
     resources, ascensionProgress, bossesDefeated,
     equippedAbilityId, abilityFiredAt, abilityCooldownMs,
-    toggleHelpMenu, toggleInventory, showInventory, toggleShop,
+    toggleHelpMenu, toggleInventory, showInventory, toggleShop, passActive,
     openLevelUp,
   } = useGameStore();
 
   const [showAscension, setShowAscension] = useState(false);
+  const [showDailyReward, setShowDailyReward] = useState(false);
+  const [dailyCollected, setDailyCollected] = useState(false);
+
+  // Daily reward — fires once per session when pass is active
+  useEffect(() => {
+    if (!passActive) return;
+    const today = new Date().toDateString();
+    const lastClaim = localStorage.getItem('gp_daily_claim');
+    if (lastClaim !== today) {
+      setTimeout(() => setShowDailyReward(true), 1200);
+    }
+  }, [passActive]);
+
+  const claimDaily = () => {
+    const st = useGameStore.getState();
+    st.addResource('ore',   8);
+    st.addResource('stone', 12);
+    st.addResource('wood',  10);
+    st.gainXP(300);
+    localStorage.setItem('gp_daily_claim', new Date().toDateString());
+    setDailyCollected(true);
+    setTimeout(() => setShowDailyReward(false), 1800);
+  };
 
   // Local timer tick — forces re-render while ability is on cooldown
   const [tick, setTick] = useState(0);
@@ -57,7 +80,8 @@ export default function HUD() {
   const onInteract = () => { window.__gameInteract = true; };
   const onAbility = () => { if (onCooldown || !ability) return; window.__gameAbility = true; };
 
-  const defeated = bossesDefeated || [];
+  const defeated        = bossesDefeated || [];
+  const bossSkipPending = useGameStore(s => s.bossSkipPending);
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -112,15 +136,22 @@ export default function HUD() {
             {/* God list */}
             {GOD_LIST.map(god => {
               const isBeaten = defeated.includes(god.realm);
+              const skipable = bossSkipPending && !isBeaten;
               return (
-                <div key={god.realm} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '7px 8px',
-                  borderRadius: 8,
-                  marginBottom: 4,
-                  background: isBeaten ? '#1a2e1a' : '#0a0a18',
-                  border: `1px solid ${isBeaten ? '#27ae60' : '#333'}`,
-                }}>
+                <div key={god.realm}
+                  onClick={() => {
+                    if (!skipable) return;
+                    useGameStore.getState().consumeBossSkip(god.realm);
+                    setShowAscension(false);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '7px 8px', borderRadius: 8, marginBottom: 4,
+                    background: isBeaten ? '#1a2e1a' : (skipable ? '#1a1400' : '#0a0a18'),
+                    border: `1px solid ${isBeaten ? '#27ae60' : (skipable ? '#d4af37' : '#333')}`,
+                    cursor: skipable ? 'pointer' : 'default',
+                    boxShadow: skipable ? '0 0 8px #d4af3733' : 'none',
+                  }}>
                   <span style={{ fontSize: 18 }}>{god.icon}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{
@@ -132,11 +163,26 @@ export default function HUD() {
                     </div>
                   </div>
                   <span style={{ fontSize: 16 }}>
-                    {isBeaten ? '✅' : '🔒'}
+                    {isBeaten ? '✅' : skipable ? '⚡' : '🔒'}
                   </span>
                 </div>
               );
             })}
+
+            {/* Boss Skip pending — let user pick which boss to skip */}
+            {bossSkipPending && (
+              <div style={{
+                background: '#1a1400', border: '1px solid #d4af37',
+                borderRadius: 10, padding: '12px 14px', marginBottom: 12,
+              }}>
+                <div style={{ color: '#d4af37', fontSize: 13, fontWeight: 'bold', marginBottom: 4 }}>
+                  ⚡ God's Mercy Ready
+                </div>
+                <div style={{ color: '#ffffff88', fontSize: 11 }}>
+                  Tap any undefeated god below to mark them as defeated.
+                </div>
+              </div>
+            )}
 
             <div style={{
               color: '#d4af37', fontSize: 13, fontWeight: 'bold',
@@ -158,6 +204,46 @@ export default function HUD() {
         </div>
       )}
 
+      {/* ── Daily Reward Modal (Pass) ─────────────────────── */}
+      {showDailyReward && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 110,
+          background: '#000000bb',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'all',
+        }}>
+          <div style={{
+            background: 'linear-gradient(160deg, #1a1400 0%, #0d0d1a 100%)',
+            border: '2px solid #d4af37',
+            borderRadius: 20, padding: '30px 28px',
+            textAlign: 'center', maxWidth: 300, width: '88%',
+            boxShadow: '0 0 40px #d4af3744',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
+            <div style={{ color: '#d4af37', fontSize: 18, fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 }}>Daily Pass Reward</div>
+            <div style={{ color: '#ffffff55', fontSize: 12, marginBottom: 20 }}>God Prodigy Pass — daily drop</div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
+              {[
+                { icon: '⛏', label: '8 Ore',   color: '#e67e22' },
+                { icon: '🪨', label: '12 Stone', color: '#95a5a6' },
+                { icon: '🪵', label: '10 Wood',  color: '#27ae60' },
+                { icon: '✦',  label: '300 XP',   color: '#9b59b6' },
+              ].map(r => (
+                <div key={r.label} style={{ textAlign: 'center' }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: r.color+'22', border: `1px solid ${r.color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 4 }}>{r.icon}</div>
+                  <div style={{ color: r.color, fontSize: 10, fontWeight: 'bold' }}>{r.label}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={claimDaily} disabled={dailyCollected} style={{
+              width: '100%', padding: '14px', background: dailyCollected ? '#1a1a2e' : '#d4af37',
+              border: 'none', borderRadius: 12, color: dailyCollected ? '#555' : '#000',
+              fontSize: 15, fontWeight: 'bold', cursor: dailyCollected ? 'default' : 'pointer',
+            }}>{dailyCollected ? '✓ Claimed!' : 'Claim Rewards'}</button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top-left ──────────────────────────────────────── */}
       <div style={{
         position: 'absolute', top: 56, left: 14,
@@ -165,7 +251,7 @@ export default function HUD() {
       }}>
         {/* Name + Level + Pts */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ color: '#d4af37', fontSize: 17, fontWeight: 'bold', textShadow: '0 1px 4px #000' }}>
+          <span style={{ color: passActive ? '#f1c40f' : '#d4af37', fontSize: 17, fontWeight: 'bold', textShadow: passActive ? '0 0 8px #d4af3766, 0 1px 4px #000' : '0 1px 4px #000' }}>
             {playerName || 'Warrior'}
           </span>
           <span style={{
@@ -247,7 +333,7 @@ export default function HUD() {
             background: '#000000aa', border: `1px solid ${defeated.length >= 10 ? '#d4af37' : '#d4af3766'}`,
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 70,
             cursor: 'pointer',
-            boxShadow: defeated.length > 0 ? `0 0 10px #d4af3733` : 'none',
+            boxShadow: passActive ? '0 0 14px #d4af3766, 0 0 4px #d4af37' : (defeated.length > 0 ? '0 0 10px #d4af3733' : 'none'),
           }}
         >
           <div style={{ color: '#d4af37', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 }}>ASCENSION</div>
