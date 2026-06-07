@@ -24,7 +24,7 @@ export default function HUD() {
     playerName, level, xp, xpToNextLevel, statPoints,
     resources, ascensionProgress, bossesDefeated,
     equippedAbilityId, abilityFiredAt, abilityCooldownMs,
-    toggleHelpMenu, toggleInventory, showInventory,
+    toggleHelpMenu, toggleInventory, showInventory, toggleShop,
     openLevelUp,
   } = useGameStore();
 
@@ -256,6 +256,14 @@ export default function HUD() {
           </div>
           <div style={{ color: '#d4af3788', fontSize: 8, marginTop: 2 }}>tap to view</div>
         </button>
+
+        {/* Shop button */}
+        <button onClick={toggleShop} style={{
+          background: '#000000bb', border: '2px solid #d4af3788',
+          borderRadius: 12, padding: '10px 14px', fontSize: 20,
+          cursor: 'pointer', color: '#d4af37',
+          marginBottom: 2,
+        }}>🏪</button>
 
         <div style={{ position: 'relative' }}>
           <button onClick={toggleInventory} style={{
