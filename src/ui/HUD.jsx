@@ -5,15 +5,30 @@ import VirtualJoystick   from './VirtualJoystick';
 
 const CIRCUMFERENCE = 2 * Math.PI * 28; // SVG cooldown ring
 
+const GOD_LIST = [
+  { realm: 'forest', name: 'Sylvara',  icon: '🌿', color: '#27ae60', skulls: 1 },
+  { realm: 'wind',   name: 'Zephyros', icon: '💨', color: '#87ceeb', skulls: 1 },
+  { realm: 'earth',  name: 'Terran',   icon: '🪨', color: '#95a5a6', skulls: 2 },
+  { realm: 'fire',   name: 'Ignar',    icon: '🔥', color: '#e74c3c', skulls: 2 },
+  { realm: 'ice',    name: 'Glacius',  icon: '❄️', color: '#3498db', skulls: 3 },
+  { realm: 'ocean',  name: 'Nepthar',  icon: '🌊', color: '#1abc9c', skulls: 3 },
+  { realm: 'storm',  name: 'Vortus',   icon: '⚡', color: '#9b59b6', skulls: 4 },
+  { realm: 'shadow', name: 'Umbris',   icon: '🌑', color: '#6c3483', skulls: 4 },
+  { realm: 'lava',   name: 'Magmara',  icon: '🌋', color: '#e67e22', skulls: 5 },
+  { realm: 'void',   name: 'Nihilus',  icon: '✨', color: '#f1c40f', skulls: 5 },
+];
+
 export default function HUD() {
   const {
     playerHP, playerMaxHP,
     playerName, level, xp, xpToNextLevel, statPoints,
-    resources, ascensionProgress,
+    resources, ascensionProgress, bossesDefeated,
     equippedAbilityId, abilityFiredAt, abilityCooldownMs,
     toggleHelpMenu, toggleInventory, showInventory,
     openLevelUp,
   } = useGameStore();
+
+  const [showAscension, setShowAscension] = useState(false);
 
   // Local timer tick — forces re-render while ability is on cooldown
   const [tick, setTick] = useState(0);
@@ -38,19 +53,110 @@ export default function HUD() {
   const hpColor = hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f39c12' : '#e74c3c';
   const xpPct   = xpToNextLevel > 0 ? Math.min(100, (xp / xpToNextLevel) * 100) : 100;
 
-  const onAttack = () => {
-    window.__gameAttack = true;
-  };
-  const onInteract = () => {
-    window.__gameInteract = true;
-  };
-  const onAbility = () => {
-    if (onCooldown || !ability) return;
-    window.__gameAbility = true;
-  };
+  const onAttack = () => { window.__gameAttack = true; };
+  const onInteract = () => { window.__gameInteract = true; };
+  const onAbility = () => { if (onCooldown || !ability) return; window.__gameAbility = true; };
+
+  const defeated = bossesDefeated || [];
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+
+      {/* ── Ascension Progress Modal ─────────────────────────────────── */}
+      {showAscension && (
+        <div
+          onClick={() => setShowAscension(false)}
+          style={{
+            position: 'absolute', inset: 0,
+            background: '#000000cc',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'all', zIndex: 100,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#0d0d1a',
+              border: '2px solid #d4af37',
+              borderRadius: 16,
+              padding: '20px 24px',
+              minWidth: 280,
+              maxWidth: 340,
+            }}
+          >
+            <div style={{
+              color: '#d4af37', fontSize: 18, fontWeight: 'bold',
+              textAlign: 'center', letterSpacing: 2, marginBottom: 4,
+            }}>✦ ASCENSION ✦</div>
+            <div style={{
+              color: '#ffffff88', fontSize: 11,
+              textAlign: 'center', marginBottom: 16,
+            }}>Defeat all 10 Elemental Gods to ascend</div>
+
+            {/* Progress bar */}
+            <div style={{
+              height: 8, background: '#1a1a2e',
+              borderRadius: 4, overflow: 'hidden',
+              border: '1px solid #d4af3755',
+              marginBottom: 18,
+            }}>
+              <div style={{
+                width: `${(defeated.length / 10) * 100}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #d4af37, #f1c40f)',
+                borderRadius: 4,
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+
+            {/* God list */}
+            {GOD_LIST.map(god => {
+              const isBeaten = defeated.includes(god.realm);
+              return (
+                <div key={god.realm} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '7px 8px',
+                  borderRadius: 8,
+                  marginBottom: 4,
+                  background: isBeaten ? '#1a2e1a' : '#0a0a18',
+                  border: `1px solid ${isBeaten ? '#27ae60' : '#333'}`,
+                }}>
+                  <span style={{ fontSize: 18 }}>{god.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      color: isBeaten ? '#2ecc71' : god.color,
+                      fontSize: 13, fontWeight: 'bold',
+                    }}>{god.name}</div>
+                    <div style={{ color: '#ffffff44', fontSize: 9 }}>
+                      {'💀'.repeat(god.skulls)} · {god.realm.charAt(0).toUpperCase() + god.realm.slice(1)} God
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 16 }}>
+                    {isBeaten ? '✅' : '🔒'}
+                  </span>
+                </div>
+              );
+            })}
+
+            <div style={{
+              color: '#d4af37', fontSize: 13, fontWeight: 'bold',
+              textAlign: 'center', marginTop: 14,
+            }}>
+              {defeated.length} / 10 Defeated
+            </div>
+            <button
+              onClick={() => setShowAscension(false)}
+              style={{
+                marginTop: 14, width: '100%',
+                background: '#d4af3722',
+                border: '1px solid #d4af37',
+                borderRadius: 8, padding: '8px',
+                color: '#d4af37', fontSize: 13, cursor: 'pointer', fontWeight: 'bold',
+              }}
+            >Close</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Top-left ──────────────────────────────────────── */}
       <div style={{
@@ -128,21 +234,29 @@ export default function HUD() {
         </div>
       </div>
 
-      {/* ── Top-right: Ascension + Bag ────────────────────── */}
+      {/* ── Top-right: Ascension (tappable) + Bag ──────────── */}
       <div style={{
         position: 'absolute', top: 56, right: 14,
         display: 'flex', flexDirection: 'column',
         gap: 10, alignItems: 'flex-end', pointerEvents: 'all',
       }}>
-        <div style={{
-          background: '#000000aa', border: '1px solid #d4af3766',
-          borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 70,
-        }}>
+        {/* Ascension widget — tappable */}
+        <button
+          onClick={() => setShowAscension(true)}
+          style={{
+            background: '#000000aa', border: `1px solid ${defeated.length >= 10 ? '#d4af37' : '#d4af3766'}`,
+            borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 70,
+            cursor: 'pointer',
+            boxShadow: defeated.length > 0 ? `0 0 10px #d4af3733` : 'none',
+          }}
+        >
           <div style={{ color: '#d4af37', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 }}>ASCENSION</div>
           <div style={{ color: '#fff', fontSize: 22, fontWeight: 'bold', lineHeight: 1.2 }}>
             {ascensionProgress}<span style={{ color: '#444', fontSize: 13 }}>/10</span>
           </div>
-        </div>
+          <div style={{ color: '#d4af3788', fontSize: 8, marginTop: 2 }}>tap to view</div>
+        </button>
+
         <div style={{ position: 'relative' }}>
           <button onClick={toggleInventory} style={{
             background:   showInventory ? '#d4af37' : '#000000bb',
