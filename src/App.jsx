@@ -13,6 +13,7 @@ import LevelUpModal      from './ui/LevelUpModal';
 import IAPShop           from './ui/IAPShop';
 import TutorialOverlay   from './ui/TutorialOverlay';
 import AscensionVictory  from './ui/AscensionVictory';
+import PrestigeClassSelect from './ui/PrestigeClassSelect';
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -32,7 +33,7 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave, tutorialStep, showVictory } = useGameStore();
+  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave, tutorialStep, showVictory, showPrestigeSelect } = useGameStore();
   useEffect(() => { loadSave(); }, []);
 
   // ── Phase transition fade ──────────────────────────────────────
@@ -70,6 +71,7 @@ export default function App() {
       {inGame && showShop      && <IAPShop onClose={toggleShop} />}
       {showTutorial && <TutorialOverlay />}
       {showVictory && <AscensionVictory />}
+      {showPrestigeSelect && <PrestigeClassSelect />}
 
       {/* Phase transition fade overlay */}
       {fading && (
