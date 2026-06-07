@@ -9,11 +9,21 @@ const ARENA_H = 30;
 const WW      = ARENA_W * TILE;
 const WH      = ARENA_H * TILE;
 
-// ── Realm configs ─────────────────────────────────────────────────────────
+// ── Simple hash for tile variation (deterministic noise) ────────────────────
+function tileHash(tx, ty) {
+  let h = (tx * 2654435761 ^ ty * 2246822519) >>> 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x45d9f3b) >>> 0;
+  h ^= h >>> 16;
+  return (h >>> 0) / 0xffffffff;
+}
+
+// ── Realm configs ────────────────────────────────────────────────────────────
 const REALM_CFG = {
   forest: {
-    terrain:'#1e5e28', border:'#0a2a0d', accent:'#27ae60', skyColor:'#0d1f0f',
-    treePositions:[[4,4],[25,4],[4,25],[25,25],[8,8],[20,8],[8,20],[20,20]],
+    terrain:'#1e5e28', terrainAlt:'#174d20', terrainAlt2:'#236b2e',
+    border:'#0a2a0d', accent:'#27ae60', skyColor:'#0d1f0f',
+    treePositions:[[4,4],[25,4],[4,25],[25,25],[8,8],[20,8],[8,20],[20,20],[12,3],[17,3],[3,12],[26,12]],
+    floorDetail:'forest',
     waves:[
       [{type:'thornling',x:8*TILE,y:5*TILE},{type:'thornling',x:13*TILE,y:4*TILE},
        {type:'thornling',x:18*TILE,y:5*TILE},{type:'thornling',x:22*TILE,y:4*TILE}],
@@ -25,75 +35,617 @@ const REALM_CFG = {
           icon:'🌿',chargeInterval:3.5,chargeTelegraph:0.9,chargeSpeed:520,chargeDist:280},
     reward:{label:'Nature Essence',icon:'🌿',color:'#27ae60',key:'natureEssence'},
   },
-  earth:{terrain:'#4a3828',border:'#2a1e10',accent:'#95a5a6',skyColor:'#1a1008',
-    treePositions:[[3,3],[26,3],[3,26],[26,26]],waves:[],
-    boss:{name:'Terran',hp:1400,atk:32,color:'#95a5a6',size:34,x:15*TILE,y:5*TILE,icon:'🪨',chargeInterval:4,chargeTelegraph:1.0,chargeSpeed:400,chargeDist:260},
+  earth:{
+    terrain:'#4a3828', terrainAlt:'#3d2e1f', terrainAlt2:'#554030',
+    border:'#2a1e10', accent:'#95a5a6', skyColor:'#1a1008',
+    treePositions:[[3,3],[26,3],[3,26],[26,26],[6,6],[23,6],[6,23],[23,23]],
+    floorDetail:'earth',
+    waves:[
+      [{type:'stone_golem',x:7*TILE,y:5*TILE},{type:'stone_golem',x:22*TILE,y:5*TILE},
+       {type:'thornling',x:14*TILE,y:4*TILE},{type:'thornling',x:10*TILE,y:6*TILE}],
+      [{type:'stone_golem',x:5*TILE,y:4*TILE},{type:'stone_golem',x:24*TILE,y:4*TILE},
+       {type:'stone_golem',x:14*TILE,y:3*TILE},{type:'forest_wraith',x:9*TILE,y:5*TILE},
+       {type:'forest_wraith',x:19*TILE,y:5*TILE}],
+      [{type:'stone_golem',x:6*TILE,y:3*TILE},{type:'stone_golem',x:22*TILE,y:3*TILE},
+       {type:'stone_golem',x:14*TILE,y:4*TILE},{type:'stone_golem',x:10*TILE,y:6*TILE},
+       {type:'stone_golem',x:18*TILE,y:6*TILE}],
+    ],
+    boss:{name:'Terran',hp:1400,atk:32,color:'#95a5a6',size:34,x:15*TILE,y:5*TILE,
+          icon:'🪨',chargeInterval:4,chargeTelegraph:1.0,chargeSpeed:400,chargeDist:260},
     reward:{label:'Earth Shard',icon:'🪨',color:'#95a5a6',key:'earthShard'},
   },
-  wind:{terrain:'#1a3a4a',border:'#0a1a28',accent:'#87ceeb',skyColor:'#080e14',
-    treePositions:[],waves:[],
-    boss:{name:'Zephyros',hp:1200,atk:28,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,icon:'💨',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
+  wind:{
+    terrain:'#1a3a4a', terrainAlt:'#14303e', terrainAlt2:'#1f4455',
+    border:'#0a1a28', accent:'#87ceeb', skyColor:'#080e14',
+    treePositions:[],
+    floorDetail:'wind',
+    waves:[
+      [{type:'wind_sprite',x:8*TILE,y:4*TILE},{type:'wind_sprite',x:14*TILE,y:3*TILE},
+       {type:'wind_sprite',x:20*TILE,y:4*TILE},{type:'wind_sprite',x:24*TILE,y:5*TILE}],
+      [{type:'wind_sprite',x:6*TILE,y:5*TILE},{type:'wind_sprite',x:22*TILE,y:5*TILE},
+       {type:'forest_wraith',x:10*TILE,y:3*TILE},{type:'forest_wraith',x:18*TILE,y:3*TILE},
+       {type:'wind_sprite',x:14*TILE,y:4*TILE}],
+    ],
+    boss:{name:'Zephyros',hp:1200,atk:28,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,
+          icon:'💨',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
     reward:{label:'Wind Essence',icon:'💨',color:'#87ceeb',key:'windEssence'},
   },
-  fire:{terrain:'#3a1810',border:'#1a0808',accent:'#e74c3c',skyColor:'#0f0504',
-    treePositions:[],waves:[],
-    boss:{name:'Ignar',hp:1600,atk:38,color:'#e74c3c',size:30,x:15*TILE,y:5*TILE,icon:'🔥',chargeInterval:3,chargeTelegraph:0.8,chargeSpeed:560,chargeDist:300},
+  fire:{
+    terrain:'#3a1810', terrainAlt:'#2e1008', terrainAlt2:'#461e12',
+    border:'#1a0808', accent:'#e74c3c', skyColor:'#0f0504',
+    treePositions:[],
+    floorDetail:'fire',
+    waves:[
+      [{type:'ember_imp',x:7*TILE,y:4*TILE},{type:'ember_imp',x:14*TILE,y:3*TILE},
+       {type:'ember_imp',x:21*TILE,y:4*TILE},{type:'ember_imp',x:10*TILE,y:5*TILE}],
+      [{type:'ember_imp',x:5*TILE,y:5*TILE},{type:'ember_imp',x:23*TILE,y:5*TILE},
+       {type:'ember_imp',x:11*TILE,y:4*TILE},{type:'ember_imp',x:18*TILE,y:4*TILE},
+       {type:'lava_crawler',x:14*TILE,y:3*TILE}],
+      [{type:'lava_crawler',x:6*TILE,y:4*TILE},{type:'lava_crawler',x:22*TILE,y:4*TILE},
+       {type:'ember_imp',x:10*TILE,y:5*TILE},{type:'ember_imp',x:18*TILE,y:5*TILE},
+       {type:'lava_crawler',x:14*TILE,y:3*TILE}],
+    ],
+    boss:{name:'Ignar',hp:1600,atk:38,color:'#e74c3c',size:30,x:15*TILE,y:5*TILE,
+          icon:'🔥',chargeInterval:3,chargeTelegraph:0.8,chargeSpeed:560,chargeDist:300},
     reward:{label:'Fire Ember',icon:'🔥',color:'#e74c3c',key:'fireEmber'},
   },
-  ice:{terrain:'#1a2a40',border:'#0a1428',accent:'#3498db',skyColor:'#06080f',
-    treePositions:[],waves:[],
-    boss:{name:'Glacius',hp:1800,atk:35,color:'#85c1e9',size:32,x:15*TILE,y:5*TILE,icon:'❄️',chargeInterval:3.5,chargeTelegraph:1.0,chargeSpeed:460,chargeDist:300},
+  ice:{
+    terrain:'#1a2a40', terrainAlt:'#14223a', terrainAlt2:'#1f3248',
+    border:'#0a1428', accent:'#3498db', skyColor:'#06080f',
+    treePositions:[],
+    floorDetail:'ice',
+    waves:[
+      [{type:'frost_shard',x:7*TILE,y:4*TILE},{type:'frost_shard',x:14*TILE,y:3*TILE},
+       {type:'frost_shard',x:21*TILE,y:4*TILE},{type:'frost_shard',x:10*TILE,y:5*TILE}],
+      [{type:'frost_shard',x:5*TILE,y:5*TILE},{type:'frost_shard',x:23*TILE,y:5*TILE},
+       {type:'ice_witch',x:12*TILE,y:3*TILE},{type:'ice_witch',x:18*TILE,y:3*TILE}],
+      [{type:'frost_shard',x:6*TILE,y:4*TILE},{type:'frost_shard',x:22*TILE,y:4*TILE},
+       {type:'ice_witch',x:10*TILE,y:3*TILE},{type:'ice_witch',x:18*TILE,y:3*TILE},
+       {type:'frost_shard',x:14*TILE,y:5*TILE}],
+    ],
+    boss:{name:'Glacius',hp:1800,atk:35,color:'#85c1e9',size:32,x:15*TILE,y:5*TILE,
+          icon:'❄️',chargeInterval:3.5,chargeTelegraph:1.0,chargeSpeed:460,chargeDist:300},
     reward:{label:'Glacial Shard',icon:'❄️',color:'#85c1e9',key:'glacialShard'},
   },
-  ocean:{terrain:'#0e3a30',border:'#06181a',accent:'#1abc9c',skyColor:'#040d0e',
-    treePositions:[],waves:[],
-    boss:{name:'Nepthar',hp:1600,atk:34,color:'#1abc9c',size:30,x:15*TILE,y:5*TILE,icon:'🌊',chargeInterval:3,chargeTelegraph:0.9,chargeSpeed:480,chargeDist:290},
+  ocean:{
+    terrain:'#0e3a30', terrainAlt:'#0a2e26', terrainAlt2:'#114438',
+    border:'#06181a', accent:'#1abc9c', skyColor:'#040d0e',
+    treePositions:[],
+    floorDetail:'ocean',
+    waves:[
+      [{type:'sea_sprite',x:7*TILE,y:4*TILE},{type:'sea_sprite',x:14*TILE,y:3*TILE},
+       {type:'sea_sprite',x:21*TILE,y:4*TILE},{type:'sea_sprite',x:10*TILE,y:5*TILE}],
+      [{type:'sea_sprite',x:5*TILE,y:5*TILE},{type:'sea_sprite',x:23*TILE,y:5*TILE},
+       {type:'forest_wraith',x:12*TILE,y:3*TILE},{type:'forest_wraith',x:18*TILE,y:3*TILE},
+       {type:'sea_sprite',x:15*TILE,y:4*TILE}],
+      [{type:'sea_sprite',x:4*TILE,y:4*TILE},{type:'sea_sprite',x:24*TILE,y:4*TILE},
+       {type:'sea_sprite',x:9*TILE,y:3*TILE},{type:'sea_sprite',x:19*TILE,y:3*TILE},
+       {type:'forest_wraith',x:14*TILE,y:3*TILE},{type:'forest_wraith',x:11*TILE,y:5*TILE}],
+    ],
+    boss:{name:'Nepthar',hp:1600,atk:34,color:'#1abc9c',size:30,x:15*TILE,y:5*TILE,
+          icon:'🌊',chargeInterval:3,chargeTelegraph:0.9,chargeSpeed:480,chargeDist:290},
     reward:{label:'Sea Crystal',icon:'🌊',color:'#1abc9c',key:'seaCrystal'},
   },
-  storm:{terrain:'#18103a',border:'#0a0820',accent:'#9b59b6',skyColor:'#06050f',
-    treePositions:[],waves:[],
-    boss:{name:'Vortus',hp:2000,atk:42,color:'#9b59b6',size:32,x:15*TILE,y:5*TILE,icon:'⚡',chargeInterval:2,chargeTelegraph:0.6,chargeSpeed:700,chargeDist:340},
+  storm:{
+    terrain:'#18103a', terrainAlt:'#120c2e', terrainAlt2:'#1e1444',
+    border:'#0a0820', accent:'#9b59b6', skyColor:'#06050f',
+    treePositions:[],
+    floorDetail:'storm',
+    waves:[
+      [{type:'storm_wisp',x:7*TILE,y:4*TILE},{type:'storm_wisp',x:14*TILE,y:3*TILE},
+       {type:'storm_wisp',x:21*TILE,y:4*TILE},{type:'storm_wisp',x:10*TILE,y:5*TILE}],
+      [{type:'storm_wisp',x:5*TILE,y:5*TILE},{type:'storm_wisp',x:23*TILE,y:5*TILE},
+       {type:'storm_wisp',x:12*TILE,y:3*TILE},{type:'forest_wraith',x:16*TILE,y:3*TILE},
+       {type:'storm_wisp',x:19*TILE,y:4*TILE}],
+      [{type:'storm_wisp',x:6*TILE,y:4*TILE},{type:'storm_wisp',x:22*TILE,y:4*TILE},
+       {type:'forest_wraith',x:10*TILE,y:3*TILE},{type:'forest_wraith',x:18*TILE,y:3*TILE},
+       {type:'storm_wisp',x:14*TILE,y:5*TILE},{type:'storm_wisp',x:11*TILE,y:4*TILE}],
+    ],
+    boss:{name:'Vortus',hp:2000,atk:42,color:'#9b59b6',size:32,x:15*TILE,y:5*TILE,
+          icon:'⚡',chargeInterval:2,chargeTelegraph:0.6,chargeSpeed:700,chargeDist:340},
     reward:{label:'Storm Core',icon:'⚡',color:'#9b59b6',key:'stormCore'},
   },
-  shadow:{terrain:'#10101e',border:'#060610',accent:'#6c3483',skyColor:'#040408',
-    treePositions:[],waves:[],
-    boss:{name:'Umbris',hp:2200,atk:48,color:'#8e44ad',size:34,x:15*TILE,y:5*TILE,icon:'🌑',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:580,chargeDist:310},
+  shadow:{
+    terrain:'#10101e', terrainAlt:'#0c0c18', terrainAlt2:'#141422',
+    border:'#060610', accent:'#6c3483', skyColor:'#040408',
+    treePositions:[],
+    floorDetail:'shadow',
+    waves:[
+      [{type:'shade',x:7*TILE,y:4*TILE},{type:'shade',x:14*TILE,y:3*TILE},
+       {type:'shade',x:21*TILE,y:4*TILE},{type:'shade',x:10*TILE,y:5*TILE}],
+      [{type:'shade',x:5*TILE,y:5*TILE},{type:'shade',x:23*TILE,y:5*TILE},
+       {type:'shadow_stalker',x:12*TILE,y:3*TILE},{type:'shadow_stalker',x:18*TILE,y:3*TILE}],
+      [{type:'shade',x:6*TILE,y:4*TILE},{type:'shade',x:22*TILE,y:4*TILE},
+       {type:'shadow_stalker',x:9*TILE,y:3*TILE},{type:'shadow_stalker',x:19*TILE,y:3*TILE},
+       {type:'shade',x:14*TILE,y:5*TILE},{type:'shade',x:11*TILE,y:4*TILE}],
+    ],
+    boss:{name:'Umbris',hp:2200,atk:48,color:'#8e44ad',size:34,x:15*TILE,y:5*TILE,
+          icon:'🌑',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:580,chargeDist:310},
     reward:{label:'Shadow Veil',icon:'🌑',color:'#8e44ad',key:'shadowVeil'},
   },
-  lava:{terrain:'#2a1008',border:'#120604',accent:'#e67e22',skyColor:'#0a0402',
-    treePositions:[],waves:[],
-    boss:{name:'Magmara',hp:2400,atk:55,color:'#e67e22',size:36,x:15*TILE,y:5*TILE,icon:'🌋',chargeInterval:3,chargeTelegraph:1.0,chargeSpeed:520,chargeDist:280},
+  lava:{
+    terrain:'#2a1008', terrainAlt:'#220c04', terrainAlt2:'#32140a',
+    border:'#120604', accent:'#e67e22', skyColor:'#0a0402',
+    treePositions:[],
+    floorDetail:'lava',
+    waves:[
+      [{type:'lava_crawler',x:7*TILE,y:4*TILE},{type:'lava_crawler',x:14*TILE,y:3*TILE},
+       {type:'lava_crawler',x:21*TILE,y:4*TILE},{type:'ember_imp',x:10*TILE,y:5*TILE},
+       {type:'ember_imp',x:18*TILE,y:5*TILE}],
+      [{type:'lava_crawler',x:5*TILE,y:4*TILE},{type:'lava_crawler',x:23*TILE,y:4*TILE},
+       {type:'lava_crawler',x:14*TILE,y:3*TILE},{type:'ember_imp',x:9*TILE,y:5*TILE},
+       {type:'ember_imp',x:19*TILE,y:5*TILE},{type:'lava_crawler',x:11*TILE,y:4*TILE}],
+      [{type:'lava_crawler',x:6*TILE,y:3*TILE},{type:'lava_crawler',x:22*TILE,y:3*TILE},
+       {type:'lava_crawler',x:12*TILE,y:4*TILE},{type:'lava_crawler',x:18*TILE,y:4*TILE},
+       {type:'ember_imp',x:8*TILE,y:5*TILE},{type:'ember_imp',x:20*TILE,y:5*TILE},
+       {type:'lava_crawler',x:15*TILE,y:3*TILE}],
+    ],
+    boss:{name:'Magmara',hp:2400,atk:55,color:'#e67e22',size:36,x:15*TILE,y:5*TILE,
+          icon:'🌋',chargeInterval:3,chargeTelegraph:1.0,chargeSpeed:520,chargeDist:280},
     reward:{label:'Lava Core',icon:'🌋',color:'#e67e22',key:'lavaCore'},
   },
-  void:{terrain:'#080808',border:'#020202',accent:'#f1c40f',skyColor:'#030303',
-    treePositions:[],waves:[],
-    boss:{name:'Nihilus',hp:2800,atk:65,color:'#f1c40f',size:38,x:15*TILE,y:5*TILE,icon:'✨',chargeInterval:2,chargeTelegraph:0.5,chargeSpeed:760,chargeDist:360},
+  void:{
+    terrain:'#080808', terrainAlt:'#060606', terrainAlt2:'#0a0a0c',
+    border:'#020202', accent:'#f1c40f', skyColor:'#030303',
+    treePositions:[],
+    floorDetail:'void',
+    waves:[
+      [{type:'void_wraith',x:7*TILE,y:4*TILE},{type:'void_wraith',x:14*TILE,y:3*TILE},
+       {type:'void_wraith',x:21*TILE,y:4*TILE},{type:'shade',x:10*TILE,y:5*TILE},
+       {type:'shade',x:18*TILE,y:5*TILE}],
+      [{type:'void_wraith',x:5*TILE,y:4*TILE},{type:'void_wraith',x:23*TILE,y:4*TILE},
+       {type:'void_wraith',x:12*TILE,y:3*TILE},{type:'shadow_stalker',x:16*TILE,y:3*TILE},
+       {type:'shade',x:8*TILE,y:5*TILE},{type:'shade',x:20*TILE,y:5*TILE}],
+      [{type:'void_wraith',x:6*TILE,y:3*TILE},{type:'void_wraith',x:22*TILE,y:3*TILE},
+       {type:'void_wraith',x:10*TILE,y:4*TILE},{type:'void_wraith',x:18*TILE,y:4*TILE},
+       {type:'shadow_stalker',x:8*TILE,y:5*TILE},{type:'shadow_stalker',x:20*TILE,y:5*TILE},
+       {type:'shade',x:14*TILE,y:6*TILE}],
+    ],
+    boss:{name:'Nihilus',hp:2800,atk:65,color:'#f1c40f',size:38,x:15*TILE,y:5*TILE,
+          icon:'✨',chargeInterval:2,chargeTelegraph:0.5,chargeSpeed:760,chargeDist:360},
     reward:{label:'Void Fragment',icon:'✨',color:'#f1c40f',key:'voidFragment'},
   },
 };
 
+// ── Enemy stats for all types ────────────────────────────────────────────────
 const ENEMY_STATS = {
-  thornling:     {hp:30,atk:4,def:0,speed:145,aggroRange:440,attackRange:38,attackCooldown:1.1,color:'#7ed321',size:12,xp:8 },
-  forest_wraith: {hp:50,atk:6,def:1,speed:72, aggroRange:520,attackRange:240,attackCooldown:2.4,color:'#1abc9c',size:16,xp:14,ranged:true,projColor:'#2ecc71'},
+  thornling:      {hp:30, atk:4,  def:0, speed:145, aggroRange:440, attackRange:38,  attackCooldown:1.1, color:'#7ed321', size:12, xp:8 },
+  forest_wraith:  {hp:50, atk:6,  def:1, speed:72,  aggroRange:520, attackRange:240, attackCooldown:2.4, color:'#1abc9c', size:16, xp:14, ranged:true, projColor:'#2ecc71'},
+  stone_golem:    {hp:120,atk:14, def:4, speed:80,  aggroRange:380, attackRange:48,  attackCooldown:1.8, color:'#95a5a6', size:18, xp:22},
+  wind_sprite:    {hp:35, atk:7,  def:0, speed:200, aggroRange:480, attackRange:200, attackCooldown:1.8, color:'#87ceeb', size:12, xp:12, ranged:true, projColor:'#87ceeb'},
+  ember_imp:      {hp:45, atk:10, def:0, speed:165, aggroRange:420, attackRange:180, attackCooldown:1.6, color:'#e74c3c', size:13, xp:16, ranged:true, projColor:'#e67e22'},
+  lava_crawler:   {hp:90, atk:18, def:3, speed:95,  aggroRange:360, attackRange:50,  attackCooldown:1.4, color:'#e67e22', size:17, xp:24},
+  frost_shard:    {hp:40, atk:8,  def:1, speed:130, aggroRange:400, attackRange:44,  attackCooldown:1.2, color:'#85c1e9', size:13, xp:14},
+  ice_witch:      {hp:65, atk:12, def:1, speed:70,  aggroRange:500, attackRange:260, attackCooldown:2.2, color:'#3498db', size:15, xp:20, ranged:true, projColor:'#85c1e9'},
+  sea_sprite:     {hp:38, atk:8,  def:0, speed:155, aggroRange:440, attackRange:200, attackCooldown:2.0, color:'#1abc9c', size:12, xp:13, ranged:true, projColor:'#1abc9c'},
+  storm_wisp:     {hp:42, atk:9,  def:0, speed:220, aggroRange:500, attackRange:220, attackCooldown:1.5, color:'#9b59b6', size:12, xp:15, ranged:true, projColor:'#9b59b6'},
+  shade:          {hp:55, atk:11, def:2, speed:140, aggroRange:460, attackRange:42,  attackCooldown:1.0, color:'#6c3483', size:14, xp:18},
+  shadow_stalker: {hp:80, atk:16, def:2, speed:110, aggroRange:480, attackRange:220, attackCooldown:2.0, color:'#8e44ad', size:16, xp:22, ranged:true, projColor:'#8e44ad'},
+  void_wraith:    {hp:70, atk:14, def:1, speed:130, aggroRange:500, attackRange:240, attackCooldown:1.8, color:'#f1c40f', size:15, xp:20, ranged:true, projColor:'#f1c40f'},
 };
 
 function dist(ax,ay,bx,by){ return Math.sqrt((ax-bx)**2+(ay-by)**2); }
 function clp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 
-function arenaTile(tx,ty,cfg){
-  if(tx<=0||tx>=ARENA_W-1||ty<=0||ty>=ARENA_H-1) return cfg.border;
-  for(const [ttx,tty] of (cfg.treePositions||[])){
-    if(Math.abs(tx-ttx)<=1&&Math.abs(ty-tty)<=1) return cfg.border;
+// ── Per-realm floor detail renderer ─────────────────────────────────────────
+function drawFloorDetail(ctx, cfg, wx, wy, camX, camY, W, H, t) {
+  const det = cfg.floorDetail;
+  const txS = Math.max(0, Math.floor((camX - W/2) / TILE));
+  const txE = Math.min(ARENA_W, Math.ceil((camX + W/2) / TILE) + 1);
+  const tyS = Math.max(0, Math.floor((camY - H/2) / TILE));
+  const tyE = Math.min(ARENA_H, Math.ceil((camY + H/2) / TILE) + 1);
+
+  for (let ty = tyS; ty < tyE; ty++) {
+    for (let tx = txS; tx < txE; tx++) {
+      const h = tileHash(tx, ty);
+      const sx = wx(tx * TILE + 16);
+      const sy = wy(ty * TILE + 16);
+      const isBorder = tx <= 0 || tx >= ARENA_W-1 || ty <= 0 || ty >= ARENA_H-1;
+      if (isBorder) continue;
+      // Check tree positions
+      let isTree = false;
+      for (const [ttx, tty] of (cfg.treePositions || [])) {
+        if (Math.abs(tx - ttx) <= 1 && Math.abs(ty - tty) <= 1) { isTree = true; break; }
+      }
+      if (isTree) continue;
+
+      if (det === 'forest') {
+        // Grass tufts
+        if (h < 0.18) {
+          ctx.strokeStyle = h < 0.09 ? '#2ecc71' : '#27ae60';
+          ctx.lineWidth = 1.5; ctx.globalAlpha = 0.55;
+          const bx = wx(tx * TILE + (h * 28 | 0));
+          const by = wy(ty * TILE + (tileHash(tx+1,ty) * 28 | 0));
+          ctx.beginPath(); ctx.moveTo(bx - 3, by + 4); ctx.lineTo(bx, by - 5); ctx.lineTo(bx + 3, by + 4); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // Flower dots
+        if (h > 0.92) {
+          ctx.globalAlpha = 0.6; ctx.fillStyle = h > 0.96 ? '#f1c40f' : '#ffffff';
+          ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        // Root lines near border trees
+        if (h > 0.78 && h < 0.82) {
+          ctx.strokeStyle = '#0a2a0d'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.3;
+          ctx.beginPath(); ctx.moveTo(sx - 6, sy); ctx.lineTo(sx + 6, sy + 4); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'earth') {
+        // Cracked earth lines
+        if (h < 0.12) {
+          ctx.strokeStyle = '#2a1e10'; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(sx - 8, sy - 2); ctx.lineTo(sx + 5, sy + 3);
+          ctx.moveTo(sx + 4, sy + 2); ctx.lineTo(sx + 10, sy - 4);
+          ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        // Rock pebbles
+        if (h > 0.86) {
+          ctx.globalAlpha = 0.5; ctx.fillStyle = '#6b5a45';
+          ctx.beginPath(); ctx.ellipse(sx, sy, 4, 3, h*Math.PI, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'fire') {
+        // Lava crack glow
+        if (h < 0.10) {
+          const glow = 0.3 + Math.sin(t * 2.5 + h * 10) * 0.15;
+          ctx.globalAlpha = glow; ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(sx - 7, sy); ctx.lineTo(sx + 7, sy + 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // Ember sparks
+        if (h > 0.93) {
+          const spark = 0.4 + Math.sin(t * 4 + h * 20) * 0.3;
+          ctx.globalAlpha = spark; ctx.fillStyle = h > 0.97 ? '#f1c40f' : '#e67e22';
+          ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'ice') {
+        // Frost crystal lines
+        if (h < 0.14) {
+          ctx.globalAlpha = 0.35; ctx.strokeStyle = '#85c1e9'; ctx.lineWidth = 1;
+          const ang = h * Math.PI * 3;
+          ctx.beginPath();
+          ctx.moveTo(sx + Math.cos(ang) * 6, sy + Math.sin(ang) * 6);
+          ctx.lineTo(sx - Math.cos(ang) * 6, sy - Math.sin(ang) * 6);
+          ctx.moveTo(sx + Math.cos(ang + 1.05) * 4, sy + Math.sin(ang + 1.05) * 4);
+          ctx.lineTo(sx - Math.cos(ang + 1.05) * 4, sy - Math.sin(ang + 1.05) * 4);
+          ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        // Snow sparkle
+        if (h > 0.90) {
+          ctx.globalAlpha = 0.5; ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'ocean') {
+        // Wave ripples
+        if (h < 0.15) {
+          const wave = 0.25 + Math.sin(t * 1.5 + h * 8) * 0.12;
+          ctx.globalAlpha = wave; ctx.strokeStyle = '#1abc9c'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // Bubble dots
+        if (h > 0.91) {
+          ctx.globalAlpha = 0.4; ctx.strokeStyle = '#1abc9c'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(sx, sy, 2.5, 0, Math.PI*2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'storm') {
+        // Lightning scar lines
+        if (h < 0.08) {
+          ctx.globalAlpha = 0.4; ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(sx - 5, sy - 6); ctx.lineTo(sx + 2, sy); ctx.lineTo(sx - 2, sy + 6); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // Electric sparks
+        if (h > 0.94) {
+          const spark = 0.4 + Math.sin(t * 8 + h * 30) * 0.35;
+          ctx.globalAlpha = spark; ctx.fillStyle = '#f1c40f';
+          ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'shadow') {
+        // Dark rune circles
+        if (h < 0.06) {
+          ctx.globalAlpha = 0.3; ctx.strokeStyle = '#6c3483'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI*2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI*2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // Void wisps
+        if (h > 0.93) {
+          const wisp = 0.2 + Math.sin(t * 2 + h * 15) * 0.15;
+          ctx.globalAlpha = wisp; ctx.fillStyle = '#8e44ad';
+          ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'lava') {
+        // Lava pools
+        if (h < 0.07) {
+          const pulse = 0.4 + Math.sin(t * 1.8 + h * 12) * 0.2;
+          ctx.globalAlpha = pulse; ctx.fillStyle = '#e67e22';
+          ctx.beginPath(); ctx.ellipse(sx, sy, 7, 5, h * Math.PI, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        // Ash patches
+        if (h > 0.87) {
+          ctx.globalAlpha = 0.3; ctx.fillStyle = '#333';
+          ctx.beginPath(); ctx.ellipse(sx, sy, 5, 4, h * Math.PI, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'wind') {
+        // Wind streak lines
+        if (h < 0.12) {
+          const drift = Math.sin(t * 1.2 + h * 6) * 3;
+          ctx.globalAlpha = 0.2; ctx.strokeStyle = '#87ceeb'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(sx - 10 + drift, sy); ctx.lineTo(sx + 10 + drift, sy - 1); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      } else if (det === 'void') {
+        // Star field
+        if (h > 0.90) {
+          const twinkle = 0.4 + Math.sin(t * 3 + h * 25) * 0.35;
+          ctx.globalAlpha = twinkle; ctx.fillStyle = h > 0.96 ? '#f1c40f' : '#ffffff';
+          ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        // Void cracks
+        if (h < 0.04) {
+          ctx.globalAlpha = 0.25; ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(sx - 6, sy - 3); ctx.lineTo(sx + 6, sy + 3); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
   }
+}
+
+// ── Arena tile color (with variation) ────────────────────────────────────────
+function arenaTile(tx, ty, cfg) {
+  if (tx <= 0 || tx >= ARENA_W-1 || ty <= 0 || ty >= ARENA_H-1) return cfg.border;
+  for (const [ttx, tty] of (cfg.treePositions || [])) {
+    if (Math.abs(tx - ttx) <= 1 && Math.abs(ty - tty) <= 1) return cfg.border;
+  }
+  const h = tileHash(tx, ty);
+  if (h < 0.15) return cfg.terrainAlt || cfg.terrain;
+  if (h > 0.85) return cfg.terrainAlt2 || cfg.terrain;
   return cfg.terrain;
 }
 
-const ABILITY_COLORS={
-  whirlwind:{primary:'#4a90e2',secondary:'#7ab3e0'},
-  ground_slam:{primary:'#c0392b',secondary:'#e67e22'},
-  power_shot:{primary:'#FCD34D',secondary:'#F97316'},
-  flurry:{primary:'#f39c12',secondary:'#fff'},
-  arcane_burst:{primary:'#9b59b6',secondary:'#d4af37'},
+// ── Tree / pillar art per realm ────────────────────────────────────────────
+function drawArenaTree(ctx, sx, sy, cfg) {
+  const det = cfg.floorDetail;
+  ctx.save();
+  if (det === 'forest' || det === 'wind') {
+    // Trunk
+    ctx.fillStyle = '#5c3a1e'; ctx.fillRect(sx - 5, sy + 4, 10, 16);
+    // Canopy layers
+    ctx.fillStyle = '#1a5e20';
+    ctx.beginPath(); ctx.arc(sx, sy - 2, 17, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1e7026';
+    ctx.beginPath(); ctx.arc(sx - 4, sy - 6, 11, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 5, sy - 5, 10, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#25892e';
+    ctx.beginPath(); ctx.arc(sx, sy - 10, 9, 0, Math.PI*2); ctx.fill();
+  } else if (det === 'earth') {
+    // Stone pillar
+    ctx.fillStyle = '#6b5a45';
+    ctx.fillRect(sx - 8, sy - 20, 16, 36);
+    ctx.fillStyle = '#8a7260';
+    ctx.fillRect(sx - 10, sy - 24, 20, 8);
+    ctx.fillRect(sx - 10, sy + 10, 20, 6);
+    // Cracks
+    ctx.strokeStyle = '#3d2e1f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(sx - 2, sy - 16); ctx.lineTo(sx + 3, sy + 4); ctx.stroke();
+  } else if (det === 'ice') {
+    // Ice spire
+    ctx.fillStyle = '#85c1e9';
+    ctx.beginPath(); ctx.moveTo(sx, sy - 28); ctx.lineTo(sx - 8, sy + 8); ctx.lineTo(sx + 8, sy + 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#aed6f1';
+    ctx.beginPath(); ctx.moveTo(sx, sy - 18); ctx.lineTo(sx - 4, sy); ctx.lineTo(sx + 4, sy); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.4; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx - 4, sy - 10); ctx.lineTo(sx + 4, sy); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (det === 'shadow' || det === 'void') {
+    // Dark obelisk
+    ctx.fillStyle = '#1a0a2e';
+    ctx.fillRect(sx - 6, sy - 28, 12, 40);
+    ctx.fillStyle = '#2d1b4e';
+    ctx.fillRect(sx - 8, sy + 10, 16, 4);
+    ctx.fillRect(sx - 8, sy - 30, 16, 6);
+    // Glow runes
+    ctx.globalAlpha = 0.5; ctx.fillStyle = det === 'void' ? '#f1c40f' : '#8e44ad';
+    ctx.beginPath(); ctx.arc(sx, sy - 10, 3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (det === 'lava' || det === 'fire') {
+    // Scorched pillar
+    ctx.fillStyle = '#1a0a00';
+    ctx.fillRect(sx - 6, sy - 22, 12, 36);
+    ctx.fillStyle = '#2d1200';
+    ctx.fillRect(sx - 8, sy - 26, 16, 7);
+    ctx.fillRect(sx - 8, sy + 8, 16, 5);
+    // Ember glow
+    ctx.globalAlpha = 0.4; ctx.fillStyle = '#e67e22';
+    ctx.beginPath(); ctx.arc(sx, sy - 18, 3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (det === 'storm') {
+    // Cracked stone with lightning
+    ctx.fillStyle = '#18103a';
+    ctx.fillRect(sx - 7, sy - 24, 14, 38);
+    ctx.fillStyle = '#9b59b6';
+    ctx.fillRect(sx - 9, sy - 28, 18, 6);
+    ctx.globalAlpha = 0.6; ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(sx, sy - 22); ctx.lineTo(sx + 4, sy - 10); ctx.lineTo(sx - 2, sy); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (det === 'ocean') {
+    // Coral pillar
+    ctx.fillStyle = '#0e5a46';
+    ctx.fillRect(sx - 5, sy - 16, 10, 28);
+    ctx.fillStyle = '#1abc9c';
+    ctx.beginPath(); ctx.arc(sx, sy - 18, 8, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx - 6, sy - 12, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 6, sy - 12, 5, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Enemy body art ───────────────────────────────────────────────────────────
+function drawEnemySprite(ctx, e, ex, ey) {
+  ctx.save();
+  const s = e.size;
+  // Shadow
+  ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(ex, ey + s + 2, s * 0.9, s * 0.35, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  const type = e.type || 'thornling';
+  if (type === 'thornling') {
+    // Round green goblin-like body
+    ctx.fillStyle = '#5a9e20'; ctx.beginPath(); ctx.arc(ex, ey, s, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#7ed321'; ctx.beginPath(); ctx.arc(ex, ey - s * 0.2, s * 0.7, 0, Math.PI*2); ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.1, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.1, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.1, s*0.12, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.1, s*0.12, 0, Math.PI*2); ctx.fill();
+    // Spike ears
+    ctx.fillStyle = '#5a9e20';
+    ctx.beginPath(); ctx.moveTo(ex - s*0.7, ey - s*0.5); ctx.lineTo(ex - s*1.0, ey - s*1.0); ctx.lineTo(ex - s*0.3, ey - s*0.7); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(ex + s*0.7, ey - s*0.5); ctx.lineTo(ex + s*1.0, ey - s*1.0); ctx.lineTo(ex + s*0.3, ey - s*0.7); ctx.closePath(); ctx.fill();
+  } else if (type === 'forest_wraith' || type === 'sea_sprite' || type === 'wind_sprite' || type === 'storm_wisp') {
+    // Wispy ghost form
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(ex, ey, s, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.4; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(ex - s*0.2, ey - s*0.3, s * 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Glowing eyes
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.1, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.1, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.1, s*0.14, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.1, s*0.14, 0, Math.PI*2); ctx.fill();
+    // Wispy tail
+    ctx.globalAlpha = 0.3; ctx.fillStyle = e.color;
+    ctx.beginPath(); ctx.arc(ex, ey + s * 0.8, s * 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (type === 'stone_golem') {
+    // Blocky square body
+    ctx.fillStyle = '#7f8c8d'; ctx.fillRect(ex - s, ey - s, s*2, s*2);
+    ctx.fillStyle = '#95a5a6'; ctx.fillRect(ex - s*0.7, ey - s*0.8, s*1.4, s*0.8);
+    // Cracks
+    ctx.strokeStyle = '#4a5568'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(ex - s*0.2, ey - s*0.6); ctx.lineTo(ex + s*0.4, ey); ctx.stroke();
+    // Glowing eyes
+    ctx.fillStyle = '#f39c12'; ctx.beginPath(); ctx.arc(ex - s*0.35, ey - s*0.35, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.35, ey - s*0.35, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+  } else if (type === 'ember_imp' || type === 'lava_crawler') {
+    ctx.fillStyle = type === 'lava_crawler' ? '#c0392b' : '#e74c3c';
+    ctx.beginPath(); ctx.arc(ex, ey, s, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(ex, ey - s*0.2, s*0.65, 0, Math.PI*2); ctx.fill();
+    // Flame eyes
+    ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.15, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.15, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.15, s*0.1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.15, s*0.1, 0, Math.PI*2); ctx.fill();
+    if (type === 'ember_imp') {
+      // Horns
+      ctx.fillStyle = '#922b21';
+      ctx.beginPath(); ctx.moveTo(ex - s*0.5, ey - s*0.7); ctx.lineTo(ex - s*0.8, ey - s*1.2); ctx.lineTo(ex - s*0.2, ey - s*0.8); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(ex + s*0.5, ey - s*0.7); ctx.lineTo(ex + s*0.8, ey - s*1.2); ctx.lineTo(ex + s*0.2, ey - s*0.8); ctx.closePath(); ctx.fill();
+    }
+  } else if (type === 'frost_shard' || type === 'ice_witch') {
+    ctx.fillStyle = type === 'ice_witch' ? '#2980b9' : '#85c1e9';
+    ctx.beginPath(); ctx.arc(ex, ey, s, 0, Math.PI*2); ctx.fill();
+    // Ice crystal overlay
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(a) * s, ey + Math.sin(a) * s); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.15, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.15, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2980b9'; ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.15, s*0.12, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.15, s*0.12, 0, Math.PI*2); ctx.fill();
+  } else if (type === 'shade' || type === 'shadow_stalker' || type === 'void_wraith') {
+    // Dark smoke form
+    ctx.globalAlpha = 0.8; ctx.fillStyle = e.color;
+    ctx.beginPath(); ctx.arc(ex, ey, s, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey + s*0.2, s*0.6, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Glowing eyes
+    ctx.fillStyle = type === 'void_wraith' ? '#f1c40f' : '#8e44ad';
+    ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.1, s*0.28, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.1, s*0.28, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.arc(ex - s*0.3, ey - s*0.1, s*0.12, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s*0.3, ey - s*0.1, s*0.12, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else {
+    // Fallback circle
+    ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(ex, ey, s, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── Boss sprite art ─────────────────────────────────────────────────────────
+function drawBossSprite(ctx, b, bx, by, phase, t) {
+  ctx.save();
+  const s = b.size;
+  // Shadow
+  ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(bx, by + s + 4, s * 1.1, s * 0.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Pulsing glow
+  const pulse = 0.5 + Math.sin(t * 2.5) * 0.3;
+  ctx.globalAlpha = pulse * 0.35; ctx.fillStyle = b.color;
+  ctx.beginPath(); ctx.arc(bx, by, s + 16, 0, Math.PI*2); ctx.fill();
+  if (phase === 2) {
+    ctx.globalAlpha = pulse * 0.2; ctx.fillStyle = '#e74c3c';
+    ctx.beginPath(); ctx.arc(bx, by, s + 28, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Body
+  ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill();
+  // Highlight
+  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.15;
+  ctx.beginPath(); ctx.arc(bx - s*0.25, by - s*0.3, s * 0.55, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // Outline
+  ctx.strokeStyle = phase === 2 ? '#e74c3c' : '#ffffff'; ctx.lineWidth = phase === 2 ? 4 : 3;
+  ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.stroke();
+  // Phase 2 inner ring
+  if (phase === 2) {
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(bx, by, s - 8, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // Icon
+  ctx.font = `${Math.round(s * 0.9)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(b.icon, bx, by + 2);
+  ctx.textBaseline = 'alphabetic';
+  // Name label
+  ctx.fillStyle = b.color; ctx.font = `bold 9px sans-serif`;
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+  ctx.strokeText(b.name.toUpperCase(), bx, by - s - 6);
+  ctx.fillText(b.name.toUpperCase(), bx, by - s - 6);
+  ctx.restore();
+}
+
+const ABILITY_COLORS = {
+  whirlwind:    {primary:'#4a90e2', secondary:'#7ab3e0'},
+  ground_slam:  {primary:'#c0392b', secondary:'#e67e22'},
+  power_shot:   {primary:'#FCD34D', secondary:'#F97316'},
+  flurry:       {primary:'#f39c12', secondary:'#fff'},
+  arcane_burst: {primary:'#9b59b6', secondary:'#d4af37'},
 };
 
 export default function RealmArenaCanvas({ realmId, onFlee }) {
@@ -109,22 +661,22 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     projectiles:  [],
     boss:         null,
     bossPhase:    1,
-    bossCharge:   null,   // { tx, ty, speed, warning, warningTimer, active }
     bossChargeTimer: 0,
     bossSpawnTimer: 0,
-    wave:         0,      // 0=not started, 1,2=waves, 'boss'=boss
+    wave:         0,
     victory:      false,
-    totalDmgDealt: 0,
     victoryTimer: 0,
-    abilityEffect:  null,
-    abilityCooldown:0,
-    projectiles:  [],
+    victoryBannerTimer: 0,
+    victoryPortal: null,
+    abilityEffect: null,
+    abilityCooldown: 0,
     floats:       [],
     keys:         {},
     prevSpace:    false,
     prevAbility:  false,
     attackFlash:  null,
     lastMoveDir:  {x:0,y:1},
+    t:            0,
     W:390, H:844,
   }).current;
 
@@ -134,7 +686,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
   const spawnWave=(waveIdx)=>{
     const defs=cfg.waves[waveIdx];
-    if(!defs) return;
+    if(!defs||!defs.length) return;
     G.enemies=defs.map(d=>{
       const s=ENEMY_STATS[d.type]||ENEMY_STATS.thornling;
       return{...d,type:d.type,hp:s.hp,maxHp:s.hp,atk:s.atk,def:s.def,speed:s.speed,
@@ -146,11 +698,10 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
   const spawnBoss=()=>{
     const b=cfg.boss;
-    const store=useGameStore.getState();
-    const scaledHp=b.hp; // Fixed HP — balanced per realm difficulty
-    G.boss={ ...b, hp:scaledHp, maxHp:scaledHp, alive:true,
+    G.boss={ ...b, hp:b.hp, maxHp:b.hp, alive:true,
       attackTimer:0, chargeTimer:b.chargeInterval, chargeState:'idle',
-      telegraphTimer:0, chargeVx:0, chargeVy:0, spawnTimer:10 };
+      telegraphTimer:0, chargeVx:0, chargeVy:0, spawnTimer:10,
+      patrolDir:1, patrolTimer:0 };
     G.bossChargeTimer=b.chargeInterval;
     G.bossSpawnTimer=8;
   };
@@ -169,13 +720,11 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     store.recordAbilityFired(ability.cooldown);
     addFloat(p.x,p.y-55,ability.name,'#d4af37',true);
     const allTargets=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat();
-
     if(ability.type==='aoe'||ability.type==='elemental_aoe'){
       allTargets.forEach(e=>{
         if(!e.alive||dist(p.x,p.y,e.x,e.y)>ability.range) return;
         const dmg=Math.max(1,Math.round(store.playerATK*ability.damageMult));
         e.hp-=dmg;
-        if(ability.stunDuration&&e.stunTimer!==undefined) e.stunTimer=ability.stunDuration;
         addFloat(e.x,e.y-24,`-${dmg}`,'#ff4444');
         if(e.hp<=0){ if(e===G.boss){G.boss.alive=false;}else killEnemy(e,store); }
       });
@@ -212,8 +761,14 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       G.W=canvas.width; G.H=canvas.height; },50); };
     resize(); window.addEventListener('resize',resize);
 
-    // Start wave 1
-    spawnWave(0); G.wave=1;
+    // ── Wave start logic ──────────────────────────────────────────────
+    if (cfg.waves.length > 0) {
+      spawnWave(0); G.wave = 1;
+    } else {
+      // No waves — go straight to boss
+      G.wave = 'boss'; spawnBoss();
+      addFloat(15*TILE, 20*TILE, '⚠ BOSS INCOMING!', '#e74c3c', true);
+    }
 
     const kd=e=>{G.keys[e.code]=true;}; const ku=e=>{G.keys[e.code]=false;};
     window.addEventListener('keydown',kd); window.addEventListener('keyup',ku);
@@ -222,7 +777,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     const loop=ts=>{
       const dt=Math.min((ts-lastTimeRef.current)/1000,0.05);
       lastTimeRef.current=ts;
-      if(dt>0&&G.W>100){ update(dt,ctx); render(ctx); }
+      if(dt>0&&G.W>100){ update(dt); render(ctx); }
       rafRef.current=requestAnimationFrame(loop);
     };
     rafRef.current=requestAnimationFrame(loop);
@@ -232,7 +787,10 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
   },[]);
 
   function update(dt){
-    if(G.victory) return;
+    if(G.victory && G.victoryBannerTimer <= 0) {
+      // After banner fades, only check for portal walk-in — still update time
+    }
+    G.t += dt;
     const store=useGameStore.getState();
     const p=G.player;
     if(G.abilityEffect){G.abilityEffect.timer-=dt;if(G.abilityEffect.timer<=0)G.abilityEffect=null;}
@@ -253,7 +811,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     p.y=clp(p.y+vy*spd*dt,TILE*2,WH-TILE*2);
 
     // Camera
-    G.camera.x+=( p.x-G.camera.x)*Math.min(1,8*dt);
+    G.camera.x+=(p.x-G.camera.x)*Math.min(1,8*dt);
     G.camera.y+=(p.y-G.camera.y)*Math.min(1,8*dt);
     G.camera.x=clp(G.camera.x,G.W/2,WW-G.W/2);
     G.camera.y=clp(G.camera.y,G.H/2,WH-G.H/2);
@@ -266,16 +824,10 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     const spaceJust=spaceNow&&!G.prevSpace; G.prevSpace=spaceNow;
     if(window.__gameAttack)window.__gameAttack=false;
     if(spaceJust&&p.attackCooldown<=0){
-      // store.gear.weapon is an instanceId string, not an item object.
-      // Use equippedAbilityId which the store already resolves correctly.
       const _aid=store.equippedAbilityId||'whirlwind';
-      const wType=_aid==='power_shot'?'bow':
-                  _aid==='ground_slam'?'hammer':
-                  _aid==='flurry'?'dagger':
-                  _aid==='arcane_burst'?'staff':'sword';
+      const wType=_aid==='power_shot'?'bow':_aid==='ground_slam'?'hammer':_aid==='flurry'?'dagger':_aid==='arcane_burst'?'staff':'sword';
       const allT=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat().filter(e=>e.alive);
       if(wType==='bow'||wType==='staff'){
-        // Ranged — fire projectile toward nearest enemy
         p.attackCooldown=0.6;
         let tx=p.x+G.lastMoveDir.x*400,ty=p.y+G.lastMoveDir.y*400,nd=Infinity;
         allT.forEach(e=>{const d=dist(p.x,p.y,e.x,e.y);if(d<nd){nd=d;tx=e.x;ty=e.y;}});
@@ -283,10 +835,8 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         const dmg=store.playerATK;
         G.projectiles.push({x:p.x,y:p.y,vx:Math.cos(ang)*480,vy:Math.sin(ang)*480,
           traveled:0,maxRange:520,dmg,hitTargets:new Set(),fromPlayer:true});
-        // Flash effect
         G.attackFlash={x:p.x,y:p.y,timer:0.15,type:'ranged',ang};
       } else {
-        // Melee
         const rng=wType==='hammer'?72:wType==='dagger'?48:60;
         p.attackCooldown=wType==='hammer'?0.85:wType==='dagger'?0.35:0.55;
         allT.forEach(e=>{
@@ -318,7 +868,6 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           if(e.hp<=0){ if(e===G.boss) G.boss.alive=false; else killEnemy(e,store); }
         });
       } else {
-        // Enemy projectile hitting player
         if(!p.invincible&&dist(proj.x,proj.y,p.x,p.y)<18){
           const dmg=Math.max(1,(proj.dmg||5)-store.playerDEF);
           store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
@@ -329,41 +878,42 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       return proj.traveled<(proj.maxRange||400)&&proj.x>0&&proj.x<WW&&proj.y>0&&proj.y<WH;
     });
 
-    // Enemy AI
-    G.enemies.forEach(e=>{
-      if(!e.alive) return;
-      e.attackTimer=Math.max(0,e.attackTimer-dt);
-      const d=dist(p.x,p.y,e.x,e.y);
-      if(d<=e.attackRange){
-        if(e.ranged){
-          if(e.attackTimer<=0){
-            e.attackTimer=e.attackCooldown;
-            const ang=Math.atan2(p.y-e.y,p.x-e.x);
-            G.projectiles.push({x:e.x,y:e.y,vx:Math.cos(ang)*280,vy:Math.sin(ang)*280,
-              traveled:0,maxRange:360,dmg:e.atk,hitTargets:new Set(),fromPlayer:false});
+    // Enemy AI (skip if victory)
+    if (!G.victory) {
+      G.enemies.forEach(e=>{
+        if(!e.alive) return;
+        e.attackTimer=Math.max(0,e.attackTimer-dt);
+        const d=dist(p.x,p.y,e.x,e.y);
+        if(d<=e.attackRange){
+          if(e.ranged){
+            if(e.attackTimer<=0){
+              e.attackTimer=e.attackCooldown;
+              const ang=Math.atan2(p.y-e.y,p.x-e.x);
+              G.projectiles.push({x:e.x,y:e.y,vx:Math.cos(ang)*280,vy:Math.sin(ang)*280,
+                traveled:0,maxRange:360,dmg:e.atk,hitTargets:new Set(),fromPlayer:false});
+            }
+            const ang=Math.atan2(e.y-p.y,e.x-p.x);
+            e.x=clp(e.x+Math.cos(ang)*e.speed*0.5*dt,TILE,WW-TILE);
+            e.y=clp(e.y+Math.sin(ang)*e.speed*0.5*dt,TILE,WH-TILE);
+          } else {
+            if(e.attackTimer<=0&&!p.invincible){
+              e.attackTimer=e.attackCooldown;
+              const dmg=Math.max(1,e.atk-store.playerDEF);
+              store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
+              p.invincible=true; p.invTimer=0.5;
+            }
           }
-          // Keep distance
-          const ang=Math.atan2(e.y-p.y,e.x-p.x);
-          e.x=clp(e.x+Math.cos(ang)*e.speed*0.5*dt,TILE,WW-TILE);
-          e.y=clp(e.y+Math.sin(ang)*e.speed*0.5*dt,TILE,WH-TILE);
-        } else {
-          if(e.attackTimer<=0&&!p.invincible){
-            e.attackTimer=e.attackCooldown;
-            const dmg=Math.max(1,e.atk-store.playerDEF);
-            store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
-            p.invincible=true; p.invTimer=0.5;
-          }
+        } else if(d<=e.aggroRange){
+          const ang=Math.atan2(p.y-e.y,p.x-e.x);
+          e.x=clp(e.x+Math.cos(ang)*e.speed*dt,TILE,WW-TILE);
+          e.y=clp(e.y+Math.sin(ang)*e.speed*dt,TILE,WH-TILE);
         }
-      } else if(d<=e.aggroRange){
-        const ang=Math.atan2(p.y-e.y,p.x-e.x);
-        e.x=clp(e.x+Math.cos(ang)*e.speed*dt,TILE,WW-TILE);
-        e.y=clp(e.y+Math.sin(ang)*e.speed*dt,TILE,WH-TILE);
-      }
-    });
+      });
+    }
 
-    // Check wave clear
+    // Wave clear check
     const allDead=G.enemies.every(e=>!e.alive);
-    if(allDead&&G.enemies.length>0){
+    if(!G.victory && G.enemies.length>0 && allDead){
       if(G.wave<cfg.waves.length){
         G.wave++; spawnWave(G.wave-1);
         addFloat(p.x,p.y-60,`Wave ${G.wave}!`,'#f1c40f',true);
@@ -374,16 +924,13 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     }
 
     // Boss AI
-    if(G.boss&&G.boss.alive){
+    if(G.boss&&G.boss.alive&&!G.victory){
       const b=G.boss; const bcfg=cfg.boss;
       b.attackTimer=Math.max(0,(b.attackTimer||0)-dt);
-
-      // Phase 2 at 50% HP
       if(b.hp<=b.maxHp*0.5&&G.bossPhase===1){
         G.bossPhase=2; addFloat(b.x,b.y-60,'⚠ Phase 2!','#e74c3c',true);
         G.bossSpawnTimer=4;
       }
-      // Phase 2: spawn thornlings periodically
       if(G.bossPhase===2){ G.bossSpawnTimer-=dt;
         if(G.bossSpawnTimer<=0){ G.bossSpawnTimer=6;
           const s=ENEMY_STATS.thornling;
@@ -391,13 +938,10 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           G.enemies.push({type:'thornling',x:b.x-60,y:b.y+40,...s,alive:true,attackTimer:0,state:'patrol',patrolTimer:0,patrolDir:-1});
         }
       }
-
       if(b.chargeState==='idle'){
-        // Slow patrol
         b.patrolTimer=(b.patrolTimer||0)+dt;
         if(b.patrolTimer>2.0){b.patrolDir=(b.patrolDir||1)*-1;b.patrolTimer=0;}
         b.x=clp(b.x+80*(b.patrolDir||1)*dt,TILE*3,WW-TILE*3);
-        // Charge cooldown
         G.bossChargeTimer-=dt;
         if(G.bossChargeTimer<=0){
           b.chargeState='telegraph'; b.telegraphTimer=bcfg.chargeTelegraph;
@@ -416,7 +960,6 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         b.x=clp(b.x+b.chargeVx*dt,TILE,WW-TILE);
         b.y=clp(b.y+b.chargeVy*dt,TILE,WH-TILE);
         b.chargeTraveled+=(Math.abs(b.chargeVx)+Math.abs(b.chargeVy))*dt;
-        // Hit player during charge
         if(!p.invincible&&dist(b.x,b.y,p.x,p.y)<b.size+16){
           const dmg=Math.max(1,b.atk-store.playerDEF);
           store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
@@ -427,56 +970,30 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           G.bossChargeTimer=G.bossPhase===2?bcfg.chargeInterval*0.6:bcfg.chargeInterval;
         }
       }
-
-      // death handled outside this block
     }
 
-    // Victory banner (fades after 4s)
-    if(G.victoryBannerTimer>0){
-      const bt=G.victoryBannerTimer;
-      const alpha=bt>3?1:bt/3; // fade out in last 3s
-      ctx.globalAlpha=alpha*0.88;
-      ctx.fillStyle='#000000';
-      ctx.fillRect(0, G.H*0.28, G.W, 200);
-      ctx.globalAlpha=alpha;
-      // Victory text
-      ctx.textAlign='center';
-      ctx.font='bold 32px sans-serif';
-      ctx.fillStyle='#f1c40f';
-      ctx.fillText('VICTORY!', G.W/2, G.H*0.28+52);
-      // God name
-      ctx.font='16px sans-serif';
-      ctx.fillStyle='#ffffff';
-      ctx.fillText(`${cfg.boss.icon}  ${cfg.boss.name} Defeated`, G.W/2, G.H*0.28+82);
-      // Reward
-      ctx.fillStyle=cfg.accent;
-      ctx.font='bold 15px sans-serif';
-      ctx.fillText(`${cfg.reward.icon}  ${cfg.reward.label} Awarded`, G.W/2, G.H*0.28+114);
-      // Portal hint
-      ctx.fillStyle='#ffffff88';
-      ctx.font='12px sans-serif';
-      ctx.fillText('Walk into the portal to return', G.W/2, G.H*0.28+148);
-      ctx.globalAlpha=1;
-    }
-
-    // Victory portal walk-in
-    if(G.victory&&G.victoryPortal){
-      if(dist(p.x,p.y,G.victoryPortal.x,G.victoryPortal.y)<48){
-        onFlee(); return;
-      }
-    }
-
-    if(G.victoryBannerTimer>0) G.victoryBannerTimer-=dt;
-
-    // Boss death check — runs every frame, catches kills from any source
+    // Boss death → victory (only once)
     if(G.boss && !G.boss.alive && !G.victory){
       try{ store.gainXP(200); }catch(e){}
       try{ store.defeatBoss && store.defeatBoss(realmId); }catch(e){}
       G.victory=true;
       G.victoryPortal={ x:G.boss.x, y:G.boss.y };
-      G.victoryBannerTimer=4.0;
+      G.victoryBannerTimer=5.0;
+      // Clear all enemies on victory
+      G.enemies.forEach(e=>{ e.alive=false; });
+      G.projectiles=[];
       addFloat(G.boss.x, G.boss.y-60,'VICTORY!','#f1c40f',true);
       addFloat(G.boss.x, G.boss.y-90,'+200 XP','#9b59b6',true);
+    }
+
+    // Victory banner countdown — movement still works
+    if(G.victoryBannerTimer>0) G.victoryBannerTimer-=dt;
+
+    // Victory portal walk-in
+    if(G.victory && G.victoryPortal){
+      if(dist(p.x,p.y,G.victoryPortal.x,G.victoryPortal.y)<48){
+        onFlee(); return;
+      }
     }
 
     // Floats
@@ -485,33 +1002,48 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
   function render(ctx){
     const p=G.player; const cx=G.camera.x; const cy=G.camera.y;
-    const wx=x=>Math.round(x-cx+G.W/2);
-    const wy=y=>Math.round(y-cy+G.H/2);
-    const on=(sx,sy,pad=50)=>sx>-pad&&sx<G.W+pad&&sy>-pad&&sy<G.H+pad;
+    const wxf=x=>Math.round(x-cx+G.W/2);
+    const wyf=y=>Math.round(y-cy+G.H/2);
+    const onScreen=(sx,sy,pad=50)=>sx>-pad&&sx<G.W+pad&&sy>-pad&&sy<G.H+pad;
+    const t=G.t;
 
+    // Sky
     ctx.fillStyle=cfg.skyColor; ctx.fillRect(0,0,G.W,G.H);
 
-    // Tiles
+    // Base tiles with variation
     const txS=Math.max(0,Math.floor((cx-G.W/2)/TILE));
     const txE=Math.min(ARENA_W,Math.ceil((cx+G.W/2)/TILE)+1);
     const tyS=Math.max(0,Math.floor((cy-G.H/2)/TILE));
     const tyE=Math.min(ARENA_H,Math.ceil((cy+G.H/2)/TILE)+1);
     for(let ty=tyS;ty<tyE;ty++) for(let tx=txS;tx<txE;tx++){
       ctx.fillStyle=arenaTile(tx,ty,cfg);
-      ctx.fillRect(wx(tx*TILE),wy(ty*TILE),TILE+1,TILE+1);
+      ctx.fillRect(wxf(tx*TILE),wyf(ty*TILE),TILE+1,TILE+1);
+    }
+
+    // Floor detail (grass, cracks, runes, etc.)
+    drawFloorDetail(ctx, cfg, wxf, wyf, cx, cy, G.W, G.H, t);
+
+    // Arena tree/pillar decorations
+    for(const [ttx,tty] of (cfg.treePositions||[])){
+      const sx=wxf(ttx*TILE+16), sy=wyf(tty*TILE+16);
+      if(!onScreen(sx,sy,80)) continue;
+      drawArenaTree(ctx,sx,sy,cfg);
     }
 
     // Enemy projectiles
     G.projectiles.filter(pr=>!pr.fromPlayer).forEach(pr=>{
-      const px=wx(pr.x),py=wy(pr.y);
+      const px=wxf(pr.x),py=wyf(pr.y);
       ctx.globalAlpha=0.9; ctx.fillStyle=cfg.accent;
       ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);ctx.fill();
+      // Glow ring
+      ctx.globalAlpha=0.35; ctx.strokeStyle=cfg.accent; ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(px,py,12,0,Math.PI*2);ctx.stroke();
       ctx.globalAlpha=1;
     });
 
     // Player projectiles
     G.projectiles.filter(pr=>pr.fromPlayer).forEach(pr=>{
-      const px=wx(pr.x),py=wy(pr.y);
+      const px=wxf(pr.x),py=wyf(pr.y);
       ctx.globalAlpha=0.35;ctx.strokeStyle='#FCD34D';ctx.lineWidth=3;
       ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px-(pr.vx/420)*22,py-(pr.vy/420)*22);ctx.stroke();
       ctx.globalAlpha=0.6;ctx.fillStyle='#F97316';ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.fill();
@@ -520,48 +1052,33 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
     // Enemies
     G.enemies.filter(e=>e.alive).forEach(e=>{
-      const ex=wx(e.x),ey=wy(e.y); if(!on(ex,ey)) return;
-      ctx.fillStyle=e.color; ctx.beginPath();ctx.arc(ex,ey,e.size,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+      const ex=wxf(e.x),ey=wyf(e.y); if(!onScreen(ex,ey)) return;
+      drawEnemySprite(ctx,e,ex,ey);
       // HP bar
       const bw=e.size*2+8;
-      ctx.fillStyle='#333';ctx.fillRect(ex-bw/2,ey-e.size-10,bw,4);
-      ctx.fillStyle=e.color;ctx.fillRect(ex-bw/2,ey-e.size-10,bw*(e.hp/e.maxHp||1),4);
+      ctx.fillStyle='#222';ctx.fillRect(ex-bw/2,ey-e.size-12,bw,5);
+      const hpColor=e.hp/e.maxHp>0.5?'#2ecc71':'#e74c3c';
+      ctx.fillStyle=hpColor;ctx.fillRect(ex-bw/2,ey-e.size-12,bw*(e.hp/e.maxHp||1),5);
     });
 
     // Boss
     if(G.boss&&G.boss.alive){
-      const b=G.boss; const bx=wx(b.x),by=wy(b.y);
+      const b=G.boss; const bx=wxf(b.x),by=wyf(b.y);
       // Telegraph indicator
       if(b.chargeState==='telegraph'){
         const pct=1-b.telegraphTimer/cfg.boss.chargeTelegraph;
         ctx.globalAlpha=0.5+pct*0.3;ctx.strokeStyle='#e74c3c';ctx.lineWidth=3;
         ctx.setLineDash([10,5]);
         ctx.beginPath();ctx.moveTo(bx,by);
-        ctx.lineTo(wx(b.telegraphTargetX),wy(b.telegraphTargetY));
+        ctx.lineTo(wxf(b.telegraphTargetX),wyf(b.telegraphTargetY));
         ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
       }
-      // Glow
-      const pulse=0.5+Math.sin(Date.now()/400)*0.3;
-      ctx.globalAlpha=pulse*0.3;ctx.fillStyle=b.color;
-      ctx.beginPath();ctx.arc(bx,by,b.size+14,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-      // Body
-      ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(bx,by,b.size,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();
-      // Phase 2 inner ring
-      if(G.bossPhase===2){
-        ctx.strokeStyle='#e74c3c';ctx.lineWidth=2;
-        ctx.beginPath();ctx.arc(bx,by,b.size-8,0,Math.PI*2);ctx.stroke();
-      }
-      // Icon + name
-      ctx.font='18px sans-serif';ctx.textAlign='center';ctx.fillText(b.icon,bx,by+6);
-      ctx.fillStyle=b.color;ctx.font='bold 9px sans-serif';
-      ctx.fillText(b.name.toUpperCase(),bx,by-b.size-6);
+      drawBossSprite(ctx,b,bx,by,G.bossPhase,t);
     }
 
     // Ability effect
     if(G.abilityEffect){
-      const fx=G.abilityEffect,px=wx(fx.x),py=wy(fx.y);
+      const fx=G.abilityEffect,px=wxf(fx.x),py=wyf(fx.y);
       const pr=1-(fx.timer/fx.maxTimer),al=fx.timer/fx.maxTimer;
       const col=ABILITY_COLORS[fx.id]||{primary:'#fff',secondary:'#aaa'};
       ctx.globalAlpha=al*0.85;
@@ -587,68 +1104,65 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       ctx.globalAlpha=1;
     }
 
-    // Victory banner (fades after 4s)
+    // Victory banner (render only — no update logic here)
     if(G.victoryBannerTimer>0){
       const bt=G.victoryBannerTimer;
-      const alpha=bt>3?1:bt/3; // fade out in last 3s
+      const alpha=bt>4?1:bt/4;
       ctx.globalAlpha=alpha*0.88;
       ctx.fillStyle='#000000';
-      ctx.fillRect(0, G.H*0.28, G.W, 200);
+      ctx.fillRect(0,G.H*0.28,G.W,220);
       ctx.globalAlpha=alpha;
-      // Victory text
       ctx.textAlign='center';
-      ctx.font='bold 32px sans-serif';
+      ctx.font='bold 36px sans-serif';
       ctx.fillStyle='#f1c40f';
-      ctx.fillText('VICTORY!', G.W/2, G.H*0.28+52);
-      // God name
-      ctx.font='16px sans-serif';
-      ctx.fillStyle='#ffffff';
-      ctx.fillText(`${cfg.boss.icon}  ${cfg.boss.name} Defeated`, G.W/2, G.H*0.28+82);
-      // Reward
-      ctx.fillStyle=cfg.accent;
-      ctx.font='bold 15px sans-serif';
-      ctx.fillText(`${cfg.reward.icon}  ${cfg.reward.label} Awarded`, G.W/2, G.H*0.28+114);
-      // Portal hint
-      ctx.fillStyle='#ffffff88';
-      ctx.font='12px sans-serif';
-      ctx.fillText('Walk into the portal to return', G.W/2, G.H*0.28+148);
+      ctx.strokeStyle='#000'; ctx.lineWidth=3;
+      ctx.strokeText('VICTORY!',G.W/2,G.H*0.28+56);
+      ctx.fillText('VICTORY!',G.W/2,G.H*0.28+56);
+      ctx.font='18px sans-serif'; ctx.fillStyle='#ffffff';
+      ctx.fillText(`${cfg.boss.icon}  ${cfg.boss.name} Defeated`,G.W/2,G.H*0.28+90);
+      ctx.fillStyle=cfg.accent; ctx.font='bold 15px sans-serif';
+      ctx.fillText(`${cfg.reward.icon}  ${cfg.reward.label} Awarded`,G.W/2,G.H*0.28+122);
+      ctx.font='+200 XP awarded'; // label trick — just draw the text
+      ctx.fillStyle='#9b59b6'; ctx.font='bold 13px sans-serif';
+      ctx.fillText('+200 XP Awarded',G.W/2,G.H*0.28+150);
+      ctx.fillStyle='#ffffff88'; ctx.font='12px sans-serif';
+      ctx.fillText('Walk into the portal to return',G.W/2,G.H*0.28+176);
       ctx.globalAlpha=1;
     }
 
     // Victory portal
     if(G.victory&&G.victoryPortal){
       const vp=G.victoryPortal;
-      const vpx=wx(vp.x),vpy=wy(vp.y);
-      const t2=Date.now()/1000;
-      const pulse=0.65+Math.sin(t2*3)*0.35;
+      const vpx=wxf(vp.x),vpy=wyf(vp.y);
+      const pulse=0.65+Math.sin(t*3)*0.35;
       // Outer glow
-      ctx.globalAlpha=pulse*0.35;
-      ctx.fillStyle=cfg.accent;
-      ctx.beginPath();ctx.arc(vpx,vpy,58,0,Math.PI*2);ctx.fill();
-      // Inner portal
-      ctx.globalAlpha=0.9;
-      ctx.fillStyle='#000000bb';
-      ctx.beginPath();ctx.arc(vpx,vpy,36,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#ffffff';ctx.lineWidth=4;
-      ctx.beginPath();ctx.arc(vpx,vpy,36,0,Math.PI*2);ctx.stroke();
-      ctx.strokeStyle=cfg.accent;ctx.lineWidth=2.5;
-      ctx.beginPath();ctx.arc(vpx,vpy,28,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=pulse*0.35; ctx.fillStyle=cfg.accent;
+      ctx.beginPath();ctx.arc(vpx,vpy,64,0,Math.PI*2);ctx.fill();
+      // Mid ring rotating
+      ctx.globalAlpha=0.5; ctx.strokeStyle=cfg.accent; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.arc(vpx,vpy,48,t*1.5,t*1.5+Math.PI*1.5); ctx.stroke();
+      // Inner counter-rotating
+      ctx.strokeStyle='#ffffff'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(vpx,vpy,34,-t*2,-t*2+Math.PI*1.2); ctx.stroke();
+      // Portal face
+      ctx.globalAlpha=0.92; ctx.fillStyle='#000000cc';
+      ctx.beginPath();ctx.arc(vpx,vpy,30,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(vpx,vpy,30,0,Math.PI*2);ctx.stroke();
       // Rotating particles
       for(let i=0;i<10;i++){
-        const a=(i/10)*Math.PI*2+t2*2.2;
-        const rx=vpx+Math.cos(a)*44,ry=vpy+Math.sin(a)*44;
-        ctx.globalAlpha=pulse*0.9;
-        ctx.fillStyle=cfg.accent;
-        ctx.beginPath();ctx.arc(rx,ry,4.5,0,Math.PI*2);ctx.fill();
+        const a=(i/10)*Math.PI*2+t*2.2;
+        const rx=vpx+Math.cos(a)*50,ry=vpy+Math.sin(a)*50;
+        ctx.globalAlpha=pulse*0.9; ctx.fillStyle=cfg.accent;
+        ctx.beginPath();ctx.arc(rx,ry,4,0,Math.PI*2);ctx.fill();
       }
       ctx.globalAlpha=1;
-      // Label
       ctx.fillStyle='#ffffff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';
       ctx.strokeStyle='#000';ctx.lineWidth=3;
-      ctx.strokeText('RETURN TO WORLD',vpx,vpy-52);
-      ctx.fillText('RETURN TO WORLD',vpx,vpy-52);
+      ctx.strokeText('RETURN TO WORLD',vpx,vpy-54);
+      ctx.fillText('RETURN TO WORLD',vpx,vpy-54);
       ctx.fillStyle='#ffffff88';ctx.font='11px sans-serif';
-      ctx.fillText('walk into the portal',vpx,vpy-36);
+      ctx.fillText('walk into the portal',vpx,vpy-38);
     }
 
     // Attack flash
@@ -657,28 +1171,44 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       ctx.globalAlpha=al*0.7;
       if(af.type==='melee'){
         ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;
-        ctx.beginPath();ctx.arc(wx(af.x),wy(af.y),af.rng||60,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.arc(wxf(af.x),wyf(af.y),af.rng||60,0,Math.PI*2);ctx.stroke();
       } else {
         ctx.strokeStyle='#FCD34Dcc';ctx.lineWidth=4;
         ctx.beginPath();
-        ctx.moveTo(wx(af.x),wy(af.y));
-        ctx.lineTo(wx(af.x)+Math.cos(af.ang||0)*80,wy(af.y)+Math.sin(af.ang||0)*80);
+        ctx.moveTo(wxf(af.x),wyf(af.y));
+        ctx.lineTo(wxf(af.x)+Math.cos(af.ang||0)*80,wyf(af.y)+Math.sin(af.ang||0)*80);
         ctx.stroke();
       }
       ctx.globalAlpha=1;
     }
 
     // Player
-    const ppx=wx(p.x),ppy=wy(p.y);
+    const ppx=wxf(p.x),ppy=wyf(p.y);
     const blinkOn=!p.invincible||Math.sin(Date.now()/80)>0;
     ctx.globalAlpha=blinkOn?1:0.15;
-    ctx.fillStyle='#4a90e2';ctx.beginPath();ctx.arc(ppx,ppy,14,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=p.invincible?'#ffffff':'#aaaaaa';ctx.lineWidth=p.invincible?3:2;ctx.stroke();
+    // Shadow
+    ctx.fillStyle='#00000044';
+    ctx.beginPath();ctx.ellipse(ppx,ppy+14,10,4,0,0,Math.PI*2);ctx.fill();
+    // Body
+    ctx.fillStyle='#2471a3'; ctx.beginPath();ctx.arc(ppx,ppy,14,0,Math.PI*2);ctx.fill();
+    // Helmet
+    ctx.fillStyle='#4a90e2'; ctx.beginPath();ctx.arc(ppx,ppy-4,12,Math.PI,Math.PI*2);ctx.fill();
+    // Visor
+    ctx.fillStyle='#85c1e9'; ctx.globalAlpha=blinkOn?0.8:0.12;
+    ctx.fillRect(ppx-7,ppy-8,14,5);
+    ctx.globalAlpha=blinkOn?1:0.15;
+    // Legs
+    ctx.fillStyle='#1a5276';
+    ctx.fillRect(ppx-7,ppy+8,5,8);
+    ctx.fillRect(ppx+2,ppy+8,5,8);
+    // Outline
+    ctx.strokeStyle=p.invincible?'#ffffff':'#aaaaaa';ctx.lineWidth=p.invincible?3:2;
+    ctx.beginPath();ctx.arc(ppx,ppy,14,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=1;
 
     // Floats
     G.floats.forEach(f=>{
-      const fx=wx(f.x),fy=wy(f.y);
+      const fx=wxf(f.x),fy=wyf(f.y);
       ctx.globalAlpha=Math.max(0,f.life);
       ctx.font=`bold ${f.big?16:13}px sans-serif`;ctx.textAlign='center';
       ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.strokeText(f.text,fx,fy);
@@ -686,42 +1216,31 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     });
     ctx.globalAlpha=1;
 
-    // Wave / boss HP header
+    // Boss HP bar (bottom)
     const wx2=G.W/2; ctx.textAlign='center';
     if(G.boss&&G.boss.alive){
       const b=G.boss; const bpct=Math.max(0,b.hp/b.maxHp);
-      // Full-width boss banner pinned to bottom of safe area
       const barY=G.H-80;
       ctx.fillStyle='#000000dd';
       ctx.fillRect(0,barY-28,G.W,76);
-      // Boss name + phase
       ctx.fillStyle=b.color;ctx.font='bold 13px sans-serif';ctx.textAlign='center';
       ctx.fillText(`${b.icon}  ${b.name.toUpperCase()}${G.bossPhase===2?'  ⚡ PHASE 2':''}`,wx2,barY-10);
-      // HP bar — full width with padding
       const pad=16,bh=20;
       ctx.fillStyle='#333';ctx.fillRect(pad,barY,G.W-pad*2,bh);
       const hpColor=bpct>0.5?b.color:bpct>0.25?'#e67e22':'#e74c3c';
       ctx.fillStyle=hpColor;ctx.fillRect(pad,barY,(G.W-pad*2)*bpct,bh);
       ctx.strokeStyle='#ffffff33';ctx.lineWidth=1;ctx.strokeRect(pad,barY,G.W-pad*2,bh);
-      // HP numbers centered in bar
       ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
       ctx.fillText(`${b.hp} / ${b.maxHp}  (${Math.round(bpct*100)}%)`,wx2,barY+bh/2+4);
-      // Debug: total damage dealt — confirms hits are registering
-      ctx.fillStyle='#ffffff66';ctx.font='10px sans-serif';
-      ctx.fillText(`Total dmg dealt: ${G.totalDmgDealt}`,wx2,barY+bh+16);
-    } else if(G.wave!=='boss'){
+    } else if(G.wave!=='boss'&&!G.victory){
       ctx.fillStyle='#ffffff88';ctx.font='bold 11px sans-serif';
       ctx.fillText(`Wave ${G.wave} / ${cfg.waves.length}`,wx2,20);
     }
   }
 
-  const store = useGameStore.getState();
-
   return (
     <div style={{ position:'absolute',inset:0 }}>
       <canvas ref={canvasRef} style={{ position:'absolute',inset:0,width:'100%',height:'100%',display:'block',touchAction:'none' }} />
-
-      {/* Flee button */}
       {!G.victory && (
         <button onPointerDown={onFlee}
           style={{ position:'absolute',top:54,right:14,background:'#000000cc',border:'1px solid #ffffff55',
@@ -729,8 +1248,6 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           ✕ Flee
         </button>
       )}
-
-      {/* Victory handled by in-world portal */}
     </div>
   );
 }
