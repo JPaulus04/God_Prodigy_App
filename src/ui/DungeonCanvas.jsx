@@ -364,6 +364,7 @@ export default function DungeonCanvas() {
                 if (!e.alive || dist(G.player.x,G.player.y,e.x,e.y) > ability.range) return;
                 const dmg = Math.max(1, Math.round(s2.playerATK * ability.damageMult));
                 e.hp -= dmg; addFloat(e.x, e.y-20, `-${dmg}`, '#f39c12');
+                applyGodkillerPassives(dmg, e, G.player, s2, allEnemies(), addFloat);
                 if (e.hp <= 0) killEnemy(e, s2);
               });
             }, i * ability.hitDelay * 1000);
