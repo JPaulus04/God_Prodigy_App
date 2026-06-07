@@ -7,6 +7,7 @@ export default function DeathModal() {
     respawnShields, useRespawnShield,
     gamePhase, setGamePhase,
     toggleShop,
+    killCount, totalDamageDealt,
   } = useGameStore();
 
   // Preview 20% penalty
@@ -21,10 +22,6 @@ export default function DeathModal() {
   const handleShield = () => {
     if (!hasShield) return;
     useRespawnShield();
-    // Heal to full and dismiss — stay exactly where we are
-    useGameStore.getState().healPlayer(useGameStore.getState().playerMaxHP);
-    useGameStore.getState().set?.({ showDeathModal: false });
-    // Fallback direct set
     useGameStore.setState({ showDeathModal: false, playerHP: useGameStore.getState().playerMaxHP });
   };
 
@@ -49,6 +46,30 @@ export default function DeathModal() {
         <p style={{ color: '#888', fontSize: 13, margin: '0 0 10px' }}>
           {playerName || 'Warrior'}, the path to godhood is not over.
         </p>
+
+        {/* Kill + damage stats */}
+        <div style={{
+          display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center',
+        }}>
+          <div style={{
+            flex: 1, background: '#1a0a0a', border: '1px solid #e74c3c44',
+            borderRadius: 8, padding: '8px 4px',
+          }}>
+            <div style={{ fontSize: 20, fontWeight: 'bold', color: '#e74c3c' }}>
+              {(killCount || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>Total Kills</div>
+          </div>
+          <div style={{
+            flex: 1, background: '#0a101a', border: '1px solid #3498db44',
+            borderRadius: 8, padding: '8px 4px',
+          }}>
+            <div style={{ fontSize: 20, fontWeight: 'bold', color: '#3498db' }}>
+              {(totalDamageDealt || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>Damage Dealt</div>
+          </div>
+        </div>
 
         {/* Resource penalty */}
         {penalties ? (
