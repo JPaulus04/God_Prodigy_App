@@ -118,6 +118,59 @@ export const EnemyConfig = {
     respawnTime: 0,
   },
 
+
+  // ── New world enemies (Pass 8) ────────────────────────────────────────
+
+  fire_imp: {
+    key:           'goblin',
+    name:          'Fire Imp',
+    tint:          0xe74c3c,
+    hp: 55, atk: 14, def: 4,
+    speed: 115, aggroRange: 140, attackRange: 34,
+    attackCooldown: 900,
+    xpReward:      35,
+    isElite:       false,
+    drops: [
+      { item: 'fire_shard', amount: 1, chance: 0.25 },
+      { item: 'ore',        amount: 1, chance: 0.5  },
+    ],
+    respawnTime: 25000,
+  },
+
+  shadow_wraith: {
+    key:           'goblin',
+    name:          'Shadow Wraith',
+    tint:          0x6c3483,
+    hp: 70, atk: 18, def: 6,
+    speed: 105, aggroRange: 160, attackRange: 36,
+    attackCooldown: 800,
+    xpReward:      55,
+    isElite:       false,
+    drops: [
+      { item: 'ore',   amount: 1, chance: 0.6 },
+      { item: 'stone', amount: 1, chance: 0.4 },
+    ],
+    respawnTime: 30000,
+  },
+
+  lava_titan: {
+    key:           'golem',
+    name:          'Lava Titan',
+    tint:          0xe67e22,
+    hp: 160, atk: 26, def: 14,
+    speed: 42, aggroRange: 110, attackRange: 50,
+    attackCooldown: 2200,
+    xpReward:      100,
+    isElite:       true,
+    eliteStars:    2,
+    drops: [
+      { item: 'fire_shard', amount: 2, chance: 0.9 },
+      { item: 'ore',        amount: 3, chance: 1.0 },
+      { item: 'gear_drop_rare_weapon', amount: 1, chance: 0.18 },
+    ],
+    respawnTime: 120000,
+  },
+
   // ── Realm bosses ──────────────────────────────────────────────────────
   // One boss per portal realm. Scaled by skull tier (1–5).
   // phase2Threshold: HP fraction that triggers phase 2 (faster + stronger + visual change).
