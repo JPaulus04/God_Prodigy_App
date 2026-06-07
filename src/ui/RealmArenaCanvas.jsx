@@ -1182,6 +1182,30 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     G.bossSpawnTimer=8;
   };
 
+  // ── Godkiller passive helpers ────────────────────────────────────────────
+  const getGodkillerPassive=(store)=>{
+    const wId=store.gear?.weapon;
+    const w=wId?store.inventory.find(i=>i.instanceId===wId):null;
+    if(!w||w.rarity!=='godkiller') return {};
+    return{lifesteal:w.id==='soulbreaker',defPierce:w.id==='voidpiercer',aoeStun:w.id==='godsplitter'};
+  };
+  const applyGodkillerPassives=(dmg,e,p,store,enemies,addFloat)=>{
+    const passive=getGodkillerPassive(store);
+    if(passive.lifesteal){const heal=Math.max(1,Math.round(dmg*0.15));store.healPlayer(heal);addFloat(p.x,p.y-30,`+${heal}`,'#2ecc71');}
+    if(passive.aoeStun&&e){enemies.forEach(en=>{if(!en.alive)return;const dx=en.x-(e.x??p.x),dy=en.y-(e.y??p.y);if(Math.sqrt(dx*dx+dy*dy)<=80)en.stunTimer=Math.max(en.stunTimer||0,1.5);});addFloat(e.x??p.x,(e.y??p.y)-36,'⚡ STUNNED','#f1c40f',true);}
+  };
+  const applyDefPierce=(baseDmg,enemyDef,store)=>{
+    const passive=getGodkillerPassive(store);
+    // Voidpiercer weapon: full pierce. Mage class: 50% pierce.
+    if(passive.defPierce) return Math.max(1,baseDmg);
+    if(store.prestigeClass==='mage'||store.prestigeClass==='god'){
+      const pierced=Math.round(enemyDef*(store.prestigeClass==='mage'?0.5:0.3));
+      return Math.max(1,baseDmg-(enemyDef-pierced));
+    }
+    return Math.max(1,baseDmg-enemyDef);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const killEnemy=(e,store)=>{
     e.alive=false;
     store.gainXP(e.xp||8);
