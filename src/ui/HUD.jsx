@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 import VirtualJoystick   from './VirtualJoystick';
+import SettingsPanel     from './SettingsPanel';
 
 const CIRCUMFERENCE = 2 * Math.PI * 28; // SVG cooldown ring
 
@@ -31,6 +32,7 @@ export default function HUD() {
   const [showAscension, setShowAscension] = useState(false);
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [dailyCollected, setDailyCollected] = useState(false);
+  const [showSettings,   setShowSettings]   = useState(false);
 
   // Daily reward — fires once per session when pass is active
   useEffect(() => {
@@ -343,6 +345,14 @@ export default function HUD() {
           <div style={{ color: '#d4af3788', fontSize: 8, marginTop: 2 }}>tap to view</div>
         </button>
 
+        {/* Settings button */}
+        <button onClick={() => setShowSettings(true)} style={{
+          background: '#000000bb', border: '2px solid #55555588',
+          borderRadius: 12, padding: '10px 14px', fontSize: 18,
+          cursor: 'pointer', color: '#aaa',
+          marginBottom: 2,
+        }}>⚙️</button>
+
         {/* Shop button */}
         <button onClick={toggleShop} style={{
           background: '#000000bb', border: '2px solid #d4af3788',
@@ -462,6 +472,9 @@ export default function HUD() {
           }}>⚔️</button>
         </div>
       </div>
+
+      {/* ── Settings panel ────────────────────────────────────── */}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
