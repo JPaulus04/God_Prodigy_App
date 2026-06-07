@@ -1137,6 +1137,7 @@ export default function WorldCanvas() {
               const dmg = Math.max(1, Math.round(cs.playerATK * ability.damageMult));
               e.hp -= dmg;
               addFloat(e.x, e.y - 20 - i * 8, `-${dmg}`, '#f39c12');
+              applyGodkillerPassives(dmg, e, G.player, cs, G.enemies, addFloat);
               if (e.hp <= 0) killEnemy(e, cs);
             });
           }, i * ability.hitDelay * 1000);
