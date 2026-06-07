@@ -1,6 +1,6 @@
 // SaveSystem.js
 const SAVE_KEY     = 'gp_save';
-const SAVE_VERSION = '0.3.0';
+const SAVE_VERSION = '0.4.0';
 
 const PERSIST_FIELDS = [
   'playerName',
@@ -18,6 +18,10 @@ const PERSIST_FIELDS = [
   'killCount', 'totalDamageDealt',
   'passActive', 'respawnShields', 'ownedSkins', 'ownedTrail', 'ownedTrails',
   'extraInventorySlots', 'bossSkipUsed',
+  // Prestige + Legacy — always persisted, survive reset
+  'prestigeLevel', 'prestigeClass',
+  'fragments', 'legacyWeapons',
+  'challengeCleared',
 ];
 
 export const SaveSystem = {
@@ -38,7 +42,7 @@ export const SaveSystem = {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const data = JSON.parse(raw);
-      // Accept both 0.2.x and 0.3.x saves
+      // Accept 0.x saves (migrate forward)
       if (!data.version || !data.version.startsWith('0.')) return null;
       const { version, savedAt, ...fields } = data;
       return fields;
