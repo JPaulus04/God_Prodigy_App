@@ -3,6 +3,8 @@ import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
+import { sfxAttack, sfxHit, sfxCollect, resumeAudio } from '../utils/sfx';
+import { hapticAttack, hapticHit, hapticCollect } from '../utils/haptics';
 
 const TILE     = 32;
 const DUNGEON_W = 40;
@@ -135,6 +137,7 @@ export default function DungeonCanvas() {
 
   const killEnemy = (e, store) => {
     e.alive = false;
+    store.addKill();
     const cfg = EnemyConfig[e.type];
     const xp  = cfg?.xpReward || 10;
     store.gainXP(xp);
@@ -276,6 +279,7 @@ export default function DungeonCanvas() {
     const wAtk = WEAPON_ATTACK[weaponType] || WEAPON_ATTACK.sword;
 
     // ── Attack ─────────────────────────────────────────────
+    resumeAudio();
     const spaceNow  = G.keys['Space'] || window.__gameAttack;
     const spaceJust = spaceNow && !G.prevSpace;
     G.prevSpace = spaceNow;
@@ -283,6 +287,7 @@ export default function DungeonCanvas() {
 
     if (spaceJust && p.attackCooldown <= 0) {
       p.attackCooldown = wAtk.cooldown;
+      sfxAttack(); hapticAttack();
       if (wAtk.ranged) {
         let targetX = p.x + G.lastMoveDir.x*150, targetY = p.y + G.lastMoveDir.y*150;
         let nd = Infinity;
@@ -401,6 +406,7 @@ export default function DungeonCanvas() {
       // Chest
       if (G.chestSpawned && !G.chestOpened && dist(p.x, p.y, CHEST_X, CHEST_Y) < 60) {
         G.chestOpened = true;
+        sfxCollect(); hapticCollect();
         store.addResource('fire_shard', 1);
         addFloat(CHEST_X, CHEST_Y-50, '🔥 Fire Shard!', '#e74c3c', true);
         const TYPES   = ['sword','hammer','bow','dagger'];
@@ -460,6 +466,7 @@ export default function DungeonCanvas() {
           e.attackTimer = (cfg.attackCooldown/1000) / atkMult;
           const dmg = Math.max(1, Math.round(cfg.atk * atkMult) - store.playerDEF);
           store.takeDamage(dmg);
+          sfxHit(); hapticHit();
           p.invincible = true; p.invTimer = 0.7;
         }
       } else if (d <= aggroRange || e.state === 'chase' || e.alerted) {
