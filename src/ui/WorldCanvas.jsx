@@ -287,6 +287,34 @@ const ENEMY_DEFS = [
   { type: 'stone_guardian', x:102*TILE, y: 50*TILE },
   { type: 'stone_guardian', x:108*TILE, y: 82*TILE },
   { type: 'stone_guardian', x:112*TILE, y: 86*TILE },
+  // ── Fire / Lava Badlands (ty>68, tx 5-79) — spread across full zone ──
+  { type: 'golem',          x:  8*TILE, y: 74*TILE },
+  { type: 'golem',          x: 14*TILE, y: 80*TILE },
+  { type: 'golem',          x: 20*TILE, y: 76*TILE },
+  { type: 'golem',          x: 26*TILE, y: 84*TILE },
+  { type: 'golem',          x: 33*TILE, y: 78*TILE },
+  { type: 'golem',          x: 40*TILE, y: 86*TILE },
+  { type: 'golem',          x: 48*TILE, y: 80*TILE },
+  { type: 'golem',          x: 56*TILE, y: 90*TILE },
+  { type: 'golem',          x: 64*TILE, y: 84*TILE },
+  { type: 'golem',          x: 72*TILE, y: 76*TILE },
+  { type: 'stone_guardian', x: 10*TILE, y: 90*TILE },
+  { type: 'stone_guardian', x: 18*TILE, y: 96*TILE },
+  { type: 'stone_guardian', x: 28*TILE, y: 92*TILE },
+  { type: 'stone_guardian', x: 36*TILE, y: 98*TILE },
+  { type: 'stone_guardian', x: 44*TILE, y: 94*TILE },
+  { type: 'stone_guardian', x: 52*TILE, y:100*TILE },
+  { type: 'stone_guardian', x: 60*TILE, y: 96*TILE },
+  { type: 'stone_guardian', x: 70*TILE, y: 88*TILE },
+  { type: 'gold_goblin',    x: 16*TILE, y: 86*TILE },
+  { type: 'gold_goblin',    x: 38*TILE, y: 90*TILE },
+  { type: 'gold_goblin',    x: 58*TILE, y: 84*TILE },
+  { type: 'golem',          x:  6*TILE, y:102*TILE },
+  { type: 'golem',          x: 22*TILE, y:108*TILE },
+  { type: 'golem',          x: 46*TILE, y:106*TILE },
+  { type: 'stone_guardian', x: 34*TILE, y:112*TILE },
+  { type: 'stone_guardian', x: 62*TILE, y:108*TILE },
+  { type: 'gold_goblin',    x: 50*TILE, y:112*TILE },
 ];
 
 const PATROL_RADIUS = 80;
@@ -307,6 +335,68 @@ const NPC_HINTS = [
   'The Void Gate is said to be the final challenge. Ten gods must fall before it opens.',
   'New checkpoints await in the deep east. Plant your flag before venturing to the void.',
 ];
+
+// Per-NPC dialogue lines — id → array of hints (cycled)
+const NPC_DIALOGUE = {
+  kael: [
+    "Welcome to Kaelford, traveler. Ten elemental gods rule this realm — you must defeat them all to ascend.",
+    "The portals scattered across the land each lead to a god's domain. Beware their power.",
+    "Ascension is no mere feat. Upgrade your gear at the Forge before challenging the higher gods.",
+    "I have seen many warriors pass through this gate. Few have returned from the Void.",
+    "The fire badlands to the south burn eternal. The Lava God is said to sleep there.",
+  ],
+  smith: [
+    "You'll need a strong weapon for the gods ahead. Bring me ore from the golems — I'll forge you something worthy.",
+    "Golems in the eastern highlands drop quality ore. Stone guardians drop even rarer materials.",
+    "Don't forget to equip what you forge. An unequipped blade is just dead weight.",
+    "The fire shards from the south can temper blades to cut through divine armor.",
+    "I once tried the Fire Realm myself. My hammer melted in that heat. Be prepared.",
+  ],
+  merch: [
+    "Psst — gold goblins drop special charms. Worth hunting them down if you find one.",
+    "Resources sell for a tidy sum at the right market. I accept trades... if the price is right.",
+    "The western wetlands have ancient trees — finest wood I've ever seen. Great for crafting.",
+    "Crystal formations in the deep east are worth the danger. Beautiful, and powerful.",
+    "I heard the Shadow Realm boss leaves a mark on all who face it. Not many walk away.",
+  ],
+  heal: [
+    "Stay near checkpoints when you're low on health. Rest there — your body recovers faster.",
+    "Each god realm drains your spirit. Heal before you enter a new portal.",
+    "The regen between fights is slow. Don't rush the next battle when you're still wounded.",
+    "Eastern golems hit hard. Defense upgrades from the Forge will save your life.",
+    "I've treated wounds from the Void Realm. They do not heal easily. Train your DEF stat.",
+  ],
+  guard1: [
+    "Stay on the paths. The wilderness beyond Kaelford is not friendly to the unprepared.",
+    "We've had goblin raids from the northern woods lately. Watch your back out there.",
+    "The realm portals glow brighter when a god has been defeated. At least, that's what I heard.",
+    "Checkpoint flags are your lifeline out there. Never venture far without activating one.",
+  ],
+  guard2: [
+    "I heard something massive stirs in the deep south. The ground trembles sometimes at night.",
+    "Don't trust the shadows in the eastern wastes. Things move in them that don't belong here.",
+    "Ten gods. Ten seals. One warrior. Good luck — you'll need it.",
+    "The village is safe behind these walls. Out there? That's another story.",
+  ],
+  vil1: [
+    "I once tried picking up that old sword near the northern checkpoint. It burned my hand!",
+    "Renn the wanderer, at your service. I walk these streets and know all the gossip.",
+    "Heard the Ice Fortress to the northeast is actually a god's outer sanctum. Chilling thought.",
+    "You look like you've been in a few scraps. The Forge is east — Aldric will fix you up.",
+  ],
+  vil2: [
+    "Lysa here. I stay seated because standing gets you recruited for dangerous quests.",
+    "The stone circle to the east hums with energy at midnight. I don't go near it.",
+    "My uncle tried the Ocean Realm once. He came back... wetter than usual.",
+    "Did you activate the checkpoint near the village? You really should.",
+  ],
+  vil3: [
+    "Torv's the name. I've counted those portal glows — there are more than ten, you know.",
+    "Something in the void approach makes animals flee. Even the golems seem nervous.",
+    "The lava vents south of here... they weren't there last season. Something woke them.",
+    "Goblin Camp to the northwest keeps growing. Elder Kael says to ignore them. I disagree.",
+  ],
+};
 
 function makeEnemy(def) {
   const cfg = EnemyConfig[def.type];
@@ -914,20 +1004,20 @@ export default function WorldCanvas() {
     npcMessage:   null,
     villageNPCs: [
       // Elder Kael — stays near well
-      { id:'kael',   x:23*TILE, y:28*TILE, tx:23*TILE, ty:28*TILE, color:'#1abc9c', name:'Elder Kael',  role:'elder',   walkTimer:0, waitTimer:3, dir:0, seated:false },
-      // Blacksmith — paces near forge
-      { id:'smith',  x:26*TILE, y:45*TILE, tx:26*TILE, ty:45*TILE, color:'#e67e22', name:'Aldric',     role:'smith',   walkTimer:0, waitTimer:2, dir:1, seated:false },
-      // Shop keeper — sits at market stall
-      { id:'merch',  x:28*TILE, y:43*TILE, tx:28*TILE, ty:43*TILE, color:'#9b59b6', name:'Mira',       role:'merchant',walkTimer:0, waitTimer:4, dir:2, seated:true  },
-      // Healer — wanders herb garden
-      { id:'heal',   x:22*TILE, y:46*TILE, tx:22*TILE, ty:46*TILE, color:'#2ecc71', name:'Sister Lyn', role:'healer',  walkTimer:0, waitTimer:3, dir:3, seated:false },
-      // Guard — patrols village gate
-      { id:'guard1', x:24*TILE, y:41*TILE, tx:24*TILE, ty:41*TILE, color:'#95a5a6', name:'Guard',      role:'guard',   walkTimer:0, waitTimer:2, dir:0, seated:false },
-      { id:'guard2', x:26*TILE, y:41*TILE, tx:26*TILE, ty:41*TILE, color:'#95a5a6', name:'Guard',      role:'guard',   walkTimer:0, waitTimer:2, dir:2, seated:false },
+      { id:'kael',   x:23*TILE, y:40*TILE, tx:23*TILE, ty:40*TILE, color:'#1abc9c', name:'Elder Kael',  role:'elder',   walkTimer:0, waitTimer:3, dir:0, seated:false },
+      // Blacksmith — paces near forge (east side)
+      { id:'smith',  x:29*TILE, y:43*TILE, tx:29*TILE, ty:43*TILE, color:'#e67e22', name:'Aldric',     role:'smith',   walkTimer:0, waitTimer:2, dir:1, seated:false },
+      // Shop keeper — sits at market stall (west side)
+      { id:'merch',  x:21*TILE, y:43*TILE, tx:21*TILE, ty:43*TILE, color:'#9b59b6', name:'Mira',       role:'merchant',walkTimer:0, waitTimer:4, dir:2, seated:true  },
+      // Healer — wanders herb garden (far west)
+      { id:'heal',   x:21*TILE, y:46*TILE, tx:21*TILE, ty:46*TILE, color:'#2ecc71', name:'Sister Lyn', role:'healer',  walkTimer:0, waitTimer:3, dir:3, seated:false },
+      // Guard — patrols village gate (south entry)
+      { id:'guard1', x:24*TILE, y:48*TILE, tx:24*TILE, ty:48*TILE, color:'#95a5a6', name:'Guard',      role:'guard',   walkTimer:0, waitTimer:2, dir:0, seated:false },
+      { id:'guard2', x:26*TILE, y:48*TILE, tx:26*TILE, ty:48*TILE, color:'#95a5a6', name:'Guard',      role:'guard',   walkTimer:0, waitTimer:2, dir:2, seated:false },
       // Villager wanderers
       { id:'vil1',   x:25*TILE, y:44*TILE, tx:25*TILE, ty:44*TILE, color:'#f39c12', name:'Renn',       role:'villager',walkTimer:0, waitTimer:2, dir:1, seated:false },
-      { id:'vil2',   x:23*TILE, y:45*TILE, tx:23*TILE, ty:45*TILE, color:'#e8daef', name:'Lysa',       role:'villager',walkTimer:0, waitTimer:3, dir:3, seated:true  },
-      { id:'vil3',   x:27*TILE, y:46*TILE, tx:27*TILE, ty:46*TILE, color:'#aab7b8', name:'Torv',       role:'villager',walkTimer:0, waitTimer:2, dir:2, seated:false },
+      { id:'vil2',   x:22*TILE, y:47*TILE, tx:22*TILE, ty:47*TILE, color:'#e8daef', name:'Lysa',       role:'villager',walkTimer:0, waitTimer:3, dir:3, seated:true  },
+      { id:'vil3',   x:28*TILE, y:46*TILE, tx:28*TILE, ty:46*TILE, color:'#aab7b8', name:'Torv',       role:'villager',walkTimer:0, waitTimer:2, dir:2, seated:false },
     ],
     abilityCooldown: 0,
     abilityEffect:   null,
@@ -1086,7 +1176,7 @@ export default function WorldCanvas() {
     if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
 
     // ── Village NPC walk AI ────────────────────────────────────────────────
-    const VLG_CX = 25 * TILE, VLG_CY = 44 * TILE, VLG_R = 5 * TILE;
+    const VLG_CX = 25 * TILE, VLG_CY = 44 * TILE, VLG_R = 7 * TILE;
     G.villageNPCs.forEach(npc => {
       if (npc.seated) return; // seated NPCs stay put
       npc.waitTimer -= dt;
@@ -1096,8 +1186,8 @@ export default function WorldCanvas() {
         // Pick a new patrol target within village radius
         const angle = Math.random() * Math.PI * 2;
         const rad   = Math.random() * VLG_R;
-        npc.tx = Math.max(TILE*20, Math.min(TILE*30, VLG_CX + Math.cos(angle) * rad));
-        npc.ty = Math.max(TILE*40, Math.min(TILE*50, VLG_CY + Math.sin(angle) * rad));
+        npc.tx = Math.max(TILE*18, Math.min(TILE*32, VLG_CX + Math.cos(angle) * rad));
+        npc.ty = Math.max(TILE*38, Math.min(TILE*52, VLG_CY + Math.sin(angle) * rad));
         npc.walkTimer = 2.5 + Math.random() * 2;
         npc.waitTimer = 1.0 + Math.random() * 1.5;
       }
@@ -1276,8 +1366,21 @@ export default function WorldCanvas() {
           return;
         }
       }
-      if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
-        G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], timer: 5 };
+      // Per-NPC dialogue — check each village NPC
+      let talkedToNPC = false;
+      for (const npc of G.villageNPCs) {
+        if (dist(p.x, p.y, npc.x, npc.y) <= 52) {
+          const lines = NPC_DIALOGUE[npc.id] || NPC_HINTS;
+          if (!npc._hintIdx) npc._hintIdx = 0;
+          G.npcMessage = { text: lines[npc._hintIdx % lines.length], speaker: npc.name, speakerColor: npc.color, timer: 6 };
+          npc._hintIdx++;
+          talkedToNPC = true;
+          break;
+        }
+      }
+      // Fallback: old Elder Kael zone if not near any specific NPC
+      if (!talkedToNPC && dist(p.x, p.y, 23*TILE, 40*TILE) <= 60) {
+        G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], speaker: 'Elder Kael', speakerColor: '#1abc9c', timer: 5 };
         G._hintIndex++;
       }
     }
@@ -1428,40 +1531,40 @@ export default function WorldCanvas() {
 
     // ── Village of Kaelford ──────────────────────────────────────────────────
     const VX = wx(25*TILE), VY = wy(44*TILE);
-    if (onScreen(VX, VY, 280)) {
+    if (onScreen(VX, VY, 380)) {
 
       // ── Ground — cobblestone plaza (tiled pattern) ──────────────────────
       ctx.fillStyle = '#8a7a60';
-      ctx.fillRect(VX - 140, VY - 100, 280, 190);
+      ctx.fillRect(VX - 195, VY - 145, 390, 270);
       // Stone tile grid
       ctx.strokeStyle = '#7a6a50'; ctx.lineWidth = 1;
-      for (let gx = -140; gx < 140; gx += 20) ctx.strokeRect(VX + gx, VY - 100, 20, 20);
-      for (let gy = -100; gy < 90; gy += 20)  ctx.strokeRect(VX - 140, VY + gy, 280, 20);
+      for (let gx = -195; gx < 195; gx += 20) ctx.strokeRect(VX + gx, VY - 145, 20, 20);
+      for (let gy = -145; gy < 125; gy += 20)  ctx.strokeRect(VX - 195, VY + gy, 390, 20);
       // Path from gate to crafting hall — lighter stone
       ctx.fillStyle = '#9a8a6a';
-      ctx.fillRect(VX - 16, VY - 100, 32, 190);
-      ctx.fillRect(VX - 140, VY - 8, 280, 16);
+      ctx.fillRect(VX - 16, VY - 145, 32, 270);
+      ctx.fillRect(VX - 195, VY - 8, 390, 16);
 
       // ── Village fence / outer wall ──────────────────────────────────────
       const fenceColor = '#6b4f2c';
       // Top fence
-      for (let fx = -140; fx < 140; fx += 14) {
+      for (let fx = -195; fx < 195; fx += 14) {
         ctx.fillStyle = fenceColor;
-        ctx.fillRect(VX + fx, VY - 108, 10, 16);
+        ctx.fillRect(VX + fx, VY - 153, 10, 16);
         ctx.fillStyle = '#8a6a3c';
-        ctx.fillRect(VX + fx, VY - 108, 10, 3);
+        ctx.fillRect(VX + fx, VY - 153, 10, 3);
       }
       // Left fence
-      for (let fy = -100; fy < 80; fy += 14) {
-        ctx.fillStyle = fenceColor; ctx.fillRect(VX - 144, VY + fy, 10, 10);
+      for (let fy = -145; fy < 120; fy += 14) {
+        ctx.fillStyle = fenceColor; ctx.fillRect(VX - 199, VY + fy, 10, 10);
       }
       // Right fence
-      for (let fy = -100; fy < 80; fy += 14) {
-        ctx.fillStyle = fenceColor; ctx.fillRect(VX + 136, VY + fy, 10, 10);
+      for (let fy = -145; fy < 120; fy += 14) {
+        ctx.fillStyle = fenceColor; ctx.fillRect(VX + 191, VY + fy, 10, 10);
       }
 
       // ── Village Gate (south entry) ──────────────────────────────────────
-      const gateX = VX, gateY = VY + 82;
+      const gateX = VX, gateY = VY + 122;
       ctx.fillStyle = '#5a3a1e'; // Gate posts
       ctx.fillRect(gateX - 22, gateY - 28, 10, 34);
       ctx.fillRect(gateX + 12, gateY - 28, 10, 34);
@@ -1485,7 +1588,7 @@ export default function WorldCanvas() {
       ctx.fillText('KAELFORD', gateX, gateY - 43);
 
       // ── Village Well (center) ──────────────────────────────────────────
-      const wellX = VX - 30, wellY = VY - 20;
+      const wellX = VX - 40, wellY = VY - 30;
       // Shadow
       ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
       ctx.beginPath(); ctx.ellipse(wellX + 3, wellY + 14, 16, 5, 0, 0, Math.PI*2); ctx.fill();
@@ -1509,7 +1612,7 @@ export default function WorldCanvas() {
       ctx.beginPath(); ctx.moveTo(wellX - 5, wellY - 8); ctx.lineTo(wellX, wellY - 12); ctx.lineTo(wellX + 5, wellY - 8); ctx.stroke();
 
       // ── Crafting Hall (north, largest building) ────────────────────────
-      const chX = VX, chY = VY - 70;
+      const chX = VX, chY = VY - 105;
       // Shadow
       ctx.globalAlpha = 0.22; ctx.fillStyle = '#000';
       ctx.beginPath(); ctx.ellipse(chX + 5, chY + 36, 55, 10, 0, 0, Math.PI*2); ctx.fill();
@@ -1579,9 +1682,18 @@ export default function WorldCanvas() {
         ctx.fillStyle = '#d4af37'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('[E] Enter Crafting Hall', chX, chY + 42);
       }
+      // [E] Talk prompts above NPCs
+      G.villageNPCs.forEach(npc => {
+        if (dist(G.player.x, G.player.y, npc.x, npc.y) > 52) return;
+        const nx3 = wx(npc.x), ny3 = wy(npc.y);
+        ctx.fillStyle = npc.color; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        ctx.strokeText('[E] Talk', nx3, ny3 - 26);
+        ctx.fillText('[E] Talk', nx3, ny3 - 26);
+      });
 
       // ── Forge / Blacksmith Shop (east) ─────────────────────────────────
-      const fgX = VX + 68, fgY = VY - 10;
+      const fgX = VX + 120, fgY = VY - 15;
       ctx.fillStyle = '#2a1a10'; ctx.fillRect(fgX - 24, fgY - 22, 44, 38);
       ctx.fillStyle = '#3a2618'; ctx.fillRect(fgX - 22, fgY - 24, 40, 38);
       ctx.fillStyle = '#4a3222';
@@ -1604,7 +1716,7 @@ export default function WorldCanvas() {
       ctx.fillText('⚔ FORGE', fgX - 2, fgY - 34);
 
       // ── Market Stall (west) ─────────────────────────────────────────────
-      const mkX = VX - 68, mkY = VY - 10;
+      const mkX = VX - 120, mkY = VY - 15;
       // Awning — striped
       ctx.fillStyle = '#9b59b6'; ctx.fillRect(mkX - 24, mkY - 24, 48, 4);
       for (let ms = 0; ms < 4; ms++) {
@@ -1631,7 +1743,7 @@ export default function WorldCanvas() {
       ctx.fillText('🧪 MARKET', mkX - 1, mkY - 34);
 
       // ── Healer Hut (west side) ──────────────────────────────────────────
-      const hlX = VX - 80, hlY = VY + 30;
+      const hlX = VX - 130, hlY = VY + 50;
       ctx.fillStyle = '#2a4a2a'; ctx.fillRect(hlX - 20, hlY - 20, 36, 32);
       ctx.fillStyle = '#2e6b2e'; ctx.fillRect(hlX - 18, hlY - 22, 32, 30);
       ctx.fillStyle = '#3a8a3a';
@@ -1647,7 +1759,7 @@ export default function WorldCanvas() {
       ctx.fillText('✚ HEALER', hlX - 2, hlY - 44);
 
       // ── Storage building (east side) ────────────────────────────────────
-      const stX = VX + 80, stY = VY + 30;
+      const stX = VX + 130, stY = VY + 50;
       ctx.fillStyle = '#3a3010'; ctx.fillRect(stX - 20, stY - 18, 38, 32);
       ctx.fillStyle = '#4a4018'; ctx.fillRect(stX - 18, stY - 20, 34, 30);
       ctx.fillStyle = '#5a5020';
@@ -1665,7 +1777,7 @@ export default function WorldCanvas() {
       ctx.fillText('📦 STORAGE', stX - 1, stY - 40);
 
       // ── Decorative trees inside village ────────────────────────────────
-      [[-110,-60],[110,-60],[-110,50],[110,50]].forEach(([dx,dy]) => {
+      [[-160,-110],[160,-110],[-160,90],[160,90]].forEach(([dx,dy]) => {
         const tx3 = VX+dx, ty3 = VY+dy;
         ctx.fillStyle = '#00000022';
         ctx.beginPath(); ctx.ellipse(tx3+3, ty3+16, 11, 4, 0, 0, Math.PI*2); ctx.fill();
@@ -1809,35 +1921,121 @@ export default function WorldCanvas() {
     // ── Realm portals ──────────────────────────────────────────────────────
     REALM_PORTALS.forEach(portal => {
       const prx = wx(portal.x*TILE), pry = wy(portal.y*TILE);
-      if (!onScreen(prx, pry, 80)) return;
-      const pulse     = 0.65 + Math.sin(t * 0.7 * 1000/700 + portal.x * 0.5) * 0.35;
+      if (!onScreen(prx, pry, 100)) return;
+      const pulse      = 0.65 + Math.sin(t * 0.7 + portal.x * 0.5) * 0.35;
       const nearPlayer = dist(p.x, p.y, portal.x*TILE, portal.y*TILE) < 64;
+      const storeSnap  = useGameStore.getState();
+      const beaten     = storeSnap.bossesDefeated?.includes(portal.realm);
 
-      // Outer glow
-      ctx.globalAlpha = 0.15;
-      ctx.fillStyle = portal.color;
-      ctx.beginPath(); ctx.arc(prx, pry, 44, 0, Math.PI*2); ctx.fill();
-      // Mid ring (rotating)
-      ctx.globalAlpha = pulse * 0.5;
-      ctx.strokeStyle = portal.color; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(prx, pry, 32, t/1.2, t/1.2 + Math.PI * 1.6); ctx.stroke();
-      // Inner counter-rotating ring
-      ctx.globalAlpha = pulse * 0.7;
-      ctx.strokeStyle = '#ffffff44'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(prx, pry, 22, -t/0.8, -t/0.8 + Math.PI * 1.2); ctx.stroke();
-      // Center fill
-      ctx.globalAlpha = pulse * 0.6;
-      ctx.fillStyle = portal.color + '33';
-      ctx.beginPath(); ctx.arc(prx, pry, 16, 0, Math.PI*2); ctx.fill();
+      // ── Stone arch base / ground pad ──────────────────────────────────
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#2c2c2c';
+      ctx.beginPath(); ctx.ellipse(prx, pry + 26, 34, 10, 0, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
 
+      // Left pillar
+      const pillarColor = beaten ? '#8a7a20' : '#4a4030';
+      const pillarHighlight = beaten ? '#c8a030' : '#6a6048';
+      ctx.fillStyle = pillarColor;
+      ctx.fillRect(prx - 36, pry - 28, 12, 54);
+      ctx.fillStyle = pillarHighlight; ctx.globalAlpha = 0.4;
+      ctx.fillRect(prx - 36, pry - 28, 4, 54);
+      ctx.globalAlpha = 1;
+      // Left pillar cap
+      ctx.fillStyle = beaten ? '#a08828' : '#5a5040';
+      ctx.fillRect(prx - 39, pry - 32, 18, 7);
+      // Left pillar rune etchings
+      ctx.strokeStyle = portal.color + '88'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(prx - 32, pry - 18); ctx.lineTo(prx - 28, pry - 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(prx - 32, pry - 4); ctx.lineTo(prx - 28, pry + 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(prx - 32, pry + 10); ctx.lineTo(prx - 28, pry + 16); ctx.stroke();
+
+      // Right pillar
+      ctx.fillStyle = pillarColor;
+      ctx.fillRect(prx + 24, pry - 28, 12, 54);
+      ctx.fillStyle = pillarHighlight; ctx.globalAlpha = 0.4;
+      ctx.fillRect(prx + 32, pry - 28, 4, 54);
+      ctx.globalAlpha = 1;
+      // Right pillar cap
+      ctx.fillStyle = beaten ? '#a08828' : '#5a5040';
+      ctx.fillRect(prx + 21, pry - 32, 18, 7);
+      // Right pillar rune etchings
+      ctx.strokeStyle = portal.color + '88'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(prx + 28, pry - 18); ctx.lineTo(prx + 32, pry - 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(prx + 28, pry - 4); ctx.lineTo(prx + 32, pry + 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(prx + 28, pry + 10); ctx.lineTo(prx + 32, pry + 16); ctx.stroke();
+
+      // Arch crossbeam
+      ctx.fillStyle = beaten ? '#8a7a20' : '#3a3028';
+      ctx.fillRect(prx - 39, pry - 44, 82, 14);
+      // Arch keystone
+      ctx.fillStyle = beaten ? '#d4af37' : portal.color;
+      ctx.beginPath();
+      ctx.moveTo(prx, pry - 56); ctx.lineTo(prx - 10, pry - 44); ctx.lineTo(prx + 10, pry - 44);
+      ctx.closePath(); ctx.fill();
+
+      // ── Portal vortex ─────────────────────────────────────────────────
+      // Outer color glow halo
+      ctx.globalAlpha = 0.18 + pulse * 0.08;
+      const grad = ctx.createRadialGradient(prx, pry, 4, prx, pry, 42);
+      grad.addColorStop(0, portal.color);
+      grad.addColorStop(1, portal.color + '00');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(prx, pry, 42, 0, Math.PI*2); ctx.fill();
+      // Portal surface
+      ctx.globalAlpha = 0.55 + pulse * 0.15;
+      ctx.fillStyle = portal.color + '44';
+      ctx.beginPath(); ctx.arc(prx, pry, 22, 0, Math.PI*2); ctx.fill();
+      // Rotating rings
+      ctx.globalAlpha = pulse * 0.6;
+      ctx.strokeStyle = portal.color; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(prx, pry, 28, t/1.1, t/1.1 + Math.PI * 1.5); ctx.stroke();
+      ctx.globalAlpha = pulse * 0.8;
+      ctx.strokeStyle = '#ffffff66'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(prx, pry, 18, -t/0.9, -t/0.9 + Math.PI * 1.1); ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Icon
       ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(portal.icon, prx, pry + 6);
-      ctx.fillStyle = portal.color; ctx.font = 'bold 8px sans-serif';
-      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 30);
-      ctx.fillStyle = '#ffffff99'; ctx.font = '7px sans-serif';
-      ctx.fillText('💀'.repeat(portal.skulls), prx, pry - 40);
-      if (nearPlayer) { ctx.fillStyle = portal.color; ctx.font = '9px sans-serif'; ctx.fillText('[E] Enter', prx, pry + 32); }
+
+      // Realm name label on arch
+      ctx.fillStyle = beaten ? '#d4af37' : '#fff';
+      ctx.font = `bold 8px sans-serif`;
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+      ctx.strokeText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 48);
+      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 48);
+
+      // Skull difficulty under name
+      ctx.fillStyle = '#ffffff88'; ctx.font = '7px sans-serif';
+      ctx.fillText('💀'.repeat(portal.skulls), prx, pry + 36);
+
+      // ── Defeated banner ───────────────────────────────────────────────
+      if (beaten) {
+        // Gold seal glow on keystone
+        ctx.globalAlpha = 0.5 + Math.sin(t * 2) * 0.2;
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath(); ctx.arc(prx, pry - 52, 7, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('👑', prx, pry - 50);
+        // "DEFEATED" ribbon across archway
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = '#1a8a1a';
+        ctx.fillRect(prx - 34, pry - 16, 68, 12);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#90ee90'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('✓ DEFEATED', prx, pry - 7);
+      }
+
+      // Enter prompt
+      if (nearPlayer) {
+        ctx.fillStyle = portal.color;
+        ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        ctx.strokeText('[E] Enter', prx, pry + 46);
+        ctx.fillText('[E] Enter', prx, pry + 46);
+      }
     });
 
     // ── Zone labels ────────────────────────────────────────────────────────
@@ -2270,8 +2468,8 @@ export default function WorldCanvas() {
       if (ctx.roundRect) ctx.roundRect(pad, boxY, boxW, boxH, 10);
       else ctx.rect(pad, boxY, boxW, boxH);
       ctx.stroke();
-      ctx.fillStyle = '#1abc9c'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
-      ctx.fillText('Elder Kael', pad + 12, boxY + 20);
+      ctx.fillStyle = msg.speakerColor || '#1abc9c'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(msg.speaker || 'Elder Kael', pad + 12, boxY + 20);
       ctx.fillStyle = '#ffffff'; ctx.font = '12px sans-serif';
       wrapText(ctx, msg.text, pad + 12, boxY + 40, boxW - 24, 17);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
@@ -2287,3 +2485,4 @@ export default function WorldCanvas() {
     }} />
   );
 }
+
