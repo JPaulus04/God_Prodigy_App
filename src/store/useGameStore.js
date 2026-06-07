@@ -63,6 +63,7 @@ const DEFAULT_STATE = {
   showDeathModal: false,
   showLevelUp:    false,
   showShop:       false,
+  showVictory:    false,
 };
 
 export const useGameStore = create((set, get) => ({
@@ -329,6 +330,10 @@ export const useGameStore = create((set, get) => ({
     if (!bossesDefeated.includes(bossId)) {
       const updated = [...bossesDefeated, bossId];
       set({ bossesDefeated: updated, ascensionProgress: updated.length });
+      if (updated.length >= 10) {
+        // All gods defeated — trigger victory screen after a short delay
+        setTimeout(() => set({ showVictory: true }), 1500);
+      }
       SaveSystem.save(get());
     }
   },
