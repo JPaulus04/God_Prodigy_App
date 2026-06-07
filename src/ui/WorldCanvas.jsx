@@ -1419,73 +1419,143 @@ export default function WorldCanvas() {
       const r       = isGolem ? (e.isElite ? 22 : 18) : (e.isElite ? 15 : 12);
       const aggroed = e.state !== 'patrol';
       const stunned = e.stunTimer > 0;
+      const isGold  = e.type === 'gold_goblin';
+
+      // Ground shadow
+      ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(ex, ey + r + 2, r * 0.9, r * 0.32, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
 
       // Elite glow ring
       if (e.isElite && !stunned) {
-        const glowColor = e.type === 'gold_goblin' ? '#f1c40f' : e.type === 'stone_guardian' ? '#8e44ad' : '#fff';
-        ctx.globalAlpha = 0.35 + Math.sin(t * 2.5) * 0.15;
+        const glowColor = isGold ? '#f1c40f' : e.type === 'stone_guardian' ? '#8e44ad' : '#ff4444';
+        ctx.globalAlpha = 0.3 + Math.sin(t * 2.5) * 0.15;
         ctx.strokeStyle = glowColor; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(ex, ey, r + 5, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ex, ey, r + 6, 0, Math.PI*2); ctx.stroke();
         ctx.globalAlpha = 1;
       }
 
       ctx.globalAlpha = stunned ? (Math.sin(t * 12.5) > 0 ? 0.4 : 1) : 1;
 
-      let fillColor;
-      if      (e.type === 'gold_goblin')    fillColor = aggroed ? '#e6a800' : '#f1c40f';
-      else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad';
-      else if (stunned)                     fillColor = '#FCD34D';
-      else if (aggroed)                     fillColor = '#e74c3c';
-      else if (isGolem)                     fillColor = '#8e44ad';
-      else                                  fillColor = '#7ed321';
-
       if (isGolem) {
-        // Stone block body
-        const hw = r * 0.85, hh = r * 1.0;
+        // ── Stone Golem / Guardian ──────────────────────────────────────────
+        const fillColor = e.type === 'stone_guardian' ? (aggroed ? '#5d3a7a' : '#8e44ad') : (aggroed ? '#606060' : '#7f8c8d');
+        // Leg blocks
         ctx.fillStyle = fillColor;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(ex - hw, ey - hh, hw*2, hh*2, 4);
-        else ctx.rect(ex - hw, ey - hh, hw*2, hh*2);
-        ctx.fill();
-        // Crack
-        ctx.strokeStyle = '#00000044'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(ex - hw*0.3, ey - hh*0.5); ctx.lineTo(ex + hw*0.2, ey + hh*0.3); ctx.stroke();
+        ctx.fillRect(ex - r*0.65, ey + r*0.25, r*0.55, r*0.75);
+        ctx.fillRect(ex + r*0.1,  ey + r*0.25, r*0.55, r*0.75);
+        // Torso
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(ex - r*0.8, ey - r*0.3, r*1.6, r*0.65);
+        // Arm blocks
+        ctx.fillStyle = aggroed ? '#505050' : '#6b6f72';
+        const armSway = aggroed ? Math.sin(t * 4) * 4 : 0;
+        ctx.fillRect(ex - r*1.4, ey - r*0.25 + armSway, r*0.55, r*0.55);
+        ctx.fillRect(ex + r*0.85, ey - r*0.25 - armSway, r*0.55, r*0.55);
+        // Head block
+        ctx.fillStyle = aggroed ? (e.type === 'stone_guardian' ? '#6c3483' : '#6b6b6b') : (e.type === 'stone_guardian' ? '#9b59b6' : '#909497');
+        ctx.fillRect(ex - r*0.6, ey - r*1.05, r*1.2, r*0.85);
+        // Cracks
+        ctx.strokeStyle = e.type === 'stone_guardian' ? '#c39bd3' : '#555555';
+        ctx.lineWidth = 1.5; ctx.globalAlpha = aggroed ? 0.8 : 0.4;
+        ctx.beginPath(); ctx.moveTo(ex - r*0.2, ey - r*0.95); ctx.lineTo(ex + r*0.15, ey - r*0.45); ctx.lineTo(ex - r*0.1, ey + r*0.1); ctx.stroke();
+        ctx.globalAlpha = stunned ? (Math.sin(t*12.5)>0?0.4:1) : 1;
         // Eyes
-        const eyeColor = e.isElite ? '#c39bd3' : '#ff4444';
+        const eyeColor = e.type === 'stone_guardian' ? '#c39bd3' : (aggroed ? '#e74c3c' : '#f39c12');
+        const eyePulse = aggroed ? 0.7 + Math.sin(t*6)*0.3 : 1;
+        ctx.globalAlpha = eyePulse;
         ctx.fillStyle = eyeColor;
-        ctx.beginPath(); ctx.arc(ex - r*0.3, ey - r*0.2, r*0.18, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(ex + r*0.3, ey - r*0.2, r*0.18, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex - r*0.25, ey - r*0.72, r*0.18, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r*0.25, ey - r*0.72, r*0.18, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = stunned ? (Math.sin(t*12.5)>0?0.4:1) : 1;
+        // Block outlines
+        ctx.strokeStyle = e.type === 'stone_guardian' ? '#4a235a' : '#4d5656';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(ex - r*0.8, ey - r*0.3, r*1.6, r*0.65);
+        ctx.strokeRect(ex - r*0.6, ey - r*1.05, r*1.2, r*0.85);
       } else {
-        // Goblin body
-        ctx.fillStyle = fillColor;
+        // ── Goblin ──────────────────────────────────────────────────────────
+        let bodyColor, detailColor;
+        if (isGold) {
+          bodyColor   = aggroed ? '#c8860a' : '#f1c40f';
+          detailColor = aggroed ? '#e6a800' : '#ffd700';
+        } else if (stunned) {
+          bodyColor = '#FCD34D'; detailColor = '#f39c12';
+        } else if (aggroed) {
+          bodyColor = '#c0392b'; detailColor = '#e74c3c';
+        } else {
+          bodyColor = '#27ae60'; detailColor = '#2ecc71';
+        }
+
+        // Body
+        ctx.fillStyle = bodyColor;
         ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
-        // Ears
-        ctx.beginPath(); ctx.arc(ex - r, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(ex + r, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+        // Belly highlight
+        ctx.fillStyle = detailColor;
+        ctx.beginPath(); ctx.arc(ex, ey + r*0.1, r*0.62, 0, Math.PI*2); ctx.fill();
+
+        // Spike ears
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(ex - r*0.7, ey - r*0.5); ctx.lineTo(ex - r*1.1, ey - r*1.05); ctx.lineTo(ex - r*0.25, ey - r*0.75);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(ex + r*0.7, ey - r*0.5); ctx.lineTo(ex + r*1.1, ey - r*1.05); ctx.lineTo(ex + r*0.25, ey - r*0.75);
+        ctx.closePath(); ctx.fill();
+
         // Eyes
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(ex - r*0.35, ey - r*0.1, r*0.22, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(ex + r*0.35, ey - r*0.1, r*0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex - r*0.32, ey - r*0.1, r*0.24, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r*0.32, ey - r*0.1, r*0.24, 0, Math.PI*2); ctx.fill();
+        // Pupils — follow aggro direction
+        const pupilOff = aggroed ? 2 : 0;
         ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.arc(ex - r*0.35, ey - r*0.1, r*0.1, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(ex + r*0.35, ey - r*0.1, r*0.1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex - r*0.32 + pupilOff, ey - r*0.1, r*0.12, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r*0.32 + pupilOff, ey - r*0.1, r*0.12, 0, Math.PI*2); ctx.fill();
+
+        // Gold goblin crown
+        if (isGold) {
+          ctx.fillStyle = '#e6a800';
+          for (let ci = 0; ci < 3; ci++) {
+            const ca = -Math.PI * 0.65 + ci * Math.PI * 0.32;
+            ctx.beginPath();
+            ctx.moveTo(ex + Math.cos(ca)*r*0.78, ey + Math.sin(ca)*r*0.78);
+            ctx.lineTo(ex + Math.cos(ca)*r*1.15, ey + Math.sin(ca)*r*1.15);
+            ctx.lineTo(ex + Math.cos(ca+0.18)*r*0.82, ey + Math.sin(ca+0.18)*r*0.82);
+            ctx.closePath(); ctx.fill();
+          }
+          // Gem
+          ctx.fillStyle = '#e74c3c';
+          ctx.beginPath(); ctx.arc(ex, ey - r*1.05, r*0.18, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Aggroed — angry brow lines
+        if (aggroed && !stunned) {
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(ex - r*0.5, ey - r*0.35); ctx.lineTo(ex - r*0.15, ey - r*0.5); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(ex + r*0.5, ey - r*0.35); ctx.lineTo(ex + r*0.15, ey - r*0.5); ctx.stroke();
+        }
+
+        ctx.strokeStyle = isGold ? '#c8860a' : (stunned ? '#FCD34D' : aggroed ? '#922b21' : '#1a7a3a');
+        ctx.lineWidth = e.isElite ? 2.5 : 1.5;
+        ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.stroke();
       }
 
-      const strokeColor = stunned ? '#FCD34D' : e.isElite ? (e.type === 'gold_goblin' ? '#ffd700' : '#c39bd3') : '#fff';
-      ctx.strokeStyle = strokeColor; ctx.lineWidth = e.isElite ? 2.5 : 1.5; ctx.stroke();
       ctx.globalAlpha = 1;
 
       if (stunned) { ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💫', ex, ey - r - 8); }
 
       if (aggroed && !stunned) {
         const bw = e.isElite ? 48 : 36;
-        ctx.fillStyle = '#333'; ctx.fillRect(ex - bw/2, ey - r - 10, bw, 5);
+        ctx.fillStyle = '#222'; ctx.fillRect(ex - bw/2, ey - r - 12, bw, 5);
         ctx.fillStyle = e.isElite ? '#f1c40f' : '#e74c3c';
-        ctx.fillRect(ex - bw/2, ey - r - 10, bw * (e.hp / e.maxHp), 5);
+        ctx.fillRect(ex - bw/2, ey - r - 12, bw * (e.hp / e.maxHp), 5);
         ctx.fillStyle = e.isElite ? '#ffd700' : '#fff';
         ctx.font = `bold ${e.isElite ? 10 : 9}px sans-serif`; ctx.textAlign = 'center';
-        ctx.fillText(ecfg.name || e.type, ex, ey - r - 14);
-        if (e.eliteStars > 0) { ctx.font = '8px sans-serif'; ctx.fillText('⭐'.repeat(e.eliteStars), ex, ey - r - 24); }
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        ctx.strokeText(ecfg?.name || e.type, ex, ey - r - 16);
+        ctx.fillText(ecfg?.name || e.type, ex, ey - r - 16);
+        if (e.eliteStars > 0) { ctx.font = '8px sans-serif'; ctx.fillText('⭐'.repeat(e.eliteStars), ex, ey - r - 26); }
       } else if (e.isElite && !aggroed) {
         ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
         ctx.fillStyle = e.type === 'gold_goblin' ? '#ffd700aa' : '#c39bd3aa';
@@ -1493,28 +1563,109 @@ export default function WorldCanvas() {
       }
     });
 
-    // ── Player ─────────────────────────────────────────────────────────────
+        // ── Player — overworld Zelda-style hero ───────────────────────────────
     const ppx = wx(p.x), ppy = wy(p.y);
     const blinkOn = !p.invincible || Math.sin(t * 12.5) > 0;
-    ctx.globalAlpha = blinkOn ? 1 : 0.15;
-    // Body
-    ctx.fillStyle = '#4a90e2';
-    ctx.beginPath(); ctx.arc(ppx, ppy, 11, 0, Math.PI*2); ctx.fill();
-    // Helmet
-    ctx.fillStyle = '#5aa5f5';
-    ctx.beginPath(); ctx.arc(ppx, ppy - 6, 7, Math.PI, 0); ctx.fill();
-    // Visor
-    ctx.fillStyle = '#ffffff55';
-    ctx.fillRect(ppx - 4, ppy - 9, 8, 2);
-    // Legs
-    ctx.fillStyle = '#3a7ad4';
-    ctx.fillRect(ppx - 6, ppy + 8, 5, 7);
-    ctx.fillRect(ppx + 1,  ppy + 8, 5, 7);
-    // Outline
-    ctx.strokeStyle = p.invincible ? '#ffffff' : '#aaaaaa';
-    ctx.lineWidth = p.invincible ? 3 : 2;
-    ctx.beginPath(); ctx.arc(ppx, ppy, 13, 0, Math.PI*2); ctx.stroke();
+    ctx.save();
+    ctx.globalAlpha = blinkOn ? 1 : 0.2;
+
+    const owWalk = Math.sin(t * 9);
+    const owMoving = G.lastMoveDir && (G.lastMoveDir.x !== 0 || G.lastMoveDir.y !== 0);
+    const owLeg = owMoving ? owWalk * 3 : 0;
+
+    // Ground shadow
+    ctx.fillStyle = '#00000030';
+    ctx.beginPath(); ctx.ellipse(ppx, ppy + 13, 10, 3.5, 0, 0, Math.PI*2); ctx.fill();
+
+    // Cape
+    ctx.fillStyle = '#1a4a7a';
+    ctx.beginPath();
+    ctx.moveTo(ppx - 7, ppy + 1);
+    ctx.bezierCurveTo(ppx - 12, ppy + 10, ppx - 9, ppy + 20, ppx - 3, ppy + 18);
+    ctx.lineTo(ppx + 3, ppy + 18);
+    ctx.bezierCurveTo(ppx + 9, ppy + 20, ppx + 12, ppy + 10, ppx + 7, ppy + 1);
+    ctx.closePath(); ctx.fill();
+
+    // Boots
+    ctx.fillStyle = '#6b4226';
+    ctx.beginPath(); ctx.ellipse(ppx - 4 + owLeg, ppy + 16, 4, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ppx + 4 - owLeg, ppy + 16, 4, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#8b5e3c';
+    ctx.beginPath(); ctx.ellipse(ppx - 5 + owLeg, ppy + 14, 2.5, 1.8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ppx + 3 - owLeg, ppy + 14, 2.5, 1.8, 0, 0, Math.PI*2); ctx.fill();
+
+    // Tunic
+    ctx.fillStyle = '#2980b9';
+    ctx.beginPath();
+    ctx.moveTo(ppx - 9, ppy + 3); ctx.lineTo(ppx - 7, ppy - 5);
+    ctx.quadraticCurveTo(ppx, ppy - 8, ppx + 7, ppy - 5);
+    ctx.lineTo(ppx + 9, ppy + 3);
+    ctx.quadraticCurveTo(ppx, ppy + 8, ppx - 9, ppy + 3);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3498db';
+    ctx.beginPath();
+    ctx.moveTo(ppx - 5, ppy + 1); ctx.lineTo(ppx - 4, ppy - 4);
+    ctx.quadraticCurveTo(ppx, ppy - 7, ppx + 4, ppy - 4);
+    ctx.lineTo(ppx + 5, ppy + 1);
+    ctx.quadraticCurveTo(ppx, ppy + 5, ppx - 5, ppy + 1);
+    ctx.closePath(); ctx.fill();
+    // Belt
+    ctx.strokeStyle = '#1a5276'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(ppx - 8, ppy + 2); ctx.lineTo(ppx + 8, ppy + 2); ctx.stroke();
+    ctx.fillStyle = '#f1c40f'; ctx.fillRect(ppx - 2, ppy + 1, 4, 3);
+
+    // Shield (left arm)
+    const lSway = owMoving ? Math.sin(t * 9 + Math.PI) * 3 : 0;
+    ctx.fillStyle = '#2471a3'; ctx.fillRect(ppx - 14, ppy - 3 + lSway, 4, 8);
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath();
+    ctx.moveTo(ppx - 18, ppy - 4 + lSway); ctx.lineTo(ppx - 11, ppy - 4 + lSway);
+    ctx.lineTo(ppx - 11, ppy + 3 + lSway); ctx.quadraticCurveTo(ppx - 14, ppy + 7 + lSway, ppx - 18, ppy + 3 + lSway);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#922b21'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(ppx - 14, ppy - 3 + lSway); ctx.lineTo(ppx - 14, ppy + 3 + lSway); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ppx - 18, ppy + lSway); ctx.lineTo(ppx - 11, ppy + lSway); ctx.stroke();
+    ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(ppx - 14, ppy + lSway, 2, 0, Math.PI*2); ctx.fill();
+
+    // Sword (right arm)
+    const rSway = owMoving ? Math.sin(t * 9) * 3 : 0;
+    ctx.fillStyle = '#2471a3'; ctx.fillRect(ppx + 10, ppy - 3 + rSway, 4, 8);
+    ctx.strokeStyle = '#d5d8dc'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ppx + 15, ppy - 1 + rSway); ctx.lineTo(ppx + 15, ppy - 18 + rSway); ctx.stroke();
+    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(ppx + 11, ppy - 3 + rSway); ctx.lineTo(ppx + 19, ppy - 3 + rSway); ctx.stroke();
+    ctx.strokeStyle = '#6b4226'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(ppx + 15, ppy + 2 + rSway); ctx.lineTo(ppx + 15, ppy + 6 + rSway); ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // Head / Helmet
+    ctx.fillStyle = '#1a5276';
+    ctx.beginPath(); ctx.arc(ppx, ppy - 9, 9, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2980b9';
+    ctx.beginPath(); ctx.arc(ppx, ppy - 8, 7, Math.PI * 0.1, Math.PI * 0.9); ctx.fill();
+    ctx.fillStyle = '#85c1e9';
+    ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(ppx - 5, ppy - 11, 10, 3, 1); else ctx.rect(ppx-5,ppy-11,10,3);
+    ctx.fill();
+    ctx.fillStyle = '#aed6f1'; ctx.globalAlpha = blinkOn ? 0.6 : 0.1;
+    ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(ppx - 3, ppy - 11, 4, 2, 1); else ctx.rect(ppx-3,ppy-11,4,2);
+    ctx.fill();
+    ctx.globalAlpha = blinkOn ? 1 : 0.2;
+    // Plume
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.moveTo(ppx - 1, ppy - 17); ctx.bezierCurveTo(ppx + 3, ppy - 24, ppx + 8, ppy - 22, ppx + 6, ppy - 17);
+    ctx.bezierCurveTo(ppx + 4, ppy - 15, ppx + 2, ppy - 16, ppx - 1, ppy - 17); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e67e22';
+    ctx.beginPath();
+    ctx.moveTo(ppx + 1, ppy - 17); ctx.bezierCurveTo(ppx + 3, ppy - 21, ppx + 6, ppy - 20, ppx + 5, ppy - 17);
+    ctx.bezierCurveTo(ppx + 4, ppy - 15, ppx + 2, ppy - 16, ppx + 1, ppy - 17); ctx.closePath(); ctx.fill();
+
+    if (p.invincible) {
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.85;
+      ctx.beginPath(); ctx.arc(ppx, ppy - 2, 18, 0, Math.PI*2); ctx.stroke();
+    }
     ctx.globalAlpha = 1;
+    ctx.restore();
 
     // ── Float texts ────────────────────────────────────────────────────────
     G.floats.forEach(f => {
