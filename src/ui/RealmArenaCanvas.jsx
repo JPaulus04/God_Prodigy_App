@@ -1319,9 +1319,11 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         p.attackCooldown=wType==='hammer'?0.85:wType==='dagger'?0.35:0.55;
         allT.forEach(e=>{
           if(dist(p.x,p.y,e.x,e.y)>rng) return;
-          const dmg=Math.max(1,store.playerATK-(e.def||0));
+          const dmg=applyDefPierce(store.playerATK,(e.def||0),store);
           e.hp-=dmg; addFloat(e.x,e.y-20,`-${dmg}`,'#ff4444');
           hapticHit(); sfxHit();
+          const allRA=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat();
+          applyGodkillerPassives(dmg,e,p,store,allRA,addFloat);
           if(e.hp<=0){if(e===G.boss)G.boss.alive=false;else killEnemy(e,store);}
         });
         G.attackFlash={x:p.x,y:p.y,timer:0.18,type:'melee',rng};
@@ -1342,9 +1344,12 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
         const targets=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat();
         targets.forEach(e=>{
           if(!e.alive||proj.hitTargets.has(e)||dist(proj.x,proj.y,e.x,e.y)>22) return;
-          proj.hitTargets.add(e); e.hp-=proj.dmg;
-          addFloat(e.x,e.y-24,`-${proj.dmg}`,'#FCD34D');
+          const projDmg_ra = applyDefPierce(proj.dmg,(e.def||0),store);
+          proj.hitTargets.add(e); e.hp-=projDmg_ra;
+          addFloat(e.x,e.y-24,`-${projDmg_ra}`,'#FCD34D');
           hapticHit(); sfxHit();
+          const allRA2=[...G.enemies,(G.boss&&G.boss.alive?[G.boss]:[])].flat();
+          applyGodkillerPassives(projDmg_ra,e,p,store,allRA2,addFloat);
           if(e.hp<=0){ if(e===G.boss) G.boss.alive=false; else killEnemy(e,store); }
         });
       } else {
