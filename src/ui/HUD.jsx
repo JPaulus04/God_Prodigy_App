@@ -87,6 +87,14 @@ export default function HUD() {
   const defeated        = bossesDefeated || [];
   const bossSkipPending = useGameStore(s => s.bossSkipPending);
 
+  // Class display maps
+  const CLASS_COLORS = { warrior:'#e74c3c', mage:'#3498db', assassin:'#9b59b6', god:'#d4af37' };
+  const CLASS_ICONS  = { warrior:'⚔️', mage:'🔮', assassin:'🗡️', god:'👑' };
+  const CLASS_LABELS = { warrior:'WARRIOR', mage:'MAGE', assassin:'ASSASSIN', god:'GOD' };
+  const clsColor = CLASS_COLORS[prestigeClass] || '#888';
+  const clsIcon  = CLASS_ICONS[prestigeClass]  || '';
+  const clsLabel = CLASS_LABELS[prestigeClass] || '';
+
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
 
@@ -265,14 +273,13 @@ export default function HUD() {
           }}>Lv.{level}</span>
           {prestigeClass && prestigeClass !== 'warrior' && (
             <span style={{
-              background: {warrior:'#e74c3c22',mage:'#3498db22',assassin:'#9b59b622',god:'#d4af3722'}[prestigeClass]||'#22222222',
-              border: `1px solid ${{warrior:'#e74c3c',mage:'#3498db',assassin:'#9b59b6',god:'#d4af37'}}[prestigeClass]||'#888'}`,
-              color: {warrior:'#e74c3c',mage:'#3498db',assassin:'#9b59b6',god:'#d4af37'}[prestigeClass]||'#aaa',
+              background: clsColor + '22',
+              border: `1px solid ${clsColor}`,
+              color: clsColor,
               borderRadius: 8, padding: '2px 7px',
               fontSize: 9, fontWeight: 'bold',
             }}>
-              {{warrior:'⚔️',mage:'🔮',assassin:'🗡️',god:'👑'}}[prestigeClass]
-              {' '}{(prestigeClass||'').toUpperCase()}
+              {clsIcon} {clsLabel}
             </span>
           )}
           {statPoints > 0 && (
