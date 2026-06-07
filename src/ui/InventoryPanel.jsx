@@ -1,8 +1,8 @@
-// GP_INV_REFRESH_v2
+// GP_INV_COMPACT_v3
 import React from 'react';
 import { useGameStore } from '../store/useGameStore';
 
-const SLOT_SIZE = 78;
+const SLOT_SIZE = 76;
 
 function getItemIcon(item) {
   if (!item) return '·';
@@ -26,15 +26,15 @@ function getItemIcon(item) {
 
 function getSlotAccent(item) {
   if (!item) return {
-    bg: '#111',
-    border: '#222',
+    bg: '#101014',
+    border: '#282832',
     glow: 'none',
-    label: '#555',
+    label: '#5c5f6b',
   };
 
   if (item.slot === 'weapon') {
     return {
-      bg: '#1a2535',
+      bg: '#192537',
       border: '#a84343',
       glow: '0 0 0 1px #a8434333 inset',
       label: '#ff8b8b',
@@ -97,6 +97,12 @@ function getEquippedItem(slot, gear, inventory) {
   return inventory.find(i => i.instanceId === instanceId) || null;
 }
 
+function getEmptySlotLabel(label) {
+  if (label === 'Armor') return 'No Armor';
+  if (label === 'Accessory') return 'No Accessory';
+  return 'No Weapon';
+}
+
 function GearSlot({ label, item, onUnequip }) {
   const accent = getSlotAccent(item);
 
@@ -104,31 +110,31 @@ function GearSlot({ label, item, onUnequip }) {
     <div
       style={{
         flex: 1,
-        minHeight: 74,
+        minHeight: 66,
         borderRadius: 12,
-        border: `1px solid ${item ? accent.border : '#333'}`,
-        background: item ? accent.bg : '#111',
+        border: `1px solid ${item ? accent.border : '#30303a'}`,
+        background: item ? accent.bg : '#101014',
         boxShadow: item ? accent.glow : 'none',
-        padding: '8px 10px',
+        padding: '7px 9px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         position: 'relative',
       }}
     >
-      <div style={{ fontSize: 10, color: item ? accent.label : '#666', letterSpacing: 0.8 }}>
+      <div style={{ fontSize: 9, color: item ? accent.label : '#6a6a74', letterSpacing: 0.8 }}>
         {label}
       </div>
 
       {item ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontSize: 22, lineHeight: 1 }}>{getItemIcon(item)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ fontSize: 20, lineHeight: 1 }}>{getItemIcon(item)}</div>
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
                   color: '#f2f2f2',
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -137,7 +143,7 @@ function GearSlot({ label, item, onUnequip }) {
               >
                 {item.name || item.id || 'Equipped Item'}
               </div>
-              <div style={{ color: accent.label, fontSize: 9, marginTop: 2 }}>
+              <div style={{ color: accent.label, fontSize: 8, marginTop: 1 }}>
                 {getCategoryLabel(item)} {getPrimaryStatText(item) ? `• ${getPrimaryStatText(item)}` : ''}
               </div>
             </div>
@@ -147,14 +153,14 @@ function GearSlot({ label, item, onUnequip }) {
             onClick={() => onUnequip(item.slot)}
             style={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 7,
+              right: 7,
               background: '#00000088',
               border: '1px solid #ffffff22',
               color: '#ddd',
               fontSize: 10,
               borderRadius: 8,
-              padding: '2px 6px',
+              padding: '1px 6px',
               cursor: 'pointer',
             }}
           >
@@ -162,8 +168,8 @@ function GearSlot({ label, item, onUnequip }) {
           </button>
         </>
       ) : (
-        <div style={{ color: '#444', fontSize: 11, textAlign: 'center', marginTop: 12 }}>
-          Empty
+        <div style={{ color: '#4d5160', fontSize: 10, textAlign: 'center', marginTop: 10 }}>
+          {getEmptySlotLabel(label)}
         </div>
       )}
     </div>
@@ -204,10 +210,10 @@ export default function InventoryPanel() {
         left: 0,
         right: 0,
         zIndex: 120,
-        background: 'linear-gradient(0deg, #060814 84%, #060814ee 94%, #06081400 100%)',
+        background: 'linear-gradient(0deg, #050712 84%, #050712ee 94%, #05071200 100%)',
         borderTop: '2px solid #d4af3755',
-        padding: '16px 16px 42px',
-        maxHeight: '68vh',
+        padding: '14px 14px 30px',
+        maxHeight: '62vh',
         overflowY: 'auto',
         backdropFilter: 'blur(4px)',
       }}
@@ -217,15 +223,15 @@ export default function InventoryPanel() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 14,
+          marginBottom: 12,
         }}
       >
         <div>
-          <h3 style={{ color: '#d4af37', margin: 0, fontSize: 24, letterSpacing: 0.3 }}>
-            Inventory V2
+          <h3 style={{ color: '#d4af37', margin: 0, fontSize: 22, letterSpacing: 0.3 }}>
+            Inventory
           </h3>
-          <div style={{ color: '#7f8c8d', fontSize: 11, marginTop: 2 }}>
-            GP_INV_REFRESH_v2 active
+          <div style={{ color: '#7f8c8d', fontSize: 10, marginTop: 2 }}>
+            Tap gear to equip
           </div>
         </div>
 
@@ -235,10 +241,10 @@ export default function InventoryPanel() {
             background: '#00000088',
             border: '1px solid #ffffff22',
             color: '#ddd',
-            fontSize: 16,
+            fontSize: 15,
             cursor: 'pointer',
             borderRadius: 10,
-            padding: '6px 12px',
+            padding: '5px 11px',
           }}
         >
           Close
@@ -249,8 +255,8 @@ export default function InventoryPanel() {
         style={{
           display: 'flex',
           gap: 8,
-          marginBottom: 14,
-          padding: 12,
+          marginBottom: 12,
+          padding: 10,
           background: '#ffffff08',
           borderRadius: 12,
           border: '1px solid #ffffff12',
@@ -265,7 +271,7 @@ export default function InventoryPanel() {
         style={{
           display: 'flex',
           gap: 0,
-          marginBottom: 14,
+          marginBottom: 12,
           background: '#ffffff08',
           borderRadius: 12,
           border: '1px solid #ffffff12',
@@ -283,12 +289,12 @@ export default function InventoryPanel() {
             style={{
               flex: 1,
               textAlign: 'center',
-              padding: '10px 0',
+              padding: '8px 0',
               borderRight: i < 3 ? '1px solid #ffffff12' : 'none',
             }}
           >
-            <div style={{ color: s.col, fontSize: 22, fontWeight: 800 }}>{s.val}</div>
-            <div style={{ color: '#7a7a7a', fontSize: 10, letterSpacing: 1 }}>{s.label}</div>
+            <div style={{ color: s.col, fontSize: 20, fontWeight: 800 }}>{s.val}</div>
+            <div style={{ color: '#7a7a7a', fontSize: 9, letterSpacing: 1 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -297,9 +303,9 @@ export default function InventoryPanel() {
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(4, ${SLOT_SIZE}px)`,
-          gap: 10,
+          gap: 8,
           justifyContent: 'center',
-          marginBottom: 16,
+          marginBottom: 14,
         }}
       >
         {slots.map((item, i) => {
@@ -316,7 +322,7 @@ export default function InventoryPanel() {
               onClick={() => handleItemPress(item)}
               style={{
                 width: SLOT_SIZE,
-                minHeight: 96,
+                minHeight: 84,
                 background: item ? accent.bg : '#0c0f18',
                 border: `1px solid ${item ? accent.border : '#1c2230'}`,
                 borderRadius: 12,
@@ -326,7 +332,7 @@ export default function InventoryPanel() {
                 justifyContent: 'flex-start',
                 cursor: item ? 'pointer' : 'default',
                 textAlign: 'center',
-                padding: '8px 6px 6px',
+                padding: '7px 6px 6px',
                 position: 'relative',
                 boxShadow: item ? accent.glow : 'none',
               }}
@@ -336,13 +342,13 @@ export default function InventoryPanel() {
                   <div
                     style={{
                       position: 'absolute',
-                      top: 6,
-                      left: 6,
+                      top: 5,
+                      left: 5,
                       background: '#00000088',
                       color: getRarityColor(item.rarity),
                       border: `1px solid ${getRarityColor(item.rarity)}55`,
                       borderRadius: 999,
-                      fontSize: 8,
+                      fontSize: 7,
                       padding: '2px 5px',
                       letterSpacing: 0.6,
                     }}
@@ -354,30 +360,27 @@ export default function InventoryPanel() {
                     <div
                       style={{
                         position: 'absolute',
-                        top: 6,
-                        right: 6,
-                        background: '#d4af37',
-                        color: '#111',
+                        top: 5,
+                        right: 5,
+                        width: 8,
+                        height: 8,
                         borderRadius: 999,
-                        fontSize: 8,
-                        fontWeight: 800,
-                        padding: '2px 5px',
+                        background: '#d4af37',
+                        boxShadow: '0 0 8px #d4af37aa',
                       }}
-                    >
-                      ON
-                    </div>
+                    />
                   )}
 
-                  <div style={{ fontSize: 24, lineHeight: 1, marginTop: 12, marginBottom: 6 }}>
+                  <div style={{ fontSize: 22, lineHeight: 1, marginTop: 10, marginBottom: 5 }}>
                     {getItemIcon(item)}
                   </div>
 
                   <div
                     style={{
                       color: accent.label,
-                      fontSize: 8,
+                      fontSize: 7,
                       letterSpacing: 0.7,
-                      marginBottom: 3,
+                      marginBottom: 2,
                     }}
                   >
                     {getCategoryLabel(item)}
@@ -386,12 +389,13 @@ export default function InventoryPanel() {
                   <div
                     style={{
                       color: '#f2f2f2',
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: 700,
-                      lineHeight: 1.15,
-                      minHeight: 24,
+                      lineHeight: 1.08,
+                      minHeight: 20,
                       display: 'flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     {item.name || item.id}
@@ -400,8 +404,8 @@ export default function InventoryPanel() {
                   <div
                     style={{
                       color: item.atk ? '#ff7b7b' : item.def ? '#66b3ff' : '#7bed9f',
-                      fontSize: 10,
-                      marginTop: 4,
+                      fontSize: 9,
+                      marginTop: 3,
                       fontWeight: 700,
                     }}
                   >
@@ -409,7 +413,7 @@ export default function InventoryPanel() {
                   </div>
                 </>
               ) : (
-                <div style={{ color: '#1f2633', fontSize: 26, marginTop: 26 }}>+</div>
+                <div style={{ color: '#1f2633', fontSize: 22, marginTop: 24 }}>+</div>
               )}
             </button>
           );
@@ -419,7 +423,7 @@ export default function InventoryPanel() {
       <div
         style={{
           display: 'flex',
-          gap: 10,
+          gap: 8,
           justifyContent: 'center',
           flexWrap: 'wrap',
         }}
@@ -434,37 +438,25 @@ export default function InventoryPanel() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 7,
               background: '#ffffff08',
-              padding: '8px 14px',
+              padding: '7px 12px',
               borderRadius: 12,
               border: '1px solid #ffffff10',
-              minWidth: 92,
+              minWidth: 86,
               justifyContent: 'center',
             }}
           >
-            <span style={{ fontSize: 16 }}>{icon}</span>
+            <span style={{ fontSize: 15 }}>{icon}</span>
             <div>
-              <div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>
+              <div style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>
                 {resources[k] ?? 0}
               </div>
-              <div style={{ color: '#777', fontSize: 9 }}>{label}</div>
+              <div style={{ color: '#777', fontSize: 8 }}>{label}</div>
             </div>
           </div>
         ))}
       </div>
-
-      <p
-        style={{
-          textAlign: 'center',
-          color: '#5e6878',
-          fontSize: 11,
-          marginTop: 14,
-          marginBottom: 0,
-        }}
-      >
-        GP_INV_REFRESH_v2 loaded — weapons, armor, and accessories show unique icons and equipped state.
-      </p>
     </div>
   );
 }
