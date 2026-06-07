@@ -221,20 +221,23 @@ export default function StrongholdMenu() {
       position: 'absolute', inset: 0, zIndex: 150,
       background: 'linear-gradient(180deg, #0d0d1a 0%, #1a1a3a 100%)',
       display: 'flex', flexDirection: 'column', color: '#fff', overflowY: 'auto',
-      paddingTop: 'env(safe-area-inset-top)',
     }}>
-      {/* Header */}
+      {/* Header — padded below status bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '16px 20px 14px', borderBottom: '1px solid #d4af3733',
+        paddingTop: 'calc(env(safe-area-inset-top) + 18px)',
+        paddingBottom: 14, paddingLeft: 20, paddingRight: 20,
+        borderBottom: '1px solid #d4af3733',
+        background: '#0d0d1a',
+        flexShrink: 0,
       }}>
         <div>
-          <h2 style={{ color: '#d4af37', fontSize: 20, margin: 0 }}>🏰 Stronghold</h2>
-          <p style={{ color: '#666', fontSize: 11, margin: '2px 0 0' }}>Build · Craft · Upgrade</p>
+          <h2 style={{ color: '#d4af37', fontSize: 22, margin: 0, letterSpacing: 1 }}>🏰 Stronghold</h2>
+          <p style={{ color: '#888', fontSize: 11, margin: '3px 0 0' }}>Build · Craft · Upgrade</p>
         </div>
         <button onClick={() => setGamePhase('world')} style={{
-          background: '#1a1a2e', border: '2px solid #d4af37',
-          color: '#d4af37', borderRadius: 10, padding: '10px 20px',
+          background: '#d4af3722', border: '2px solid #d4af37',
+          color: '#d4af37', borderRadius: 12, padding: '10px 20px',
           cursor: 'pointer', fontSize: 15, fontWeight: 'bold',
         }}>← Return</button>
       </div>
@@ -276,7 +279,7 @@ export default function StrongholdMenu() {
         ))}
       </div>
 
-      <div style={{ padding: 16, flex: 1 }}>
+      <div style={{ padding: 16, flex: 1, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
 
         {/* ── BUILD TAB ── */}
         {tab === 'build' && Object.entries(STRUCTURES).map(([key, def]) => {
@@ -577,3 +580,4 @@ export default function StrongholdMenu() {
     </div>
   );
 }
+
