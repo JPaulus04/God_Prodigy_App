@@ -24,6 +24,7 @@ export default function HUD() {
     playerHP, playerMaxHP,
     playerName, level, xp, xpToNextLevel, statPoints,
     resources, ascensionProgress, bossesDefeated,
+    prestigeClass, prestigeLevel, fragments,
     equippedAbilityId, abilityFiredAt, abilityCooldownMs,
     toggleHelpMenu, toggleInventory, showInventory, toggleShop, passActive,
     openLevelUp,
@@ -262,6 +263,18 @@ export default function HUD() {
             background: '#d4af3733', border: '1px solid #d4af3766',
             borderRadius: 6, padding: '1px 6px',
           }}>Lv.{level}</span>
+          {prestigeClass && prestigeClass !== 'warrior' && (
+            <span style={{
+              background: {warrior:'#e74c3c22',mage:'#3498db22',assassin:'#9b59b622',god:'#d4af3722'}[prestigeClass]||'#22222222',
+              border: `1px solid ${{warrior:'#e74c3c',mage:'#3498db',assassin:'#9b59b6',god:'#d4af37'}}[prestigeClass]||'#888'}`,
+              color: {warrior:'#e74c3c',mage:'#3498db',assassin:'#9b59b6',god:'#d4af37'}[prestigeClass]||'#aaa',
+              borderRadius: 8, padding: '2px 7px',
+              fontSize: 9, fontWeight: 'bold',
+            }}>
+              {{warrior:'⚔️',mage:'🔮',assassin:'🗡️',god:'👑'}}[prestigeClass]
+              {' '}{(prestigeClass||'').toUpperCase()}
+            </span>
+          )}
           {statPoints > 0 && (
             <button onClick={openLevelUp} style={{
               pointerEvents: 'all', background: '#e74c3c', border: 'none',
