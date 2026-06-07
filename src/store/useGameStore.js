@@ -247,6 +247,7 @@ export const useGameStore = create((set, get) => ({
   },
 
   defeatBoss: (bossId) => {
+    if (!bossId) return;  // guard against undefined/null realmId
     const { bossesDefeated } = get();
     if (!bossesDefeated.includes(bossId)) {
       const updated = [...bossesDefeated, bossId];
@@ -286,3 +287,4 @@ export const useGameStore = create((set, get) => ({
 
   resetGame: () => { SaveSystem.clear(); set({ ...DEFAULT_STATE }); },
 }));
+
