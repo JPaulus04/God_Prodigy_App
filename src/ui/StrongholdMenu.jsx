@@ -32,7 +32,30 @@ const STRUCTURES = {
       { cost: { stone: 10, ore: 6 }, benefit: '+3 ATK, +2 DEF, +1 SPD' },
     ],
   },
+  prestigeForge: {
+    name: 'Prestige Forge', icon: '🔱',
+    description: 'Unlocked after defeating 5 gods. Forge divine-tier weapons.',
+    prestige: true,
+    minGods: 5,
+    levels: [
+      { cost: { ore: 30, stone: 20, fire_shard: 3 }, benefit: 'Unlock God-tier weapon crafting' },
+      { cost: { ore: 60, stone: 40, fire_shard: 8 }, benefit: 'Unlock Legendary crafting + Divine armor' },
+    ],
+  },
 };
+
+const PRESTIGE_WEAPON_RECIPES = [
+  { id: 'god_sword',    name: 'Godbane Sword',    type: 'sword',  tier: 'god', rarity: 'legendary', icon: '⚔️', cost: { ore: 25, fire_shard: 4 }, forgeLevel: 3, prestigeLevel: 1 },
+  { id: 'god_hammer',   name: 'Titan Hammer',      type: 'hammer', tier: 'god', rarity: 'legendary', icon: '🔨', cost: { ore: 30, fire_shard: 5 }, forgeLevel: 3, prestigeLevel: 1 },
+  { id: 'god_bow',      name: 'Divine Arc',         type: 'bow',    tier: 'god', rarity: 'legendary', icon: '🏹', cost: { ore: 20, fire_shard: 4 }, forgeLevel: 3, prestigeLevel: 1 },
+  { id: 'god_dagger',   name: 'Void Fang',          type: 'dagger', tier: 'god', rarity: 'legendary', icon: '🔪', cost: { ore: 18, fire_shard: 3 }, forgeLevel: 3, prestigeLevel: 1 },
+  { id: 'god_staff',    name: 'Staff of Nihilus',   type: 'staff',  tier: 'god', rarity: 'legendary', icon: '🪄', cost: { ore: 22, fire_shard: 5 }, forgeLevel: 3, prestigeLevel: 1 },
+];
+
+const PRESTIGE_ARMOR = [
+  { id: 'divine_plate', name: 'Divine Plate',  slot: 'armor', tier: 'god', rarity: 'legendary', icon: '🛡', def: 80, craftCost: { ore: 35, stone: 25, fire_shard: 6 }, forgeLevel: 3, prestigeLevel: 2 },
+  { id: 'void_cloak',   name: 'Void Cloak',    slot: 'armor', tier: 'god', rarity: 'legendary', icon: '🌑', def: 55, spd: 8, craftCost: { ore: 28, stone: 18, fire_shard: 5 }, forgeLevel: 3, prestigeLevel: 2 },
+];
 
 const TRAINING_BONUSES = [
   { atk: 2, def: 1, spd: 0 },
@@ -92,6 +115,7 @@ export default function StrongholdMenu() {
     upgradeStructure, spendResource, addItem, equipItem,
     applyTrainingBonus, setGamePhase,
     playerATK, playerDEF, playerSPD,
+    bossesDefeated,
   } = useGameStore();
 
   const [tab,        setTab]        = useState('build');
@@ -99,7 +123,9 @@ export default function StrongholdMenu() {
   const [weaponType, setWeaponType] = useState(null); // null = show type picker
   const [upgradeItem, setUpgradeItem] = useState(null); // item selected for upgrade
 
-  const forgeLevel = stronghold.forge ?? 0;
+  const forgeLevel    = stronghold.forge ?? 0;
+  const godsDefeated  = (bossesDefeated || []).length;
+  const prestigeLevel = stronghold.prestigeForge ?? 0;
 
   // ── Build tab handlers ────────────────────────────────────────────────
   const handleUpgrade = (structure) => {
@@ -115,6 +141,34 @@ export default function StrongholdMenu() {
       const bonus = TRAINING_BONUSES[level];
       if (bonus) applyTrainingBonus(bonus.atk, bonus.def, bonus.spd);
     }
+  };
+
+  // ── Craft prestige weapon ────────────────────────────────────────────
+  const handleCraftPrestigeWeapon = (recipe) => {
+    if (prestigeLevel < recipe.prestigeLevel) return;
+    const canAfford = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
+    if (!canAfford) return;
+    Object.entries(recipe.cost).forEach(([r, a]) => spendResource(r, a));
+    const ABILITY = { sword: 'whirlwind', hammer: 'ground_slam', bow: 'power_shot', dagger: 'flurry', staff: 'arcane_burst' };
+    const item = {
+      id: recipe.id, name: recipe.name, slot: 'weapon',
+      type: recipe.type, tier: recipe.tier, rarity: recipe.rarity,
+      atk: Math.round({ sword:8, hammer:12, bow:7, dagger:5, staff:8 }[recipe.type] * 6.0 * 3.0),
+      abilityId: ABILITY[recipe.type],
+      instanceId: `item_${Date.now()}_${recipe.id}`,
+      upgradeLevel: 0,
+    };
+    addItem(item);
+  };
+
+  const handleCraftPrestigeArmor = (armorDef) => {
+    if (prestigeLevel < armorDef.prestigeLevel) return;
+    const canAfford = Object.entries(armorDef.craftCost).every(([r, a]) => (resources[r] ?? 0) >= a);
+    if (!canAfford) return;
+    Object.entries(armorDef.craftCost).forEach(([r, a]) => spendResource(r, a));
+    addItem({ id: armorDef.id, name: armorDef.name, slot: 'armor', tier: armorDef.tier,
+      rarity: armorDef.rarity, def: armorDef.def, spd: armorDef.spd || 0,
+      instanceId: `item_${Date.now()}_${armorDef.id}` });
   };
 
   // ── Craft weapon ──────────────────────────────────────────────────────
@@ -318,6 +372,56 @@ export default function StrongholdMenu() {
           );
         })}
 
+        {/* ── PRESTIGE FORGE (build tab) ── */}
+        {tab === 'build' && (() => {
+          const pDef    = STRUCTURES.prestigeForge;
+          const pLevel  = stronghold.prestigeForge ?? 0;
+          const pMaxed  = pLevel >= pDef.levels.length;
+          const locked  = godsDefeated < pDef.minGods;
+          const pNext   = pDef.levels[pLevel];
+          const pAfford = !pMaxed && !locked && pNext &&
+            Object.entries(pNext.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
+          return (
+            <div style={{
+              background: locked ? '#0d0d1a' : 'linear-gradient(135deg, #1a1000, #0d0d1a)',
+              border: `1px solid ${locked ? '#2a2a2a' : '#d4af3755'}`,
+              borderRadius: 10, padding: 14, marginTop: 4, marginBottom: 12,
+              opacity: locked ? 0.6 : 1,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 'bold', color: locked ? '#555' : '#d4af37' }}>
+                    {pDef.icon} {pDef.name}
+                    <span style={{ color: '#555', fontSize: 12, marginLeft: 8 }}>Lv {pLevel}/{pDef.levels.length}</span>
+                  </div>
+                  <div style={{ color: '#666', fontSize: 11, marginTop: 2 }}>{pDef.description}</div>
+                  {locked && (
+                    <div style={{ color: '#e67e22', fontSize: 11, marginTop: 4 }}>
+                      🔒 Defeat {pDef.minGods} gods to unlock ({godsDefeated}/{pDef.minGods} defeated)
+                    </div>
+                  )}
+                  {!locked && !pMaxed && pNext && (
+                    <>
+                      <div style={{ color: '#d4af37', fontSize: 11, marginTop: 4 }}>Next: {pNext.benefit}</div>
+                      <ResourceCost cost={pNext.cost} resources={resources} />
+                    </>
+                  )}
+                  {pMaxed && <div style={{ color: '#d4af37', fontSize: 11, marginTop: 4 }}>✓ Fully Upgraded</div>}
+                </div>
+                {!locked && !pMaxed && (
+                  <button onClick={() => handleUpgrade('prestigeForge')} disabled={!pAfford} style={{
+                    marginLeft: 12, padding: '10px 14px', borderRadius: 8, border: 'none',
+                    cursor: pAfford ? 'pointer' : 'not-allowed',
+                    background: pAfford ? '#d4af37' : '#2a2a2a',
+                    color:      pAfford ? '#0d0d1a' : '#555',
+                    fontSize: 13, fontWeight: 'bold', flexShrink: 0,
+                  }}>Forge</button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── CRAFT TAB ── */}
         {tab === 'craft' && (
           <div>
@@ -507,6 +611,72 @@ export default function StrongholdMenu() {
                     );
                   })
                 }
+              </>
+            )}
+
+            {/* ── Prestige Forge recipes ── */}
+            {prestigeLevel >= 1 && (
+              <>
+                <div style={{ height: 1, background: '#d4af3333', margin: '16px 0 12px' }} />
+                <div style={{ color: '#d4af37', fontSize: 12, fontWeight: 'bold', marginBottom: 10, letterSpacing: 1 }}>
+                  🔱 GOD-TIER WEAPONS
+                </div>
+                {PRESTIGE_WEAPON_RECIPES.map(recipe => {
+                  const canAfford = Object.entries(recipe.cost).every(([r, a]) => (resources[r] ?? 0) >= a);
+                  return (
+                    <div key={recipe.id} style={{
+                      background: '#0d0d1a', border: '1px solid #d4af3744',
+                      borderRadius: 10, padding: '12px 14px', marginBottom: 8,
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ color: '#d4af37', fontSize: 14, fontWeight: 'bold' }}>
+                          {recipe.icon} {recipe.name}
+                          <span style={{ color: '#d4af3788', fontSize: 10, marginLeft: 6 }}>★★★★★</span>
+                        </div>
+                        <ResourceCost cost={recipe.cost} resources={resources} />
+                      </div>
+                      <button onClick={() => handleCraftPrestigeWeapon(recipe)} disabled={!canAfford} style={{
+                        marginLeft: 10, padding: '8px 12px', borderRadius: 8, border: 'none',
+                        background: canAfford ? '#d4af37' : '#2a2a2a',
+                        color: canAfford ? '#000' : '#555',
+                        fontSize: 12, fontWeight: 'bold', cursor: canAfford ? 'pointer' : 'not-allowed',
+                      }}>Forge</button>
+                    </div>
+                  );
+                })}
+
+                {prestigeLevel >= 2 && (
+                  <>
+                    <div style={{ color: '#d4af37', fontSize: 12, fontWeight: 'bold', margin: '14px 0 10px', letterSpacing: 1 }}>
+                      🔱 DIVINE ARMOR
+                    </div>
+                    {PRESTIGE_ARMOR.map(armor => {
+                      const canAfford = Object.entries(armor.craftCost).every(([r, a]) => (resources[r] ?? 0) >= a);
+                      return (
+                        <div key={armor.id} style={{
+                          background: '#0d0d1a', border: '1px solid #d4af3744',
+                          borderRadius: 10, padding: '12px 14px', marginBottom: 8,
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        }}>
+                          <div>
+                            <div style={{ color: '#d4af37', fontSize: 14, fontWeight: 'bold' }}>
+                              {armor.icon} {armor.name}
+                              <span style={{ color: '#95a5a6', fontSize: 10, marginLeft: 6 }}>DEF +{armor.def}{armor.spd ? ` SPD +${armor.spd}` : ''}</span>
+                            </div>
+                            <ResourceCost cost={armor.craftCost} resources={resources} />
+                          </div>
+                          <button onClick={() => handleCraftPrestigeArmor(armor)} disabled={!canAfford} style={{
+                            marginLeft: 10, padding: '8px 12px', borderRadius: 8, border: 'none',
+                            background: canAfford ? '#d4af37' : '#2a2a2a',
+                            color: canAfford ? '#000' : '#555',
+                            fontSize: 12, fontWeight: 'bold', cursor: canAfford ? 'pointer' : 'not-allowed',
+                          }}>Forge</button>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </>
             )}
           </div>
