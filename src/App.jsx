@@ -11,6 +11,7 @@ import StrongholdMenu    from './ui/StrongholdMenu';
 import InventoryPanel    from './ui/InventoryPanel';
 import LevelUpModal      from './ui/LevelUpModal';
 import IAPShop           from './ui/IAPShop';
+import TutorialOverlay   from './ui/TutorialOverlay';
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -30,13 +31,15 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave } = useGameStore();
+  const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave, tutorialStep } = useGameStore();
   useEffect(() => { loadSave(); }, []);
   const inWorld = gamePhase === 'world';
   const inDun   = gamePhase === 'dungeon';
   const inRealm = gamePhase === 'realm';
   const inSH    = gamePhase === 'stronghold';
   const inGame  = inWorld || inDun || inRealm || inSH;
+  // Show tutorial overlay only on world phase for new players (tutorialStep < 4)
+  const showTutorial = inWorld && tutorialStep < 4;
   return (
     <div style={{ width:'100%', height:'100%', position:'relative', background:'#0d0d1a', overflow:'hidden' }}>
       {gamePhase === 'menu' && <NameEntry />}
@@ -50,7 +53,7 @@ export default function App() {
       {inGame && showDeathModal && <DeathModal />}
       {inGame && showLevelUp    && <LevelUpModal />}
       {inGame && showShop      && <IAPShop onClose={toggleShop} />}
+      {showTutorial && <TutorialOverlay />}
     </div>
   );
 }
-
