@@ -55,6 +55,9 @@ const DEFAULT_STATE = {
   bossSkipPending:      false, // true after God's Mercy purchase — next portal E triggers skip
   bossSkipUsed:         false,
 
+  killCount:      0,
+  totalDamageDealt: 0,
+
   showInventory:  false,
   showHelpMenu:   false,
   showDeathModal: false,
@@ -69,6 +72,9 @@ export const useGameStore = create((set, get) => ({
   setGamePhase:    (phase) => set({ gamePhase: phase }),
   setCurrentRealm: (realm) => set({ currentRealm: realm }),
   advanceTutorial: ()      => set(s => ({ tutorialStep: s.tutorialStep + 1 })),
+
+  addKill:         ()      => set(s => ({ killCount: (s.killCount || 0) + 1 })),
+  addDamageDealt:  (dmg)   => set(s => ({ totalDamageDealt: (s.totalDamageDealt || 0) + dmg })),
 
   takeDamage: (amount) => {
     const { playerHP } = get();
@@ -230,6 +236,8 @@ export const useGameStore = create((set, get) => ({
     if (!checkpoints.includes(checkpointId)) set({ checkpoints: [...checkpoints, checkpointId] });
     set({ lastCheckpoint: checkpointId });
     SaveSystem.save(get());
+    // Dispatch save toast event
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('gp:saved'));
   },
 
   respawn: (location) => {
