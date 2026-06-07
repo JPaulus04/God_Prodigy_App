@@ -1066,6 +1066,25 @@ export default function WorldCanvas() {
     G.floats.push({ x, y, text, color, life: big ? 1.5 : 1.2, vy: big ? -50 : -40, big });
   };
 
+  // ── Godkiller passive helpers ─────────────────────────────────────────────
+  const getGodkillerPassive = (store) => {
+    const wId = store.gear?.weapon;
+    const w   = wId ? store.inventory.find(i => i.instanceId === wId) : null;
+    if (!w || w.rarity !== 'godkiller') return {};
+    return { lifesteal: w.id === 'soulbreaker', defPierce: w.id === 'voidpiercer', aoeStun: w.id === 'godsplitter' };
+  };
+  const applyGodkillerPassives = (dmg, e, p, store, allEnemies, addFloat) => {
+    const passive = getGodkillerPassive(store);
+    if (passive.lifesteal) { const heal = Math.max(1, Math.round(dmg * 0.15)); store.healPlayer(heal); addFloat(p.x, p.y - 30, `+${heal}`, '#2ecc71'); }
+    if (passive.aoeStun && e) { allEnemies.forEach(en => { if (!en.alive) return; const dx = en.x - (e.x ?? p.x), dy = en.y - (e.y ?? p.y); if (Math.sqrt(dx * dx + dy * dy) <= 80) en.stunTimer = Math.max(en.stunTimer || 0, 1.5); }); addFloat(e.x ?? p.x, (e.y ?? p.y) - 36, '⚡ STUNNED', '#f1c40f', true); }
+  };
+  const applyDefPierce = (baseDmg, enemyDef, store) => {
+    const passive = getGodkillerPassive(store);
+    if (passive.defPierce) return Math.max(1, baseDmg);
+    return Math.max(1, baseDmg - enemyDef);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const killEnemy = (e, store) => {
     e.alive = false;
     const cfg      = EnemyConfig[e.type];
@@ -1328,9 +1347,10 @@ export default function WorldCanvas() {
         let hitCount = 0;
         G.enemies.forEach(e => {
           if (!e.alive || dist(p.x, p.y, e.x, e.y) > wAtk.range) return;
-          const dmg = Math.max(1, store.playerATK - cfg[e.type].def);
+          const dmg = applyDefPierce(store.playerATK, cfg[e.type].def, store);
           e.hp -= dmg;
           addFloat(e.x, e.y - 20, `-${dmg}`, '#ff4444');
+          applyGodkillerPassives(dmg, e, p, store, G.enemies, addFloat);
           hitCount++;
           if (e.hp <= 0) killEnemy(e, store);
         });
@@ -1353,9 +1373,11 @@ export default function WorldCanvas() {
         if (!e.alive || arrow.hitEnemies.has(e)) return;
         if (dist(arrow.x, arrow.y, e.x, e.y) > 18) return;
         arrow.hitEnemies.add(e);
-        const dmg = Math.max(1, arrow.dmg - cfg[e.type].def);
+        const eDef_ar = cfg[e.type]?.def || 0;
+        const dmg = applyDefPierce(arrow.dmg, eDef_ar, store);
         e.hp -= dmg;
         addFloat(e.x, e.y - 20, `-${dmg}`, '#FCD34D');
+        applyGodkillerPassives(dmg, e, p, store, G.enemies, addFloat);
         if (e.hp <= 0) killEnemy(e, store);
       });
       return arrow.traveled < arrow.maxRange && arrow.x > 0 && arrow.x < WORLD_W && arrow.y > 0 && arrow.y < WORLD_H;
@@ -1367,8 +1389,10 @@ export default function WorldCanvas() {
       G.enemies.forEach(e => {
         if (!e.alive || proj.hitEnemies.has(e)) return;
         if (dist(proj.x, proj.y, e.x, e.y) > 22) return;
-        proj.hitEnemies.add(e); e.hp -= proj.dmg;
-        addFloat(e.x, e.y - 24, `-${proj.dmg}`, '#FCD34D');
+        const projDmg_wc = applyDefPierce(proj.dmg, cfg[e.type]?.def || 0, store);
+        proj.hitEnemies.add(e); e.hp -= projDmg_wc;
+        addFloat(e.x, e.y - 24, `-${projDmg_wc}`, '#FCD34D');
+        applyGodkillerPassives(projDmg_wc, e, p, store, G.enemies, addFloat);
         if (e.hp <= 0) killEnemy(e, store);
       });
       return proj.traveled < proj.maxRange && proj.x > 0 && proj.x < WORLD_W && proj.y > 0 && proj.y < WORLD_H;
