@@ -4,7 +4,7 @@ import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 import { sfxAttack, sfxHit, sfxCollect, resumeAudio } from '../utils/sfx';
-import { hapticAttack, hapticHit, hapticCollect } from '../utils/haptics';
+import { hapticAttack, hapticHit, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { FRAGMENT_TYPES, FRAGMENT_DROP_CHANCE, CHALLENGE_TYPES } from '../game/config/FragmentConfig';
 
 const TILE     = 32;
