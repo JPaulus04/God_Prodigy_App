@@ -5,6 +5,7 @@ import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 import { sfxAttack, sfxHit, sfxCollect, resumeAudio } from '../utils/sfx';
 import { hapticAttack, hapticHit, hapticCollect } from '../utils/haptics';
+import { FRAGMENT_TYPES, FRAGMENT_DROP_CHANCE, CHALLENGE_TYPES } from '../game/config/FragmentConfig';
 
 const TILE     = 32;
 const DUNGEON_W = 40;
@@ -421,6 +422,18 @@ export default function DungeonCanvas() {
         };
         if (store.addItem(item)) addFloat(CHEST_X, CHEST_Y-75, `💎 Rare ${name}!`, '#3498db', true);
         store.defeatBoss('dungeon_champion');
+        // ── Fragment drop on chest open ────────────────────────
+        if (!G.fragmentDropped) {
+          G.fragmentDropped = true;
+          const fragTypes = ['rune','shard','seal'];
+          fragTypes.forEach(t => {
+            if (Math.random() < FRAGMENT_DROP_CHANCE[t]) {
+              store.addFragment(t, 1);
+              const ft = FRAGMENT_TYPES[t];
+              addFloat(CHEST_X, CHEST_Y - 95, `${ft.icon} ${ft.name}!`, ft.color, true);
+            }
+          });
+        }
       }
     }
 
@@ -431,6 +444,67 @@ export default function DungeonCanvas() {
       G.regenTimer += dt;
       if (G.regenTimer >= 4) { G.regenTimer = 0; store.healPlayer(1); }
     } else { G.regenTimer = 0; }
+
+    // ── Mini-challenge room ───────────────────────────────────
+    // Spawn challenge when player enters room 2 and challenge not yet done
+    if (!G.challengeDone && !G.challenge && p.x > DOOR1_X && p.x < DOOR2_X) {
+      // Pick a random challenge type
+      const types = Object.values(CHALLENGE_TYPES);
+      const chosen = types[Math.floor(Math.random() * types.length)];
+      G.challenge = {
+        type:    chosen.id,
+        timer:   chosen.timeLimit || 0,
+        passed:  false,
+        failed:  false,
+        startHP: store.playerHP,
+        surviveTimer: chosen.timeLimit || 20,
+      };
+      addFloat(p.x, p.y - 70, `⚠ ${chosen.name}!`, chosen.color, true);
+    }
+
+    // Tick active challenge
+    if (G.challenge && !G.challenge.passed && !G.challenge.failed) {
+      const ch = G.challenge;
+      const ct = CHALLENGE_TYPES[ch.type];
+
+      if (ch.type === 'timed_wave') {
+        ch.timer -= dt;
+        const allDead = allEnemies().filter(e => G.room2Enemies.includes(e)).every(e => !e.alive);
+        if (allDead) {
+          ch.passed = true;
+          store.addFragment(ct.reward, 1);
+          const ft = FRAGMENT_TYPES[ct.reward];
+          addFloat(p.x, p.y - 80, `✓ ${ct.name}! ${ft.icon} +${ft.name}`, '#2ecc71', true);
+          G.challengeDone = true;
+        } else if (ch.timer <= 0) {
+          ch.failed = true;
+          addFloat(p.x, p.y - 60, '✗ Time's up!', '#e74c3c', true);
+          G.challengeDone = true;
+        }
+      } else if (ch.type === 'no_damage') {
+        const allDead2 = allEnemies().filter(e => G.room2Enemies.includes(e)).every(e => !e.alive);
+        if (store.playerHP < ch.startHP) {
+          ch.failed = true;
+          addFloat(p.x, p.y - 60, '✗ Untouched failed!', '#e74c3c', true);
+          G.challengeDone = true;
+        } else if (allDead2) {
+          ch.passed = true;
+          store.addFragment(ct.reward, 1);
+          const ft2 = FRAGMENT_TYPES[ct.reward];
+          addFloat(p.x, p.y - 80, `✓ ${ct.name}! ${ft2.icon} +${ft2.name}`, '#2ecc71', true);
+          G.challengeDone = true;
+        }
+      } else if (ch.type === 'survival') {
+        ch.surviveTimer -= dt;
+        if (ch.surviveTimer <= 0) {
+          ch.passed = true;
+          store.addFragment(ct.reward, 1);
+          const ft3 = FRAGMENT_TYPES[ct.reward];
+          addFloat(p.x, p.y - 80, `✓ ${ct.name}! ${ft3.icon} +${ft3.name}`, '#2ecc71', true);
+          G.challengeDone = true;
+        }
+      }
+    }
 
     // ── Enemy AI — room gated ─────────────────────────────
     // Enemies only activate when the player has reached their room
@@ -742,6 +816,35 @@ export default function DungeonCanvas() {
     });
 
     // Float texts
+    // ── Challenge HUD ──────────────────────────────────────────
+    if (G.challenge && !G.challenge.passed && !G.challenge.failed) {
+      const ch = G.challenge;
+      const ct = CHALLENGE_TYPES[ch.type];
+      const cW = 200, cH = 44, cX = (W - cW) / 2, cY = 12;
+      ctx.save();
+      ctx.fillStyle = '#000000cc';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(cX, cY, cW, cH, 8);
+      else ctx.rect(cX, cY, cW, cH);
+      ctx.fill();
+      ctx.strokeStyle = ct.color; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(cX, cY, cW, cH, 8);
+      else ctx.rect(cX, cY, cW, cH);
+      ctx.stroke();
+      ctx.fillStyle = ct.color; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(`${ct.icon} ${ct.name}`, W/2, cY + 16);
+      ctx.fillStyle = '#ffffff99'; ctx.font = '10px sans-serif';
+      if (ch.type === 'timed_wave') {
+        ctx.fillText(`Defeat all enemies · ${Math.ceil(ch.timer)}s`, W/2, cY + 32);
+      } else if (ch.type === 'no_damage') {
+        ctx.fillText('Clear without taking damage', W/2, cY + 32);
+      } else if (ch.type === 'survival') {
+        ctx.fillText(`Survive · ${Math.ceil(ch.surviveTimer)}s remaining`, W/2, cY + 32);
+      }
+      ctx.restore();
+    }
+
     G.floats.forEach(f => {
       const fx=wx(f.x),fy=wy(f.y);
       ctx.globalAlpha=Math.max(0,f.life);
