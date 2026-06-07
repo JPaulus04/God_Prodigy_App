@@ -912,6 +912,23 @@ export default function WorldCanvas() {
     templeCooldown: 2.5,
     floats:       [],
     npcMessage:   null,
+    villageNPCs: [
+      // Elder Kael — stays near well
+      { id:'kael',   x:23*TILE, y:28*TILE, tx:23*TILE, ty:28*TILE, color:'#1abc9c', name:'Elder Kael',  role:'elder',   walkTimer:0, waitTimer:3, dir:0, seated:false },
+      // Blacksmith — paces near forge
+      { id:'smith',  x:26*TILE, y:45*TILE, tx:26*TILE, ty:45*TILE, color:'#e67e22', name:'Aldric',     role:'smith',   walkTimer:0, waitTimer:2, dir:1, seated:false },
+      // Shop keeper — sits at market stall
+      { id:'merch',  x:28*TILE, y:43*TILE, tx:28*TILE, ty:43*TILE, color:'#9b59b6', name:'Mira',       role:'merchant',walkTimer:0, waitTimer:4, dir:2, seated:true  },
+      // Healer — wanders herb garden
+      { id:'heal',   x:22*TILE, y:46*TILE, tx:22*TILE, ty:46*TILE, color:'#2ecc71', name:'Sister Lyn', role:'healer',  walkTimer:0, waitTimer:3, dir:3, seated:false },
+      // Guard — patrols village gate
+      { id:'guard1', x:24*TILE, y:41*TILE, tx:24*TILE, ty:41*TILE, color:'#95a5a6', name:'Guard',      role:'guard',   walkTimer:0, waitTimer:2, dir:0, seated:false },
+      { id:'guard2', x:26*TILE, y:41*TILE, tx:26*TILE, ty:41*TILE, color:'#95a5a6', name:'Guard',      role:'guard',   walkTimer:0, waitTimer:2, dir:2, seated:false },
+      // Villager wanderers
+      { id:'vil1',   x:25*TILE, y:44*TILE, tx:25*TILE, ty:44*TILE, color:'#f39c12', name:'Renn',       role:'villager',walkTimer:0, waitTimer:2, dir:1, seated:false },
+      { id:'vil2',   x:23*TILE, y:45*TILE, tx:23*TILE, ty:45*TILE, color:'#e8daef', name:'Lysa',       role:'villager',walkTimer:0, waitTimer:3, dir:3, seated:true  },
+      { id:'vil3',   x:27*TILE, y:46*TILE, tx:27*TILE, ty:46*TILE, color:'#aab7b8', name:'Torv',       role:'villager',walkTimer:0, waitTimer:2, dir:2, seated:false },
+    ],
     abilityCooldown: 0,
     abilityEffect:   null,
     projectiles:     [],
@@ -1067,6 +1084,33 @@ export default function WorldCanvas() {
     const p   = G.player;
     const cfg = EnemyConfig;
     if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
+
+    // ── Village NPC walk AI ────────────────────────────────────────────────
+    const VLG_CX = 25 * TILE, VLG_CY = 44 * TILE, VLG_R = 5 * TILE;
+    G.villageNPCs.forEach(npc => {
+      if (npc.seated) return; // seated NPCs stay put
+      npc.waitTimer -= dt;
+      if (npc.waitTimer > 0) return;
+      npc.walkTimer -= dt;
+      if (npc.walkTimer <= 0) {
+        // Pick a new patrol target within village radius
+        const angle = Math.random() * Math.PI * 2;
+        const rad   = Math.random() * VLG_R;
+        npc.tx = Math.max(TILE*20, Math.min(TILE*30, VLG_CX + Math.cos(angle) * rad));
+        npc.ty = Math.max(TILE*40, Math.min(TILE*50, VLG_CY + Math.sin(angle) * rad));
+        npc.walkTimer = 2.5 + Math.random() * 2;
+        npc.waitTimer = 1.0 + Math.random() * 1.5;
+      }
+      // Move toward target
+      const dx = npc.tx - npc.x, dy = npc.ty - npc.y;
+      const dd = Math.sqrt(dx*dx + dy*dy);
+      if (dd > 4) {
+        const spd = 38;
+        npc.x += (dx/dd) * spd * dt;
+        npc.y += (dy/dd) * spd * dt;
+        npc.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+      }
+    });
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
@@ -1382,31 +1426,362 @@ export default function WorldCanvas() {
       ctx.fillText(cp.activated ? 'SAVED' : 'SAVE', sx, sy + 28);
     });
 
-    // ── Stronghold ─────────────────────────────────────────────────────────
-    const shx = wx(25*TILE), shy = wy(44*TILE);
-    if (onScreen(shx, shy, 80)) {
-      const glow = 0.75 + Math.sin(t * 0.9) * 0.25;
-      ctx.globalAlpha = glow;
-      // Base
-      ctx.fillStyle = '#8a6a20';
-      ctx.fillRect(shx - 28, shy - 18, 56, 36);
-      // Side towers
-      ctx.fillStyle = '#a07830';
-      ctx.fillRect(shx - 30, shy - 28, 14, 38);
-      ctx.fillRect(shx + 16, shy - 28, 14, 38);
-      // Center tower
-      ctx.fillStyle = '#b88a38';
-      ctx.fillRect(shx - 10, shy - 36, 20, 42);
-      // Battlements
-      ctx.fillStyle = '#d4af37';
-      for (let i = 0; i < 5; i++) ctx.fillRect(shx - 28 + i * 14, shy - 34, 8, 8);
-      ctx.fillRect(shx - 10, shy - 44, 6, 10);
-      ctx.fillRect(shx + 4,  shy - 44, 6, 10);
+    // ── Village of Kaelford ──────────────────────────────────────────────────
+    const VX = wx(25*TILE), VY = wy(44*TILE);
+    if (onScreen(VX, VY, 280)) {
+
+      // ── Ground — cobblestone plaza (tiled pattern) ──────────────────────
+      ctx.fillStyle = '#8a7a60';
+      ctx.fillRect(VX - 140, VY - 100, 280, 190);
+      // Stone tile grid
+      ctx.strokeStyle = '#7a6a50'; ctx.lineWidth = 1;
+      for (let gx = -140; gx < 140; gx += 20) ctx.strokeRect(VX + gx, VY - 100, 20, 20);
+      for (let gy = -100; gy < 90; gy += 20)  ctx.strokeRect(VX - 140, VY + gy, 280, 20);
+      // Path from gate to crafting hall — lighter stone
+      ctx.fillStyle = '#9a8a6a';
+      ctx.fillRect(VX - 16, VY - 100, 32, 190);
+      ctx.fillRect(VX - 140, VY - 8, 280, 16);
+
+      // ── Village fence / outer wall ──────────────────────────────────────
+      const fenceColor = '#6b4f2c';
+      // Top fence
+      for (let fx = -140; fx < 140; fx += 14) {
+        ctx.fillStyle = fenceColor;
+        ctx.fillRect(VX + fx, VY - 108, 10, 16);
+        ctx.fillStyle = '#8a6a3c';
+        ctx.fillRect(VX + fx, VY - 108, 10, 3);
+      }
+      // Left fence
+      for (let fy = -100; fy < 80; fy += 14) {
+        ctx.fillStyle = fenceColor; ctx.fillRect(VX - 144, VY + fy, 10, 10);
+      }
+      // Right fence
+      for (let fy = -100; fy < 80; fy += 14) {
+        ctx.fillStyle = fenceColor; ctx.fillRect(VX + 136, VY + fy, 10, 10);
+      }
+
+      // ── Village Gate (south entry) ──────────────────────────────────────
+      const gateX = VX, gateY = VY + 82;
+      ctx.fillStyle = '#5a3a1e'; // Gate posts
+      ctx.fillRect(gateX - 22, gateY - 28, 10, 34);
+      ctx.fillRect(gateX + 12, gateY - 28, 10, 34);
+      ctx.fillStyle = '#7a5a2e';
+      ctx.fillRect(gateX - 22, gateY - 32, 44, 8); // crossbar
+      ctx.fillStyle = '#d4af37'; // Gate lanterns
+      const lanternPulse = 0.7 + Math.sin(t * 2.5) * 0.3;
+      ctx.globalAlpha = lanternPulse * 0.6;
+      ctx.beginPath(); ctx.arc(gateX - 17, gateY - 36, 8, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(gateX + 17, gateY - 36, 8, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = '#000000cc'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('🏰 STRONGHOLD', shx, shy - 50);
-      ctx.fillStyle = '#d4af37bb'; ctx.font = '9px sans-serif';
-      ctx.fillText('[E] Enter', shx, shy + 28);
+      ctx.fillStyle = '#e67e22';
+      ctx.beginPath(); ctx.arc(gateX - 17, gateY - 36, 4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(gateX + 17, gateY - 36, 4, 0, Math.PI*2); ctx.fill();
+      // Gate sign
+      ctx.fillStyle = '#5c3a1e';
+      ctx.fillRect(gateX - 30, gateY - 54, 60, 16);
+      ctx.fillStyle = '#d4af37'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+      ctx.strokeText('KAELFORD', gateX, gateY - 43);
+      ctx.fillText('KAELFORD', gateX, gateY - 43);
+
+      // ── Village Well (center) ──────────────────────────────────────────
+      const wellX = VX - 30, wellY = VY - 20;
+      // Shadow
+      ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(wellX + 3, wellY + 14, 16, 5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+      // Well base ring
+      ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(wellX, wellY, 14, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#0a0a1a'; ctx.beginPath(); ctx.arc(wellX, wellY, 10, 0, Math.PI*2); ctx.fill(); // water
+      ctx.fillStyle = '#1a2a3a'; ctx.globalAlpha = 0.7;
+      ctx.beginPath(); ctx.arc(wellX, wellY + 2, 7, 0, Math.PI*2); ctx.fill(); // water surface
+      ctx.globalAlpha = 1;
+      // Well posts + crossbeam
+      ctx.fillStyle = '#5c3a1e'; ctx.fillRect(wellX - 14, wellY - 20, 4, 22);
+      ctx.fillRect(wellX + 10, wellY - 20, 4, 22);
+      ctx.fillRect(wellX - 16, wellY - 22, 36, 5);
+      // Rope
+      ctx.strokeStyle = '#c8a050'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(wellX, wellY - 19); ctx.lineTo(wellX, wellY - 6); ctx.stroke();
+      // Bucket
+      ctx.fillStyle = '#5c3a1e'; ctx.fillRect(wellX - 5, wellY - 8, 10, 8);
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(wellX - 5, wellY - 8); ctx.lineTo(wellX, wellY - 12); ctx.lineTo(wellX + 5, wellY - 8); ctx.stroke();
+
+      // ── Crafting Hall (north, largest building) ────────────────────────
+      const chX = VX, chY = VY - 70;
+      // Shadow
+      ctx.globalAlpha = 0.22; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(chX + 5, chY + 36, 55, 10, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+      // Building depth
+      ctx.fillStyle = '#4a3520'; ctx.fillRect(chX - 42, chY - 32, 84, 70);
+      ctx.translate(0, 0); // no transform needed
+      // Main walls
+      ctx.fillStyle = '#6b5030'; ctx.fillRect(chX - 40, chY - 34, 80, 70);
+      // Wall highlight
+      ctx.fillStyle = '#7a6040'; ctx.globalAlpha = 0.5;
+      ctx.fillRect(chX - 40, chY - 34, 80, 8);
+      ctx.globalAlpha = 1;
+      // Roof — thatch style
+      ctx.fillStyle = '#8b6914';
+      ctx.beginPath();
+      ctx.moveTo(chX, chY - 60);
+      ctx.lineTo(chX - 48, chY - 30);
+      ctx.lineTo(chX + 48, chY - 30);
+      ctx.closePath(); ctx.fill();
+      // Roof stripes (thatch lines)
+      ctx.strokeStyle = '#6b5010'; ctx.lineWidth = 1.5;
+      for (let rs = -4; rs <= 4; rs++) {
+        const rx = chX + rs * 10;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.moveTo(rx, chY - 60 + Math.abs(rs)*2); ctx.lineTo(chX - 48 + (rs+4)*9, chY - 30); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // Ridge cap
+      ctx.fillStyle = '#5a4808'; ctx.fillRect(chX - 4, chY - 62, 8, 34);
+      // Door
+      ctx.fillStyle = '#2a1808'; ctx.fillRect(chX - 9, chY + 14, 18, 22);
+      ctx.fillStyle = '#3a2010'; ctx.fillRect(chX - 8, chY + 15, 16, 20);
+      ctx.fillStyle = '#d4af37'; // door handle
+      ctx.beginPath(); ctx.arc(chX + 5, chY + 24, 2, 0, Math.PI*2); ctx.fill();
+      // Windows
+      [[-22, -5],[22, -5]].forEach(([wx2]) => {
+        ctx.fillStyle = '#1a0e04'; ctx.fillRect(chX + wx2 - 7, chY - 10, 14, 12);
+        // Warm interior glow
+        ctx.globalAlpha = 0.5 + Math.sin(t * 1.8) * 0.15;
+        ctx.fillStyle = '#e67e22'; ctx.fillRect(chX + wx2 - 6, chY - 9, 12, 10);
+        ctx.globalAlpha = 1;
+        // Window cross
+        ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(chX+wx2, chY-10); ctx.lineTo(chX+wx2, chY+2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(chX+wx2-7, chY-4); ctx.lineTo(chX+wx2+7, chY-4); ctx.stroke();
+      });
+      // Sign above door
+      ctx.fillStyle = '#5c3a1e'; ctx.fillRect(chX - 20, chY + 8, 40, 10);
+      ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+      ctx.strokeText('⚒ CRAFTING HALL', chX, chY + 16);
+      ctx.fillText('⚒ CRAFTING HALL', chX, chY + 16);
+      // Smoke from chimney
+      ctx.fillStyle = '#8a8a7a';
+      const chimneyX = chX + 24;
+      for (let s = 0; s < 4; s++) {
+        const sy2 = chY - 48 - ((t * 22 + s * 15) % 40);
+        const sa = 0.25 - ((t * 22 + s * 15) % 40) / 200;
+        ctx.globalAlpha = Math.max(0, sa);
+        ctx.beginPath(); ctx.arc(chimneyX + Math.sin(t + s) * 3, sy2, 5 + s, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      // [E] Enter
+      const nearCH = dist(G.player.x, G.player.y, 25*TILE, (44-1.5)*TILE) < 60;
+      if (nearCH) {
+        ctx.fillStyle = '#d4af37'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('[E] Enter Crafting Hall', chX, chY + 42);
+      }
+
+      // ── Forge / Blacksmith Shop (east) ─────────────────────────────────
+      const fgX = VX + 68, fgY = VY - 10;
+      ctx.fillStyle = '#2a1a10'; ctx.fillRect(fgX - 24, fgY - 22, 44, 38);
+      ctx.fillStyle = '#3a2618'; ctx.fillRect(fgX - 22, fgY - 24, 40, 38);
+      ctx.fillStyle = '#4a3222';
+      ctx.beginPath(); ctx.moveTo(fgX, fgY - 36); ctx.lineTo(fgX - 26, fgY - 20); ctx.lineTo(fgX + 20, fgY - 20); ctx.closePath(); ctx.fill();
+      // Forge glow window
+      const forgeGlow = 0.6 + Math.sin(t * 4) * 0.35;
+      ctx.globalAlpha = forgeGlow; ctx.fillStyle = '#e67e22';
+      ctx.beginPath(); ctx.arc(fgX - 6, fgY - 4, 9, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = forgeGlow * 0.5; ctx.fillStyle = '#f1c40f';
+      ctx.beginPath(); ctx.arc(fgX - 6, fgY - 4, 5, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+      // Anvil silhouette
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(fgX + 4, fgY + 2, 12, 6);
+      ctx.fillRect(fgX + 2, fgY + 8, 16, 4);
+      // Sign
+      ctx.fillStyle = '#5c3a1e'; ctx.fillRect(fgX - 20, fgY - 42, 38, 10);
+      ctx.fillStyle = '#e67e22'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+      ctx.strokeText('⚔ FORGE', fgX - 2, fgY - 34);
+      ctx.fillText('⚔ FORGE', fgX - 2, fgY - 34);
+
+      // ── Market Stall (west) ─────────────────────────────────────────────
+      const mkX = VX - 68, mkY = VY - 10;
+      // Awning — striped
+      ctx.fillStyle = '#9b59b6'; ctx.fillRect(mkX - 24, mkY - 24, 48, 4);
+      for (let ms = 0; ms < 4; ms++) {
+        ctx.fillStyle = ms % 2 === 0 ? '#8e44ad' : '#9b59b6';
+        ctx.fillRect(mkX - 24 + ms * 12, mkY - 32, 12, 12);
+      }
+      // Awning edge fringe
+      ctx.fillStyle = '#c39bd3';
+      for (let mf = 0; mf < 7; mf++) ctx.fillRect(mkX - 24 + mf * 7, mkY - 20, 5, 5);
+      // Counter / table
+      ctx.fillStyle = '#5c3a1e'; ctx.fillRect(mkX - 22, mkY - 18, 44, 6);
+      ctx.fillStyle = '#7a5030'; ctx.fillRect(mkX - 22, mkY - 24, 44, 8);
+      // Items on display
+      ['#e74c3c','#f1c40f','#3498db'].forEach((col, mi) => {
+        ctx.fillStyle = col; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.arc(mkX - 10 + mi * 10, mkY - 22, 4, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      // Sign
+      ctx.fillStyle = '#5c3a1e'; ctx.fillRect(mkX - 20, mkY - 42, 38, 10);
+      ctx.fillStyle = '#9b59b6'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+      ctx.strokeText('🧪 MARKET', mkX - 1, mkY - 34);
+      ctx.fillText('🧪 MARKET', mkX - 1, mkY - 34);
+
+      // ── Healer Hut (west side) ──────────────────────────────────────────
+      const hlX = VX - 80, hlY = VY + 30;
+      ctx.fillStyle = '#2a4a2a'; ctx.fillRect(hlX - 20, hlY - 20, 36, 32);
+      ctx.fillStyle = '#2e6b2e'; ctx.fillRect(hlX - 18, hlY - 22, 32, 30);
+      ctx.fillStyle = '#3a8a3a';
+      ctx.beginPath(); ctx.moveTo(hlX, hlY - 38); ctx.lineTo(hlX - 22, hlY - 18); ctx.lineTo(hlX + 16, hlY - 18); ctx.closePath(); ctx.fill();
+      // Cross symbol
+      ctx.fillStyle = '#e74c3c'; ctx.globalAlpha = 0.85;
+      ctx.fillRect(hlX - 2, hlY - 12, 4, 10);
+      ctx.fillRect(hlX - 5, hlY - 8, 10, 4);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+      ctx.strokeText('✚ HEALER', hlX - 2, hlY - 44);
+      ctx.fillText('✚ HEALER', hlX - 2, hlY - 44);
+
+      // ── Storage building (east side) ────────────────────────────────────
+      const stX = VX + 80, stY = VY + 30;
+      ctx.fillStyle = '#3a3010'; ctx.fillRect(stX - 20, stY - 18, 38, 32);
+      ctx.fillStyle = '#4a4018'; ctx.fillRect(stX - 18, stY - 20, 34, 30);
+      ctx.fillStyle = '#5a5020';
+      ctx.beginPath(); ctx.moveTo(stX, stY - 34); ctx.lineTo(stX - 22, stY - 16); ctx.lineTo(stX + 18, stY - 16); ctx.closePath(); ctx.fill();
+      // Crates outside
+      [[-12, 6],[-2, 8],[8, 4]].forEach(([dx,dy]) => {
+        ctx.fillStyle = '#5c3a1e'; ctx.fillRect(stX + dx, stY + dy, 8, 8);
+        ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 1; ctx.strokeRect(stX + dx, stY + dy, 8, 8);
+        ctx.strokeStyle = '#7a5030'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(stX+dx+4, stY+dy); ctx.lineTo(stX+dx+4, stY+dy+8); ctx.stroke();
+      });
+      ctx.fillStyle = '#d4af37'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+      ctx.strokeText('📦 STORAGE', stX - 1, stY - 40);
+      ctx.fillText('📦 STORAGE', stX - 1, stY - 40);
+
+      // ── Decorative trees inside village ────────────────────────────────
+      [[-110,-60],[110,-60],[-110,50],[110,50]].forEach(([dx,dy]) => {
+        const tx3 = VX+dx, ty3 = VY+dy;
+        ctx.fillStyle = '#00000022';
+        ctx.beginPath(); ctx.ellipse(tx3+3, ty3+16, 11, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#5c3a1e'; ctx.fillRect(tx3-3, ty3+4, 6, 14);
+        ctx.fillStyle = '#1a5e20'; ctx.beginPath(); ctx.arc(tx3, ty3-4, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#1e7026'; ctx.beginPath(); ctx.arc(tx3-4, ty3-8, 9, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(tx3+4, ty3-7, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#25892e'; ctx.beginPath(); ctx.arc(tx3, ty3-12, 7, 0, Math.PI*2); ctx.fill();
+      });
+
+      // ── Village NPCs ────────────────────────────────────────────────────
+      G.villageNPCs.forEach(npc => {
+        const nx2 = wx(npc.x), ny2 = wy(npc.y);
+        if (!onScreen(nx2, ny2, 30)) return;
+        const npcWalk = Math.sin(t * 7 + npc.x * 0.01);
+        const npcMoving = !npc.seated && (Math.abs(npc.tx - npc.x) > 4 || Math.abs(npc.ty - npc.y) > 4);
+
+        // Shadow
+        ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(nx2, ny2 + 12, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        if (npc.seated) {
+          // Seated pose — draw a short squashed figure on a stool
+          ctx.fillStyle = '#5c3a1e';
+          ctx.fillRect(nx2 - 6, ny2 + 4, 12, 6); // stool
+          ctx.fillRect(nx2 - 3, ny2 + 10, 3, 5);
+          ctx.fillRect(nx2 + 0, ny2 + 10, 3, 5);
+          // Body (compressed — seated)
+          ctx.fillStyle = npc.color;
+          ctx.fillRect(nx2 - 6, ny2 - 4, 12, 10); // torso
+          ctx.fillRect(nx2 - 8, ny2, 4, 6); // left leg across
+          ctx.fillRect(nx2 + 4, ny2, 4, 6); // right leg across
+          // Head
+          ctx.fillStyle = npc.role === 'elder' ? '#f5cba7' : npc.role === 'healer' ? '#f0e6ff' : '#f5d5a0';
+          ctx.beginPath(); ctx.arc(nx2, ny2 - 10, 8, 0, Math.PI*2); ctx.fill();
+        } else {
+          // Walking/standing figure
+          const lLeg = npcMoving ? npcWalk * 3 : 0;
+          // Legs
+          ctx.fillStyle = '#4a3010';
+          ctx.fillRect(nx2 - 5 + lLeg, ny2 + 6, 4, 7);
+          ctx.fillRect(nx2 + 1 - lLeg, ny2 + 6, 4, 7);
+          // Body
+          ctx.fillStyle = npc.color;
+          ctx.fillRect(nx2 - 7, ny2 - 4, 14, 12);
+          // Role details
+          if (npc.role === 'guard') {
+            ctx.fillStyle = '#95a5a6'; ctx.fillRect(nx2 - 8, ny2 - 5, 16, 14); // armor
+            ctx.fillStyle = '#bdc3c7'; ctx.fillRect(nx2 - 8, ny2 - 5, 16, 4); // chest plate
+            // Spear
+            ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(nx2 + 9, ny2 + 12); ctx.lineTo(nx2 + 9, ny2 - 22); ctx.stroke();
+            ctx.fillStyle = '#95a5a6'; ctx.beginPath(); ctx.moveTo(nx2+9, ny2-22); ctx.lineTo(nx2+7, ny2-16); ctx.lineTo(nx2+11, ny2-16); ctx.closePath(); ctx.fill();
+          } else if (npc.role === 'smith') {
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(nx2 - 7, ny2 - 3, 14, 12); // apron
+            // Hammer
+            ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(nx2 - 10, ny2 + 4); ctx.lineTo(nx2 - 10, ny2 - 8); ctx.stroke();
+            ctx.fillStyle = '#7f8c8d'; ctx.fillRect(nx2 - 14, ny2 - 10, 10, 5);
+          } else if (npc.role === 'merchant') {
+            ctx.fillStyle = '#8e44ad'; ctx.fillRect(nx2 - 7, ny2 - 3, 14, 10);
+          } else if (npc.role === 'healer') {
+            ctx.fillStyle = '#27ae60'; ctx.fillRect(nx2 - 7, ny2 - 3, 14, 10);
+            ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.7;
+            ctx.fillRect(nx2 - 2, ny2 - 1, 4, 8); ctx.fillRect(nx2 - 5, ny2 + 2, 10, 3);
+            ctx.globalAlpha = 1;
+          }
+          // Arms
+          ctx.fillStyle = npc.color;
+          const armSway = npcMoving ? npcWalk * 2 : 0;
+          ctx.fillRect(nx2 - 10, ny2 - 3 + armSway, 4, 8);
+          ctx.fillRect(nx2 + 6, ny2 - 3 - armSway, 4, 8);
+          // Head
+          ctx.fillStyle = npc.role === 'elder' ? '#f5cba7' : npc.role === 'healer' ? '#f0e6ff' : '#f5d5a0';
+          ctx.beginPath(); ctx.arc(nx2, ny2 - 10, 8, 0, Math.PI*2); ctx.fill();
+          // Hair / hat by role
+          if (npc.role === 'elder') {
+            ctx.fillStyle = '#ecf0f1'; ctx.beginPath(); ctx.arc(nx2, ny2 - 12, 7, Math.PI, 0); ctx.fill(); // white hair
+            ctx.fillStyle = '#1abc9c'; ctx.fillRect(nx2 - 8, ny2 - 20, 16, 5); // teal hat
+            ctx.fillRect(nx2 - 5, ny2 - 26, 10, 8);
+          } else if (npc.role === 'smith') {
+            ctx.fillStyle = '#2c2c2c'; ctx.beginPath(); ctx.arc(nx2, ny2 - 12, 8, Math.PI, 0); ctx.fill();
+          } else if (npc.role === 'merchant') {
+            ctx.fillStyle = '#6c3483'; ctx.fillRect(nx2 - 7, ny2 - 20, 14, 4);
+            ctx.fillRect(nx2 - 4, ny2 - 26, 8, 8);
+          } else if (npc.role === 'guard') {
+            ctx.fillStyle = '#7f8c8d'; ctx.fillRect(nx2 - 8, ny2 - 18, 16, 10); // helmet
+            ctx.fillStyle = '#bdc3c7'; ctx.fillRect(nx2 - 8, ny2 - 18, 16, 4);
+            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(nx2 - 4, ny2 - 14, 8, 4); // visor
+          }
+        }
+
+        // Name label
+        const nearNPC = dist(G.player.x, G.player.y, npc.x, npc.y) < 55;
+        if (nearNPC || npc.role === 'elder') {
+          ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+          ctx.strokeText(npc.name, nx2, ny2 - 22);
+          ctx.fillStyle = npc.color;
+          ctx.fillText(npc.name, nx2, ny2 - 22);
+          if (nearNPC && npc.role !== 'guard') {
+            ctx.fillStyle = '#ffffff88'; ctx.font = '7px sans-serif';
+            ctx.fillText('[E] Talk', nx2, ny2 - 13);
+          }
+        }
+      });
+
+      // ── Proximity prompt ────────────────────────────────────────────────
+      const nearVillage = dist(G.player.x, G.player.y, 25*TILE, 44*TILE) < 180;
+      if (nearVillage) {
+        ctx.fillStyle = '#d4af37'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        ctx.strokeText('⚒ KAELFORD', VX, VY - 118);
+        ctx.fillText('⚒ KAELFORD', VX, VY - 118);
+      }
     }
 
     // ── Dungeon ─────────────────────────────────────────────────────────────
@@ -1485,16 +1860,7 @@ export default function WorldCanvas() {
       ctx.globalAlpha = 1;
     });
 
-    // ── NPC ────────────────────────────────────────────────────────────────
-    const nx = wx(23*TILE), ny = wy(28*TILE);
-    if (onScreen(nx, ny)) {
-      ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = '#1abc9c'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('Elder Kael', nx, ny - 22);
-      ctx.fillStyle = '#1abc9caa'; ctx.font = '9px sans-serif';
-      ctx.fillText('[E] Talk', nx, ny + 26);
-    }
+    // ── Village NPCs rendered inside the Village block above ───────────────
 
     // ── Starter sword pickup ───────────────────────────────────────────────
     if (!G.swordPicked) {
