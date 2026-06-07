@@ -60,33 +60,35 @@ function getSlotAccent(item) {
 
 function getRarityColor(rarity) {
   switch ((rarity || '').toLowerCase()) {
-    case 'common': return '#bdc3c7';
-    case 'uncommon': return '#2ecc71';
-    case 'rare': return '#3498db';
-    case 'epic': return '#9b59b6';
+    case 'common':    return '#bdc3c7';
+    case 'uncommon':  return '#2ecc71';
+    case 'rare':      return '#3498db';
+    case 'epic':      return '#9b59b6';
     case 'legendary': return '#f1c40f';
-    default: return '#7f8c8d';
+    default:          return '#7f8c8d';
   }
 }
 
 function getTierLabel(item) {
   if (!item) return '';
-  return item.tier ? String(item.tier).toUpperCase() : (item.rarity ? String(item.rarity).toUpperCase() : '');
+  return item.tier
+    ? String(item.tier).toUpperCase()
+    : (item.rarity ? String(item.rarity).toUpperCase() : '');
 }
 
 function getPrimaryStatText(item) {
   if (!item) return '';
-  if (item.atk) return `+${item.atk} ATK`;
-  if (item.def) return `+${item.def} DEF`;
-  if (item.spd) return `+${item.spd} SPD`;
+  if (item.atk)        return `+${item.atk} ATK`;
+  if (item.def)        return `+${item.def} DEF`;
+  if (item.spd)        return `+${item.spd} SPD`;
   if (item.spdPenalty) return `${item.spdPenalty} SPD`;
   return item.slot ? item.slot.toUpperCase() : '';
 }
 
 function getCategoryLabel(item) {
   if (!item) return '';
-  if (item.slot === 'weapon') return item.type ? item.type.toUpperCase() : 'WEAPON';
-  if (item.slot === 'armor') return 'ARMOR';
+  if (item.slot === 'weapon')    return item.type ? item.type.toUpperCase() : 'WEAPON';
+  if (item.slot === 'armor')     return 'ARMOR';
   if (item.slot === 'accessory') return 'ACCESSORY';
   return '';
 }
@@ -98,7 +100,7 @@ function getEquippedItem(slot, gear, inventory) {
 }
 
 function getEmptySlotLabel(label) {
-  if (label === 'Armor') return 'No Armor';
+  if (label === 'Armor')     return 'No Armor';
   if (label === 'Accessory') return 'No Accessory';
   return 'No Weapon';
 }
@@ -144,27 +146,40 @@ function GearSlot({ label, item, onUnequip }) {
                 {item.name || item.id || 'Equipped Item'}
               </div>
               <div style={{ color: accent.label, fontSize: 8, marginTop: 1 }}>
-                {getCategoryLabel(item)} {getPrimaryStatText(item) ? `• ${getPrimaryStatText(item)}` : ''}
+                {getCategoryLabel(item)}{getPrimaryStatText(item) ? ` • ${getPrimaryStatText(item)}` : ''}
               </div>
             </div>
           </div>
 
-          <button
-            onClick={() => onUnequip(item.slot)}
+          {/* Gold equipped dot — top-right of gear slot card */}
+          <div
             style={{
               position: 'absolute',
               top: 7,
               right: 7,
+              width: 8,
+              height: 8,
+              borderRadius: 999,
+              background: '#d4af37',
+              boxShadow: '0 0 8px #d4af37aa',
+            }}
+          />
+
+          <button
+            onClick={() => onUnequip(item.slot)}
+            style={{
+              marginTop: 6,
+              alignSelf: 'flex-start',
               background: '#00000088',
               border: '1px solid #ffffff22',
               color: '#ddd',
               fontSize: 10,
               borderRadius: 8,
-              padding: '1px 6px',
+              padding: '2px 8px',
               cursor: 'pointer',
             }}
           >
-            X
+            Unequip
           </button>
         </>
       ) : (
@@ -189,12 +204,12 @@ export default function InventoryPanel() {
     toggleInventory,
   } = useGameStore();
 
-  const equippedWeapon = getEquippedItem('weapon', gear, inventory);
-  const equippedArmor = getEquippedItem('armor', gear, inventory);
+  const equippedWeapon    = getEquippedItem('weapon',    gear, inventory);
+  const equippedArmor     = getEquippedItem('armor',     gear, inventory);
   const equippedAccessory = getEquippedItem('accessory', gear, inventory);
 
   const maxSlots = Math.max(16, inventory.length);
-  const slots = Array.from({ length: maxSlots }, (_, i) => inventory[i] || null);
+  const slots    = Array.from({ length: maxSlots }, (_, i) => inventory[i] || null);
 
   const handleItemPress = (item) => {
     if (!item) return;
@@ -209,14 +224,17 @@ export default function InventoryPanel() {
         left: 0,
         right: 0,
         zIndex: 120,
-        background: 'linear-gradient(0deg, #050712 86%, #050712f2 95%, #05071266 100%)',
+        /* Stronger fade: solid from bottom, dissolves to near-transparent at top */
+        background: 'linear-gradient(0deg, #050712 80%, #050712f5 92%, #05071288 97%, #05071200 100%)',
         borderTop: '2px solid #d4af3755',
         padding: '14px 14px 24px',
         maxHeight: '61vh',
         overflowY: 'auto',
-        backdropFilter: 'blur(6px)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
       }}
     >
+      {/* ── Header ── */}
       <div
         style={{
           display: 'flex',
@@ -250,6 +268,7 @@ export default function InventoryPanel() {
         </button>
       </div>
 
+      {/* ── Equipped gear slots ── */}
       <div
         style={{
           display: 'flex',
@@ -261,15 +280,15 @@ export default function InventoryPanel() {
           border: '1px solid #ffffff12',
         }}
       >
-        <GearSlot label="Weapon" item={equippedWeapon} onUnequip={unequipItem} />
-        <GearSlot label="Armor" item={equippedArmor} onUnequip={unequipItem} />
+        <GearSlot label="Weapon"    item={equippedWeapon}    onUnequip={unequipItem} />
+        <GearSlot label="Armor"     item={equippedArmor}     onUnequip={unequipItem} />
         <GearSlot label="Accessory" item={equippedAccessory} onUnequip={unequipItem} />
       </div>
 
+      {/* ── Stat summary row ── */}
       <div
         style={{
           display: 'flex',
-          gap: 0,
           marginBottom: 12,
           background: '#ffffff08',
           borderRadius: 12,
@@ -278,10 +297,10 @@ export default function InventoryPanel() {
         }}
       >
         {[
-          { label: 'ATK', val: playerATK, col: '#e74c3c' },
-          { label: 'DEF', val: playerDEF, col: '#3498db' },
-          { label: 'SPD', val: playerSPD, col: '#2ecc71' },
-          { label: 'HP',  val: playerMaxHP, col: '#ff6b6b' },
+          { label: 'ATK', val: playerATK,    col: '#e74c3c' },
+          { label: 'DEF', val: playerDEF,    col: '#3498db' },
+          { label: 'SPD', val: playerSPD,    col: '#2ecc71' },
+          { label: 'HP',  val: playerMaxHP,  col: '#ff6b6b' },
         ].map((s, i) => (
           <div
             key={s.label}
@@ -298,6 +317,7 @@ export default function InventoryPanel() {
         ))}
       </div>
 
+      {/* ── 4-column item grid ── */}
       <div
         style={{
           display: 'grid',
@@ -309,8 +329,8 @@ export default function InventoryPanel() {
         {slots.map((item, i) => {
           const accent = getSlotAccent(item);
           const isEquipped = !!item && (
-            gear.weapon === item.instanceId ||
-            gear.armor === item.instanceId ||
+            gear.weapon    === item.instanceId ||
+            gear.armor     === item.instanceId ||
             gear.accessory === item.instanceId
           );
 
@@ -320,7 +340,7 @@ export default function InventoryPanel() {
               onClick={() => handleItemPress(item)}
               style={{
                 width: SLOT_SIZE,
-                minHeight: 80,
+                minHeight: 70,
                 background: item ? accent.bg : '#0c0f18',
                 border: `1px solid ${item ? accent.border : '#1c2230'}`,
                 borderRadius: 12,
@@ -330,13 +350,14 @@ export default function InventoryPanel() {
                 justifyContent: 'flex-start',
                 cursor: item ? 'pointer' : 'default',
                 textAlign: 'center',
-                padding: '7px 6px 6px',
+                padding: '7px 6px 5px',
                 position: 'relative',
                 boxShadow: item ? accent.glow : 'none',
               }}
             >
               {item ? (
                 <>
+                  {/* Rarity badge — top-left */}
                   <div
                     style={{
                       position: 'absolute',
@@ -354,6 +375,7 @@ export default function InventoryPanel() {
                     {getTierLabel(item) || 'GEAR'}
                   </div>
 
+                  {/* Gold dot — top-right, only when equipped */}
                   {isEquipped && (
                     <div
                       style={{
@@ -369,7 +391,7 @@ export default function InventoryPanel() {
                     />
                   )}
 
-                  <div style={{ fontSize: 22, lineHeight: 1, marginTop: 10, marginBottom: 4 }}>
+                  <div style={{ fontSize: 22, lineHeight: 1, marginTop: 10, marginBottom: 3 }}>
                     {getItemIcon(item)}
                   </div>
 
@@ -390,7 +412,7 @@ export default function InventoryPanel() {
                       fontSize: 9,
                       fontWeight: 700,
                       lineHeight: 1.05,
-                      minHeight: 18,
+                      minHeight: 16,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -411,7 +433,7 @@ export default function InventoryPanel() {
                   </div>
                 </>
               ) : (
-                <div style={{ color: '#1f2633', fontSize: 22, marginTop: 22 }}>+</div>
+                <div style={{ color: '#1f2633', fontSize: 22, marginTop: 16 }}>+</div>
               )}
             </button>
           );
