@@ -31,8 +31,8 @@ const REALM_CFG = {
        {type:'forest_wraith',x:10*TILE,y:4*TILE},{type:'forest_wraith',x:15*TILE,y:3*TILE},
        {type:'forest_wraith',x:20*TILE,y:4*TILE}],
     ],
-    boss:{name:'Sylvara',hp:1000,atk:22,color:'#2ecc71',size:28,x:15*TILE,y:5*TILE,
-          icon:'🌿',chargeInterval:3.5,chargeTelegraph:0.9,chargeSpeed:520,chargeDist:280},
+    boss:{name:'Sylvara',hp:900,atk:18,color:'#2ecc71',size:28,x:15*TILE,y:5*TILE,
+          icon:'🌿',chargeInterval:1.8.5.2.5,chargeTelegraph:0.9,chargeSpeed:420,chargeDist:280},
     reward:{label:'Nature Essence',icon:'🌿',color:'#27ae60',key:'natureEssence'},
   },
   earth:{
@@ -50,8 +50,8 @@ const REALM_CFG = {
        {type:'stone_golem',x:14*TILE,y:4*TILE},{type:'stone_golem',x:10*TILE,y:6*TILE},
        {type:'stone_golem',x:18*TILE,y:6*TILE}],
     ],
-    boss:{name:'Terran',hp:1400,atk:32,color:'#95a5a6',size:34,x:15*TILE,y:5*TILE,
-          icon:'🪨',chargeInterval:4,chargeTelegraph:1.0,chargeSpeed:400,chargeDist:260},
+    boss:{name:'Terran',hp:1800,atk:38,color:'#95a5a6',size:34,x:15*TILE,y:5*TILE,
+          icon:'🪨',chargeInterval:4,chargeTelegraph:1.0,chargeSpeed:680,chargeDist:260},
     reward:{label:'Earth Shard',icon:'🪨',color:'#95a5a6',key:'earthShard'},
   },
   wind:{
@@ -66,8 +66,8 @@ const REALM_CFG = {
        {type:'forest_wraith',x:10*TILE,y:3*TILE},{type:'forest_wraith',x:18*TILE,y:3*TILE},
        {type:'wind_sprite',x:14*TILE,y:4*TILE}],
     ],
-    boss:{name:'Zephyros',hp:1200,atk:28,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,
-          icon:'💨',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
+    boss:{name:'Zephyros',hp:1100,atk:22,color:'#87ceeb',size:28,x:15*TILE,y:5*TILE,
+          icon:'💨',chargeInterval:1.1.4.0,chargeTelegraph:0.7,chargeSpeed:640,chargeDist:320},
     reward:{label:'Wind Essence',icon:'💨',color:'#87ceeb',key:'windEssence'},
   },
   fire:{
@@ -85,8 +85,8 @@ const REALM_CFG = {
        {type:'ember_imp',x:10*TILE,y:5*TILE},{type:'ember_imp',x:18*TILE,y:5*TILE},
        {type:'lava_crawler',x:14*TILE,y:3*TILE}],
     ],
-    boss:{name:'Ignar',hp:1600,atk:38,color:'#e74c3c',size:30,x:15*TILE,y:5*TILE,
-          icon:'🔥',chargeInterval:3,chargeTelegraph:0.8,chargeSpeed:560,chargeDist:300},
+    boss:{name:'Ignar',hp:2400,atk:48,color:'#e74c3c',size:30,x:15*TILE,y:5*TILE,
+          icon:'🔥',chargeInterval:1.4,chargeTelegraph:0.8,chargeSpeed:600,chargeDist:300},
     reward:{label:'Fire Ember',icon:'🔥',color:'#e74c3c',key:'fireEmber'},
   },
   ice:{
@@ -103,8 +103,8 @@ const REALM_CFG = {
        {type:'ice_witch',x:10*TILE,y:3*TILE},{type:'ice_witch',x:18*TILE,y:3*TILE},
        {type:'frost_shard',x:14*TILE,y:5*TILE}],
     ],
-    boss:{name:'Glacius',hp:1800,atk:35,color:'#85c1e9',size:32,x:15*TILE,y:5*TILE,
-          icon:'❄️',chargeInterval:3.5,chargeTelegraph:1.0,chargeSpeed:460,chargeDist:300},
+    boss:{name:'Glacius',hp:3200,atk:58,color:'#85c1e9',size:32,x:15*TILE,y:5*TILE,
+          icon:'❄️',chargeInterval:2.8,chargeTelegraph:1.0,chargeSpeed:460,chargeDist:300},
     reward:{label:'Glacial Shard',icon:'❄️',color:'#85c1e9',key:'glacialShard'},
   },
   ocean:{
@@ -122,8 +122,8 @@ const REALM_CFG = {
        {type:'sea_sprite',x:9*TILE,y:3*TILE},{type:'sea_sprite',x:19*TILE,y:3*TILE},
        {type:'forest_wraith',x:14*TILE,y:3*TILE},{type:'forest_wraith',x:11*TILE,y:5*TILE}],
     ],
-    boss:{name:'Nepthar',hp:1600,atk:34,color:'#1abc9c',size:30,x:15*TILE,y:5*TILE,
-          icon:'🌊',chargeInterval:3,chargeTelegraph:0.9,chargeSpeed:480,chargeDist:290},
+    boss:{name:'Nepthar',hp:4000,atk:68,color:'#1abc9c',size:30,x:15*TILE,y:5*TILE,
+          icon:'🌊',chargeInterval:3,chargeTelegraph:0.9,chargeSpeed:560,chargeDist:290},
     reward:{label:'Sea Crystal',icon:'🌊',color:'#1abc9c',key:'seaCrystal'},
   },
   storm:{
@@ -141,8 +141,8 @@ const REALM_CFG = {
        {type:'forest_wraith',x:10*TILE,y:3*TILE},{type:'forest_wraith',x:18*TILE,y:3*TILE},
        {type:'storm_wisp',x:14*TILE,y:5*TILE},{type:'storm_wisp',x:11*TILE,y:4*TILE}],
     ],
-    boss:{name:'Vortus',hp:2000,atk:42,color:'#9b59b6',size:32,x:15*TILE,y:5*TILE,
-          icon:'⚡',chargeInterval:2,chargeTelegraph:0.6,chargeSpeed:700,chargeDist:340},
+    boss:{name:'Vortus',hp:5200,atk:82,color:'#9b59b6',size:32,x:15*TILE,y:5*TILE,
+          icon:'⚡',chargeInterval:2,chargeTelegraph:0.6,chargeSpeed:840,chargeDist:340},
     reward:{label:'Storm Core',icon:'⚡',color:'#9b59b6',key:'stormCore'},
   },
   shadow:{
@@ -159,8 +159,8 @@ const REALM_CFG = {
        {type:'shadow_stalker',x:9*TILE,y:3*TILE},{type:'shadow_stalker',x:19*TILE,y:3*TILE},
        {type:'shade',x:14*TILE,y:5*TILE},{type:'shade',x:11*TILE,y:4*TILE}],
     ],
-    boss:{name:'Umbris',hp:2200,atk:48,color:'#8e44ad',size:34,x:15*TILE,y:5*TILE,
-          icon:'🌑',chargeInterval:2.5,chargeTelegraph:0.7,chargeSpeed:580,chargeDist:310},
+    boss:{name:'Umbris',hp:6800,atk:98,color:'#8e44ad',size:34,x:15*TILE,y:5*TILE,
+          icon:'🌑',chargeInterval:1.6,chargeTelegraph:0.7,chargeSpeed:580,chargeDist:310},
     reward:{label:'Shadow Veil',icon:'🌑',color:'#8e44ad',key:'shadowVeil'},
   },
   lava:{
@@ -180,7 +180,7 @@ const REALM_CFG = {
        {type:'ember_imp',x:8*TILE,y:5*TILE},{type:'ember_imp',x:20*TILE,y:5*TILE},
        {type:'lava_crawler',x:15*TILE,y:3*TILE}],
     ],
-    boss:{name:'Magmara',hp:2400,atk:55,color:'#e67e22',size:36,x:15*TILE,y:5*TILE,
+    boss:{name:'Magmara',hp:9000,atk:118,color:'#e67e22',size:36,x:15*TILE,y:5*TILE,
           icon:'🌋',chargeInterval:3,chargeTelegraph:1.0,chargeSpeed:520,chargeDist:280},
     reward:{label:'Lava Core',icon:'🌋',color:'#e67e22',key:'lavaCore'},
   },
@@ -201,7 +201,7 @@ const REALM_CFG = {
        {type:'shadow_stalker',x:8*TILE,y:5*TILE},{type:'shadow_stalker',x:20*TILE,y:5*TILE},
        {type:'shade',x:14*TILE,y:6*TILE}],
     ],
-    boss:{name:'Nihilus',hp:2800,atk:65,color:'#f1c40f',size:38,x:15*TILE,y:5*TILE,
+    boss:{name:'Nihilus',hp:14000,atk:145,color:'#f1c40f',size:38,x:15*TILE,y:5*TILE,
           icon:'✨',chargeInterval:2,chargeTelegraph:0.5,chargeSpeed:760,chargeDist:360},
     reward:{label:'Void Fragment',icon:'✨',color:'#f1c40f',key:'voidFragment'},
   },
@@ -1443,7 +1443,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     // Boss death → victory (only once)
     if(G.boss && !G.boss.alive && !G.victory){
       try{ store.gainXP(200); }catch(e){}
-      try{ store.defeatBoss && store.defeatBoss(realmId); }catch(e){}
+      try{ if(realmId && store.defeatBoss) store.defeatBoss(realmId); }catch(e){}
       G.victory=true;
       G.victoryPortal={ x:G.boss.x, y:G.boss.y };
       G.victoryBannerTimer=5.0;
@@ -1828,3 +1828,4 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     </div>
   );
 }
+
