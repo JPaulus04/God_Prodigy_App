@@ -1080,7 +1080,12 @@ export default function WorldCanvas() {
   };
   const applyDefPierce = (baseDmg, enemyDef, store) => {
     const passive = getGodkillerPassive(store);
+    // Voidpiercer weapon: full pierce. Mage class: 50% pierce. God class: 30% pierce.
     if (passive.defPierce) return Math.max(1, baseDmg);
+    if (store.prestigeClass === 'mage' || store.prestigeClass === 'god') {
+      const pierced = Math.round(enemyDef * (store.prestigeClass === 'mage' ? 0.5 : 0.3));
+      return Math.max(1, baseDmg - (enemyDef - pierced));
+    }
     return Math.max(1, baseDmg - enemyDef);
   };
   // ─────────────────────────────────────────────────────────────────────────
