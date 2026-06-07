@@ -598,45 +598,513 @@ function drawEnemySprite(ctx, e, ex, ey) {
 function drawBossSprite(ctx, b, bx, by, phase, t) {
   ctx.save();
   const s = b.size;
-  // Shadow
-  ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.ellipse(bx, by + s + 4, s * 1.1, s * 0.4, 0, 0, Math.PI*2); ctx.fill();
+  const pulse = 0.5 + Math.sin(t * 2.5) * 0.3;
+  const p2 = phase === 2;
+
+  // Ground shadow
+  ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(bx, by + s + 5, s * 1.2, s * 0.38, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
-  // Pulsing glow
-  const pulse = 0.5 + Math.sin(t * 2.5) * 0.3;
-  ctx.globalAlpha = pulse * 0.35; ctx.fillStyle = b.color;
-  ctx.beginPath(); ctx.arc(bx, by, s + 16, 0, Math.PI*2); ctx.fill();
-  if (phase === 2) {
+  // Outer glow
+  ctx.globalAlpha = pulse * 0.3; ctx.fillStyle = b.color;
+  ctx.beginPath(); ctx.arc(bx, by, s + 20, 0, Math.PI*2); ctx.fill();
+  if (p2) {
     ctx.globalAlpha = pulse * 0.2; ctx.fillStyle = '#e74c3c';
-    ctx.beginPath(); ctx.arc(bx, by, s + 28, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx, by, s + 36, 0, Math.PI*2); ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // Body
-  ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill();
-  // Highlight
-  ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.15;
-  ctx.beginPath(); ctx.arc(bx - s*0.25, by - s*0.3, s * 0.55, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
-  // Outline
-  ctx.strokeStyle = phase === 2 ? '#e74c3c' : '#ffffff'; ctx.lineWidth = phase === 2 ? 4 : 3;
-  ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.stroke();
-  // Phase 2 inner ring
-  if (phase === 2) {
-    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
-    ctx.beginPath(); ctx.arc(bx, by, s - 8, 0, Math.PI*2); ctx.stroke();
+  const bossName = b.name;
+
+  // ── SYLVARA (forest) — thorny vine crown, leaf wings ──────────────────────
+  if (bossName === 'Sylvara') {
+    // Body — dark green oval
+    ctx.fillStyle = '#145a32';
+    ctx.beginPath(); ctx.ellipse(bx, by + 4, s * 0.7, s * 0.9, 0, 0, Math.PI*2); ctx.fill();
+    // Leaf wings
+    for (let side = -1; side <= 1; side += 2) {
+      ctx.fillStyle = side < 0 ? '#1e8449' : '#27ae60';
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.bezierCurveTo(bx + side * s * 1.8, by - s * 1.2, bx + side * s * 2.2, by + s * 0.4, bx + side * s * 0.8, by + s * 0.6);
+      ctx.closePath(); ctx.fill();
+      // Leaf vein
+      ctx.strokeStyle = '#145a32'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(bx + side * s * 0.3, by + s * 0.2);
+      ctx.lineTo(bx + side * s * 1.4, by - s * 0.5);
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    // Head
+    ctx.fillStyle = '#1a6b35';
+    ctx.beginPath(); ctx.arc(bx, by - s * 0.6, s * 0.55, 0, Math.PI*2); ctx.fill();
+    // Thorn crown
+    for (let i = 0; i < 7; i++) {
+      const a = -Math.PI + (i / 6) * Math.PI + Math.sin(t * 1.5 + i) * 0.08;
+      ctx.fillStyle = i % 2 === 0 ? '#27ae60' : '#a9dfbf';
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(a) * s * 0.52, by - s * 0.6 + Math.sin(a) * s * 0.52);
+      ctx.lineTo(bx + Math.cos(a) * s * 0.9, by - s * 0.6 + Math.sin(a) * s * 0.9);
+      ctx.lineTo(bx + Math.cos(a + 0.18) * s * 0.6, by - s * 0.6 + Math.sin(a + 0.18) * s * 0.6);
+      ctx.closePath(); ctx.fill();
+    }
+    // Eyes
+    ctx.fillStyle = '#a9dfbf';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.65, s*0.14, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.65, s*0.14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.65, s*0.07, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.65, s*0.07, 0, Math.PI*2); ctx.fill();
+
+  // ── TERRAN (earth) — stacked rock blocks, glowing cracks ──────────────────
+  } else if (bossName === 'Terran') {
+    // Legs/base blocks
+    ctx.fillStyle = '#717d7e';
+    ctx.fillRect(bx - s*0.65, by + s*0.3, s*0.55, s*0.7);
+    ctx.fillRect(bx + s*0.1, by + s*0.3, s*0.55, s*0.7);
+    // Torso block
+    ctx.fillStyle = '#808b96';
+    ctx.fillRect(bx - s*0.8, by - s*0.3, s*1.6, s*0.7);
+    // Arm blocks
+    ctx.fillStyle = '#6b6f72';
+    ctx.fillRect(bx - s*1.4, by - s*0.25, s*0.55, s*0.55);
+    ctx.fillRect(bx + s*0.85, by - s*0.25, s*0.55, s*0.55);
+    // Head block
+    ctx.fillStyle = '#909497';
+    ctx.fillRect(bx - s*0.6, by - s*1.05, s*1.2, s*0.85);
+    // Cracks — animated orange glow
+    const crackGlow = p2 ? 0.9 : (0.5 + Math.sin(t*2)*0.3);
+    ctx.globalAlpha = crackGlow; ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(bx - s*0.3, by - s*0.95); ctx.lineTo(bx + s*0.1, by - s*0.4); ctx.lineTo(bx - s*0.2, by + s*0.1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx + s*0.3, by - s*0.2); ctx.lineTo(bx + s*0.6, by + s*0.2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Eyes
+    ctx.fillStyle = '#e67e22';
+    ctx.beginPath(); ctx.arc(bx - s*0.25, by - s*0.72, s*0.17, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.25, by - s*0.72, s*0.17, 0, Math.PI*2); ctx.fill();
+    // Block outlines
+    ctx.strokeStyle = '#4d5656'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(bx - s*0.8, by - s*0.3, s*1.6, s*0.7);
+    ctx.strokeRect(bx - s*0.6, by - s*1.05, s*1.2, s*0.85);
+
+  // ── ZEPHYROS (wind) — swirling rings, translucent wispy form ──────────────
+  } else if (bossName === 'Zephyros') {
+    // Rotating wind rings
+    for (let ring = 0; ring < 4; ring++) {
+      const ra = t * (1.5 + ring * 0.4) + (ring * Math.PI / 2);
+      const rr = s * (0.5 + ring * 0.3);
+      ctx.globalAlpha = 0.25 - ring * 0.04;
+      ctx.strokeStyle = '#87ceeb'; ctx.lineWidth = 3 - ring * 0.5;
+      ctx.beginPath(); ctx.arc(bx, by, rr, ra, ra + Math.PI * 1.6); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Core translucent body
+    ctx.globalAlpha = 0.55; ctx.fillStyle = '#87ceeb';
+    ctx.beginPath(); ctx.ellipse(bx, by, s * 0.55, s * 0.8, Math.sin(t * 0.8) * 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.3; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(bx - s*0.15, by - s*0.2, s*0.3, s*0.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Head
+    ctx.globalAlpha = 0.8; ctx.fillStyle = '#aed6f1';
+    ctx.beginPath(); ctx.arc(bx, by - s*0.65, s * 0.42, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Eyes — hollow
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx - s*0.17, by - s*0.7, s*0.12, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(bx + s*0.17, by - s*0.7, s*0.12, 0, Math.PI*2); ctx.stroke();
+    // Trailing wind wisps
+    for (let w = 0; w < 5; w++) {
+      const wa = (t * 2.2 + w * 1.26) % (Math.PI * 2);
+      const wr = s * (0.9 + w * 0.18);
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#87ceeb';
+      ctx.beginPath(); ctx.arc(bx + Math.cos(wa) * wr, by + Math.sin(wa) * wr * 0.5, 5, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+  // ── IGNAR (fire) — flame-horned demon skull, lava drips ───────────────────
+  } else if (bossName === 'Ignar') {
+    // Body
+    ctx.fillStyle = '#922b21';
+    ctx.beginPath(); ctx.ellipse(bx, by + s*0.1, s*0.7, s*0.85, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath(); ctx.ellipse(bx, by, s*0.55, s*0.65, 0, 0, Math.PI*2); ctx.fill();
+    // Flame horns — animated flicker
+    for (let side = -1; side <= 1; side += 2) {
+      const flicker = Math.sin(t * 6 + side * 2) * 0.12;
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.moveTo(bx + side * s*0.35, by - s*0.5);
+      ctx.lineTo(bx + side * s*0.7, by - s*(1.3 + flicker));
+      ctx.lineTo(bx + side * s*0.55, by - s*0.5);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f39c12';
+      ctx.beginPath();
+      ctx.moveTo(bx + side * s*0.42, by - s*0.5);
+      ctx.lineTo(bx + side * s*0.65, by - s*(1.0 + flicker * 0.7));
+      ctx.lineTo(bx + side * s*0.52, by - s*0.5);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f1c40f';
+      ctx.beginPath();
+      ctx.moveTo(bx + side * s*0.48, by - s*0.5);
+      ctx.lineTo(bx + side * s*0.6, by - s*(0.8 + flicker * 0.5));
+      ctx.lineTo(bx + side * s*0.54, by - s*0.5);
+      ctx.closePath(); ctx.fill();
+    }
+    // Head
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath(); ctx.arc(bx, by - s*0.55, s*0.5, 0, Math.PI*2); ctx.fill();
+    // Glowing eyes
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.6, s*0.16, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.6, s*0.16, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.8;
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.6, s*0.07, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.6, s*0.07, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Lava drips
+    for (let d = 0; d < 3; d++) {
+      const dy = ((t * 40 + d * 30) % (s * 1.5));
+      ctx.fillStyle = '#e67e22'; ctx.globalAlpha = 0.7;
+      ctx.beginPath(); ctx.arc(bx + (d-1)*s*0.3, by + s*0.2 + dy, 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+  // ── GLACIUS (ice) — spire crown, crystal arms ─────────────────────────────
+  } else if (bossName === 'Glacius') {
+    // Body — ice blue
+    ctx.fillStyle = '#1a5276';
+    ctx.beginPath(); ctx.ellipse(bx, by + s*0.1, s*0.65, s*0.85, 0, 0, Math.PI*2); ctx.fill();
+    // Crystal arm spires
+    for (let side = -1; side <= 1; side += 2) {
+      ctx.fillStyle = '#5dade2';
+      ctx.beginPath();
+      ctx.moveTo(bx + side * s*0.65, by + s*0.1);
+      ctx.lineTo(bx + side * s*1.6, by - s*0.5);
+      ctx.lineTo(bx + side * s*1.4, by + s*0.5);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.4; ctx.fillStyle = '#aed6f1';
+      ctx.beginPath();
+      ctx.moveTo(bx + side * s*0.8, by);
+      ctx.lineTo(bx + side * s*1.4, by - s*0.3);
+      ctx.lineTo(bx + side * s*1.2, by + s*0.2);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // Head
+    ctx.fillStyle = '#2e86c1';
+    ctx.beginPath(); ctx.arc(bx, by - s*0.6, s*0.5, 0, Math.PI*2); ctx.fill();
+    // Ice spire crown
+    for (let i = 0; i < 5; i++) {
+      const ca = -Math.PI * 0.85 + (i / 4) * Math.PI * 0.7;
+      ctx.fillStyle = i % 2 === 0 ? '#85c1e9' : '#aed6f1';
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(ca) * s*0.48, by - s*0.6 + Math.sin(ca) * s*0.48);
+      ctx.lineTo(bx + Math.cos(ca) * s*(0.85 + i*0.06), by - s*0.6 + Math.sin(ca) * s*(0.85 + i*0.06));
+      ctx.lineTo(bx + Math.cos(ca + 0.2) * s*0.55, by - s*0.6 + Math.sin(ca + 0.2) * s*0.55);
+      ctx.closePath(); ctx.fill();
+    }
+    // Eyes — cold blue
+    ctx.fillStyle = '#d6eaf8';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.65, s*0.15, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.65, s*0.15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1a5276';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.65, s*0.08, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.65, s*0.08, 0, Math.PI*2); ctx.fill();
+    // Frost glint
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      const a = t * 0.8 + i * Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(a) * s * 0.7, by + Math.sin(a) * s * 0.7);
+      ctx.lineTo(bx + Math.cos(a) * s * 1.0, by + Math.sin(a) * s * 1.0);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+  // ── NEPTHAR (ocean) — tentacle silhouette, coral crown ────────────────────
+  } else if (bossName === 'Nepthar') {
+    // Tentacles — animated sway
+    for (let i = 0; i < 6; i++) {
+      const baseX = bx + (i - 2.5) * s * 0.32;
+      const sway = Math.sin(t * 2 + i * 0.9) * s * 0.4;
+      ctx.strokeStyle = '#0e6655'; ctx.lineWidth = 8 - i * 0.5;
+      ctx.lineCap = 'round'; ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(baseX, by + s * 0.4);
+      ctx.quadraticCurveTo(baseX + sway, by + s * 1.1, baseX + sway * 1.4, by + s * 1.8);
+      ctx.stroke();
+      // Sucker dots
+      ctx.globalAlpha = 0.5; ctx.fillStyle = '#1abc9c'; ctx.lineWidth = 1;
+      for (let d = 0; d < 3; d++) {
+        const dt2 = d / 3;
+        const sx2 = baseX + sway * dt2 * 1.2;
+        const sy2 = by + s * 0.4 + (s * 1.4) * dt2;
+        ctx.beginPath(); ctx.arc(sx2, sy2, 3, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+    // Body
+    ctx.fillStyle = '#0e6655';
+    ctx.beginPath(); ctx.ellipse(bx, by, s*0.75, s*0.65, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#148f77';
+    ctx.beginPath(); ctx.ellipse(bx, by - s*0.1, s*0.55, s*0.45, 0, 0, Math.PI*2); ctx.fill();
+    // Coral crown
+    for (let i = 0; i < 5; i++) {
+      const ca = -Math.PI + (i / 4) * Math.PI;
+      ctx.fillStyle = i % 2 === 0 ? '#e74c3c' : '#f39c12';
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(ca) * s*0.62, by - s*0.1 + Math.sin(ca) * s*0.42);
+      ctx.bezierCurveTo(
+        bx + Math.cos(ca) * s*0.9, by - s*0.1 + Math.sin(ca) * s*0.9,
+        bx + Math.cos(ca) * s*1.0, by - s*0.1 + Math.sin(ca) * s*1.0,
+        bx + Math.cos(ca + 0.2) * s*0.7, by - s*0.1 + Math.sin(ca + 0.2) * s*0.5
+      );
+      ctx.closePath(); ctx.fill();
+    }
+    // Eyes — large, octopus-like
+    ctx.fillStyle = '#f39c12';
+    ctx.beginPath(); ctx.arc(bx - s*0.25, by - s*0.05, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.25, by - s*0.05, s*0.22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(bx - s*0.25, by - s*0.05, s*0.1, s*0.18, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(bx + s*0.25, by - s*0.05, s*0.1, s*0.18, 0, 0, Math.PI*2); ctx.fill();
+
+  // ── VORTUS (storm) — crackling lightning halo, cloud form ─────────────────
+  } else if (bossName === 'Vortus') {
+    // Dark cloud body — multiple overlapping ellipses
+    ctx.fillStyle = '#1a1030';
+    ctx.beginPath(); ctx.arc(bx, by, s*0.85, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx - s*0.5, by - s*0.2, s*0.55, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.5, by - s*0.2, s*0.55, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2e1f5e';
+    ctx.beginPath(); ctx.arc(bx, by - s*0.3, s*0.65, 0, Math.PI*2); ctx.fill();
+    // Rotating lightning halo
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + t * 3;
+      const flicker = Math.sin(t * 12 + i * 1.3) > 0.3;
+      if (!flicker) continue;
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = i % 2 === 0 ? '#f1c40f' : '#9b59b6';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      const lx = bx + Math.cos(a) * s;
+      const ly = by + Math.sin(a) * s;
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(lx + Math.cos(a + 0.4) * s * 0.45, ly + Math.sin(a + 0.4) * s * 0.45);
+      ctx.lineTo(lx + Math.cos(a) * s * 0.7, ly + Math.sin(a) * s * 0.7);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Eyes — electric
+    const eyePulse = 0.7 + Math.sin(t * 8) * 0.3;
+    ctx.globalAlpha = eyePulse; ctx.fillStyle = '#f1c40f';
+    ctx.beginPath(); ctx.arc(bx - s*0.28, by - s*0.15, s*0.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.28, by - s*0.15, s*0.2, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Central lightning bolt
+    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8 + Math.sin(t*10)*0.2;
+    ctx.beginPath();
+    ctx.moveTo(bx, by - s*0.6);
+    ctx.lineTo(bx + s*0.18, by - s*0.1);
+    ctx.lineTo(bx - s*0.12, by + s*0.1);
+    ctx.lineTo(bx + s*0.08, by + s*0.6);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+  // ── UMBRIS (shadow) — torn cloak, hollow void eyes ────────────────────────
+  } else if (bossName === 'Umbris') {
+    // Cloak — wide at bottom, tears animated
+    ctx.fillStyle = '#0d0010';
+    ctx.beginPath();
+    ctx.moveTo(bx - s*1.1, by + s*1.0);
+    ctx.lineTo(bx - s*0.7, by - s*0.3);
+    ctx.lineTo(bx - s*0.4, by - s*0.8);
+    ctx.lineTo(bx, by - s*1.0);
+    ctx.lineTo(bx + s*0.4, by - s*0.8);
+    ctx.lineTo(bx + s*0.7, by - s*0.3);
+    ctx.lineTo(bx + s*1.1, by + s*1.0);
+    // Torn bottom
+    const tearCount = 7;
+    for (let i = tearCount - 1; i >= 0; i--) {
+      const tx2 = bx - s*1.1 + ((i + 0.5) / tearCount) * s*2.2;
+      const tearY = by + s*1.0 - Math.abs(Math.sin(t*1.5 + i*0.9)) * s*0.3 - s*0.05;
+      ctx.lineTo(tx2, tearY);
+    }
+    ctx.closePath(); ctx.fill();
+    // Inner glow
+    ctx.fillStyle = '#1a0028'; ctx.globalAlpha = 0.8;
+    ctx.beginPath(); ctx.ellipse(bx, by - s*0.1, s*0.5, s*0.65, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Hood
+    ctx.fillStyle = '#0d0010';
+    ctx.beginPath(); ctx.arc(bx, by - s*0.7, s*0.55, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1a0028';
+    ctx.beginPath(); ctx.arc(bx, by - s*0.65, s*0.4, 0, Math.PI*2); ctx.fill();
+    // Hollow eyes — void void void
+    const voidPulse = 0.5 + Math.sin(t * 4) * 0.4;
+    ctx.globalAlpha = voidPulse; ctx.fillStyle = '#8e44ad';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.7, s*0.18, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.7, s*0.18, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.4; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.7, s*0.07, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.2, by - s*0.7, s*0.07, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Floating shadow orbs
+    for (let i = 0; i < 4; i++) {
+      const oa = t * 1.5 + i * Math.PI / 2;
+      const or2 = s * 1.2;
+      ctx.globalAlpha = 0.35 + Math.sin(t * 2 + i) * 0.15;
+      ctx.fillStyle = '#6c3483';
+      ctx.beginPath(); ctx.arc(bx + Math.cos(oa) * or2, by + Math.sin(oa) * or2 * 0.6, 6, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+  // ── MAGMARA (lava) — molten boulder, eruption crown ───────────────────────
+  } else if (bossName === 'Magmara') {
+    // Boulder body — dark with lava veins
+    ctx.fillStyle = '#1c0a00';
+    ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2c1200';
+    ctx.beginPath(); ctx.arc(bx - s*0.2, by - s*0.15, s*0.7, 0, Math.PI*2); ctx.fill();
+    // Lava vein network — animated pulse
+    const lavaPulse = 0.6 + Math.sin(t * 1.8) * 0.3;
+    ctx.globalAlpha = lavaPulse; ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(bx - s*0.5, by + s*0.2);
+    ctx.lineTo(bx - s*0.1, by - s*0.3);
+    ctx.lineTo(bx + s*0.4, by - s*0.1);
+    ctx.moveTo(bx - s*0.1, by - s*0.3);
+    ctx.lineTo(bx + s*0.1, by + s*0.5);
+    ctx.moveTo(bx - s*0.4, by - s*0.5);
+    ctx.lineTo(bx + s*0.3, by - s*0.7);
+    ctx.stroke();
+    ctx.globalAlpha = lavaPulse * 0.5; ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(bx + s*0.2, by + s*0.3);
+    ctx.lineTo(bx + s*0.5, by - s*0.2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Eruption crown — rising lava chunks
+    for (let i = 0; i < 5; i++) {
+      const ea = -Math.PI * 0.9 + (i / 4) * Math.PI * 0.8;
+      const erise = (Math.sin(t * 2.5 + i * 0.7) + 1) / 2;
+      const er2 = s * (0.85 + erise * 0.3);
+      ctx.fillStyle = i % 2 === 0 ? '#e67e22' : '#e74c3c';
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(ea) * s * 0.75, by + Math.sin(ea) * s * 0.75);
+      ctx.lineTo(bx + Math.cos(ea) * er2, by + Math.sin(ea) * er2);
+      ctx.lineTo(bx + Math.cos(ea + 0.22) * s * 0.8, by + Math.sin(ea + 0.22) * s * 0.8);
+      ctx.closePath(); ctx.fill();
+    }
+    // Eyes — molten orange
+    ctx.fillStyle = '#e67e22';
+    ctx.beginPath(); ctx.arc(bx - s*0.28, by - s*0.25, s*0.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.28, by - s*0.25, s*0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath(); ctx.arc(bx - s*0.28, by - s*0.25, s*0.1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(bx + s*0.28, by - s*0.25, s*0.1, 0, Math.PI*2); ctx.fill();
+    // Lava drip drops
+    for (let d = 0; d < 4; d++) {
+      const dropY = ((t * 55 + d * 22) % (s * 2.2));
+      const dropX = bx - s*0.5 + d * s*0.35;
+      ctx.globalAlpha = Math.max(0, 0.8 - dropY / (s*2.2));
+      ctx.fillStyle = '#e67e22';
+      ctx.beginPath(); ctx.arc(dropX, by + s*0.5 + dropY, 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+  // ── NIHILUS (void) — fractured star, golden eye ───────────────────────────
+  } else if (bossName === 'Nihilus') {
+    // Void core — deep black with subtle nebula tones
+    ctx.fillStyle = '#050508';
+    ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill();
+    // Fractured star shards — rotating
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + t * 0.4;
+      const r1 = s * (0.6 + (i % 2) * 0.35);
+      const r2 = s * (0.35 + (i % 3) * 0.1);
+      ctx.fillStyle = i % 3 === 0 ? '#f1c40f' : i % 3 === 1 ? '#9b59b6' : '#ffffff';
+      ctx.globalAlpha = 0.7 + Math.sin(t * 3 + i) * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(a) * r1, by + Math.sin(a) * r1);
+      ctx.lineTo(bx + Math.cos(a + Math.PI/8) * r2, by + Math.sin(a + Math.PI/8) * r2);
+      ctx.lineTo(bx + Math.cos(a - Math.PI/8) * r2, by + Math.sin(a - Math.PI/8) * r2);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Inner void swirl
+    for (let ring = 0; ring < 3; ring++) {
+      const ra = -t * (2 + ring) + ring * 1.2;
+      ctx.globalAlpha = 0.3 - ring * 0.08;
+      ctx.strokeStyle = ring === 0 ? '#f1c40f' : ring === 1 ? '#9b59b6' : '#ffffff';
+      ctx.lineWidth = 2.5 - ring * 0.5;
+      ctx.beginPath(); ctx.arc(bx, by, s * (0.5 - ring * 0.1), ra, ra + Math.PI * 1.7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // The golden eye
+    const eyePulse2 = 0.6 + Math.sin(t * 3) * 0.35;
+    ctx.fillStyle = '#f1c40f'; ctx.globalAlpha = eyePulse2;
+    ctx.beginPath(); ctx.arc(bx, by, s * 0.28, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#1a0a00';
+    ctx.beginPath(); ctx.ellipse(bx, by, s*0.1, s*0.24, 0, 0, Math.PI*2); ctx.fill();
+    // Gold iris
+    ctx.strokeStyle = '#f39c12'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, s * 0.22, 0, Math.PI*2); ctx.stroke();
+    // Radiating cracks from eye
+    for (let i = 0; i < 6; i++) {
+      const ca = (i / 6) * Math.PI * 2 + t * 0.2;
+      ctx.globalAlpha = 0.5 + Math.sin(t * 4 + i) * 0.3;
+      ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(bx + Math.cos(ca) * s*0.3, by + Math.sin(ca) * s*0.3);
+      ctx.lineTo(bx + Math.cos(ca) * s*0.85, by + Math.sin(ca) * s*0.85);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Floating void particles
+    for (let i = 0; i < 10; i++) {
+      const pa = (t * 1.2 + i * 0.628) % (Math.PI * 2);
+      const pr2 = s * (1.1 + (i % 3) * 0.2);
+      ctx.globalAlpha = 0.5 + Math.sin(t * 3 + i * 1.1) * 0.35;
+      ctx.fillStyle = i % 2 === 0 ? '#f1c40f' : '#9b59b6';
+      ctx.beginPath(); ctx.arc(bx + Math.cos(pa) * pr2, by + Math.sin(pa) * pr2, 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+  // ── FALLBACK — generic boss circle ────────────────────────────────────────
+  } else {
+    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.15;
+    ctx.beginPath(); ctx.arc(bx - s*0.25, by - s*0.3, s*0.55, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = p2 ? '#e74c3c' : '#ffffff'; ctx.lineWidth = p2 ? 4 : 3;
+    ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.stroke();
+    ctx.font = `${Math.round(s * 0.9)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.fillText(b.icon, bx, by + 2);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // Phase 2 — shared cracked overlay
+  if (p2) {
+    ctx.globalAlpha = 0.22 + Math.sin(t * 4) * 0.1;
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, s + 10, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(bx, by, s + 20, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 1;
   }
-  // Icon
-  ctx.font = `${Math.round(s * 0.9)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(b.icon, bx, by + 2);
-  ctx.textBaseline = 'alphabetic';
-  // Name label
-  ctx.fillStyle = b.color; ctx.font = `bold 9px sans-serif`;
-  ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-  ctx.strokeText(b.name.toUpperCase(), bx, by - s - 6);
-  ctx.fillText(b.name.toUpperCase(), bx, by - s - 6);
+
+  // Boss name label (always on top)
+  ctx.textAlign = 'center';
+  const nameY = by - s - (bossName === 'Sylvara' ? s*0.6 : 10);
+  ctx.font = 'bold 10px sans-serif';
+  ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
+  ctx.strokeText(b.name.toUpperCase(), bx, nameY);
+  ctx.fillStyle = b.color;
+  ctx.fillText(b.name.toUpperCase(), bx, nameY);
+
   ctx.restore();
 }
 
@@ -1182,29 +1650,138 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       ctx.globalAlpha=1;
     }
 
-    // Player
+    // Player — top-down Zelda-style
     const ppx=wxf(p.x),ppy=wyf(p.y);
     const blinkOn=!p.invincible||Math.sin(Date.now()/80)>0;
-    ctx.globalAlpha=blinkOn?1:0.15;
-    // Shadow
-    ctx.fillStyle='#00000044';
-    ctx.beginPath();ctx.ellipse(ppx,ppy+14,10,4,0,0,Math.PI*2);ctx.fill();
-    // Body
-    ctx.fillStyle='#2471a3'; ctx.beginPath();ctx.arc(ppx,ppy,14,0,Math.PI*2);ctx.fill();
-    // Helmet
-    ctx.fillStyle='#4a90e2'; ctx.beginPath();ctx.arc(ppx,ppy-4,12,Math.PI,Math.PI*2);ctx.fill();
-    // Visor
-    ctx.fillStyle='#85c1e9'; ctx.globalAlpha=blinkOn?0.8:0.12;
-    ctx.fillRect(ppx-7,ppy-8,14,5);
-    ctx.globalAlpha=blinkOn?1:0.15;
-    // Legs
+    ctx.globalAlpha=blinkOn?1:0.2;
+    ctx.save();
+
+    // Walk cycle
+    const walkCycle=Math.sin(G.t*9);
+    const dir=G.lastMoveDir;
+    const moving=(dir.x!==0||dir.y!==0);
+    const legSwing=moving?walkCycle*3:0;
+
+    // Ground shadow
+    ctx.fillStyle='#00000033';
+    ctx.beginPath();ctx.ellipse(ppx,ppy+16,12,4,0,0,Math.PI*2);ctx.fill();
+
+    // Cloak / cape (behind body)
+    ctx.fillStyle='#1a4a7a';
+    ctx.beginPath();
+    ctx.moveTo(ppx-8,ppy+2);
+    ctx.bezierCurveTo(ppx-14,ppy+12,ppx-10,ppy+24,ppx-4,ppy+22);
+    ctx.lineTo(ppx+4,ppy+22);
+    ctx.bezierCurveTo(ppx+10,ppy+24,ppx+14,ppy+12,ppx+8,ppy+2);
+    ctx.closePath();ctx.fill();
+
+    // Boots
+    ctx.fillStyle='#6b4226';
+    const lbx=ppx-5+legSwing, rbx=ppx+5-legSwing;
+    ctx.beginPath();ctx.ellipse(lbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(rbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
+    // Boot highlight
+    ctx.fillStyle='#8b5e3c';
+    ctx.beginPath();ctx.ellipse(lbx-1,ppy+18,3,2,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(rbx-1,ppy+18,3,2,0,0,Math.PI*2);ctx.fill();
+
+    // Tunic body — triangular top-down hero shape
+    ctx.fillStyle='#2980b9';
+    ctx.beginPath();
+    ctx.moveTo(ppx-11,ppy+4);
+    ctx.lineTo(ppx-9,ppy-6);
+    ctx.quadraticCurveTo(ppx,ppy-10,ppx+9,ppy-6);
+    ctx.lineTo(ppx+11,ppy+4);
+    ctx.quadraticCurveTo(ppx,ppy+10,ppx-11,ppy+4);
+    ctx.closePath();ctx.fill();
+    // Tunic highlight
+    ctx.fillStyle='#3498db';
+    ctx.beginPath();
+    ctx.moveTo(ppx-6,ppy+2);
+    ctx.lineTo(ppx-5,ppy-5);
+    ctx.quadraticCurveTo(ppx,ppy-8,ppx+5,ppy-5);
+    ctx.lineTo(ppx+6,ppy+2);
+    ctx.quadraticCurveTo(ppx,ppy+7,ppx-6,ppy+2);
+    ctx.closePath();ctx.fill();
+    // Belt line
+    ctx.strokeStyle='#1a5276';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(ppx-10,ppy+3);ctx.lineTo(ppx+10,ppy+3);ctx.stroke();
+    // Belt buckle
+    ctx.fillStyle='#f1c40f';
+    ctx.fillRect(ppx-3,ppy+1,6,4);
+
+    // Left arm + shield
+    const lArmSway=moving?Math.sin(G.t*9+Math.PI)*4:0;
+    ctx.fillStyle='#2471a3';
+    ctx.fillRect(ppx-17,ppy-4+lArmSway,5,10);
+    // Shield
+    ctx.fillStyle='#e74c3c';
+    ctx.beginPath();
+    ctx.moveTo(ppx-22,ppy-5+lArmSway);
+    ctx.lineTo(ppx-14,ppy-5+lArmSway);
+    ctx.lineTo(ppx-14,ppy+4+lArmSway);
+    ctx.quadraticCurveTo(ppx-18,ppy+9+lArmSway,ppx-22,ppy+4+lArmSway);
+    ctx.closePath();ctx.fill();
+    // Shield cross
+    ctx.strokeStyle='#c0392b';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(ppx-18,ppy-4+lArmSway);ctx.lineTo(ppx-18,ppy+4+lArmSway);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ppx-22,ppy+lArmSway);ctx.lineTo(ppx-15,ppy+lArmSway);ctx.stroke();
+    // Shield boss
+    ctx.fillStyle='#f39c12';
+    ctx.beginPath();ctx.arc(ppx-18,ppy+lArmSway,2.5,0,Math.PI*2);ctx.fill();
+
+    // Right arm + sword hint
+    const rArmSway=moving?Math.sin(G.t*9)*4:0;
+    ctx.fillStyle='#2471a3';
+    ctx.fillRect(ppx+12,ppy-4+rArmSway,5,10);
+    // Sword
+    ctx.strokeStyle='#d5d8dc';ctx.lineWidth=2.5;ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(ppx+18,ppy-2+rArmSway);
+    ctx.lineTo(ppx+18,ppy-22+rArmSway);
+    ctx.stroke();
+    // Crossguard
+    ctx.strokeStyle='#f1c40f';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(ppx+14,ppy-4+rArmSway);ctx.lineTo(ppx+22,ppy-4+rArmSway);ctx.stroke();
+    // Handle
+    ctx.strokeStyle='#6b4226';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(ppx+18,ppy+2+rArmSway);ctx.lineTo(ppx+18,ppy+7+rArmSway);ctx.stroke();
+    ctx.lineCap='butt';
+
+    // Head — hero helmet
     ctx.fillStyle='#1a5276';
-    ctx.fillRect(ppx-7,ppy+8,5,8);
-    ctx.fillRect(ppx+2,ppy+8,5,8);
-    // Outline
-    ctx.strokeStyle=p.invincible?'#ffffff':'#aaaaaa';ctx.lineWidth=p.invincible?3:2;
-    ctx.beginPath();ctx.arc(ppx,ppy,14,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(ppx,ppy-12,11,0,Math.PI*2);ctx.fill();
+    // Helmet faceplate
+    ctx.fillStyle='#2980b9';
+    ctx.beginPath();ctx.arc(ppx,ppy-11,9,Math.PI*0.1,Math.PI*0.9);ctx.fill();
+    // Visor slit
+    ctx.fillStyle='#85c1e9';
+    ctx.beginPath();ctx.roundRect(ppx-6,ppy-13,12,4,2);ctx.fill();
+    // Visor shine
+    ctx.fillStyle='#aed6f1';ctx.globalAlpha=blinkOn?0.7:0.1;
+    ctx.beginPath();ctx.roundRect(ppx-4,ppy-13,5,2,1);ctx.fill();
+    ctx.globalAlpha=blinkOn?1:0.2;
+    // Helmet plume / feather
+    ctx.fillStyle='#f1c40f';
+    ctx.beginPath();
+    ctx.moveTo(ppx-2,ppy-22);
+    ctx.bezierCurveTo(ppx+4,ppy-30,ppx+10,ppy-28,ppx+8,ppy-22);
+    ctx.bezierCurveTo(ppx+6,ppy-20,ppx+2,ppy-21,ppx-2,ppy-22);
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='#f39c12';
+    ctx.beginPath();
+    ctx.moveTo(ppx,ppy-22);
+    ctx.bezierCurveTo(ppx+3,ppy-27,ppx+7,ppy-25,ppx+6,ppy-22);
+    ctx.bezierCurveTo(ppx+4,ppy-20,ppx+2,ppy-21,ppx,ppy-22);
+    ctx.closePath();ctx.fill();
+
+    // Invincible outline flash
+    if(p.invincible){
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.globalAlpha=0.9;
+      ctx.beginPath();ctx.arc(ppx,ppy-2,20,0,Math.PI*2);ctx.stroke();
+    }
     ctx.globalAlpha=1;
+    ctx.restore();
 
     // Floats
     G.floats.forEach(f=>{
