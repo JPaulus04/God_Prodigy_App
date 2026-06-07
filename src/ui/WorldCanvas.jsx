@@ -1,12 +1,12 @@
+// GP_WORLD_PASS2
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 
-const TILE    = 32;
+const TILE = 32;
 
-// ── God realm portals ────────────────────────────────────────────────────
 const REALM_PORTALS = [
   { realm: 'forest', name: 'Forest Realm', icon: '🌿', color: '#27ae60', skulls: 1, x: 15, y: 12 },
   { realm: 'wind',   name: 'Wind Realm',   icon: '💨', color: '#87ceeb', skulls: 1, x:  8, y: 38 },
@@ -18,39 +18,105 @@ const REALM_PORTALS = [
   { realm: 'shadow', name: 'Shadow Realm', icon: '🌑', color: '#6c3483', skulls: 4, x: 25, y: 74 },
   { realm: 'lava',   name: 'Lava Realm',   icon: '🌋', color: '#e67e22', skulls: 5, x: 55, y: 74 },
   { realm: 'void',   name: 'Void Realm',   icon: '✨', color: '#f1c40f', skulls: 5, x: 72, y: 65 },
+  { realm: 'ice',    name: 'Ice Realm',    icon: '❄️', color: '#3498db', skulls: 3, x: 95, y: 15 },
+  { realm: 'storm',  name: 'Storm Realm',  icon: '⚡', color: '#9b59b6', skulls: 4, x:100, y: 55 },
+  { realm: 'void',   name: 'Void Realm',   icon: '✨', color: '#f1c40f', skulls: 5, x:110, y: 85 },
 ];
 
-const MAP_W   = 80;
-const MAP_H   = 80;
+const MAP_W   = 120;
+const MAP_H   = 120;
 const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
 const BORDER  = TILE * 4;
 
 const RESPAWN_POINTS = {
-  stronghold:  { x: 25*TILE, y: 42*TILE },
-  cp_center:   { x: 25*TILE, y: 25*TILE },
-  cp_forest:   { x: 15*TILE, y: 10*TILE },
-  cp_east:     { x: 40*TILE, y: 18*TILE },
-  cp_south:    { x: 25*TILE, y: 60*TILE },
-  cp_far_east: { x: 65*TILE, y: 30*TILE },
+  stronghold:   { x: 25*TILE, y: 42*TILE },
+  cp_center:    { x: 25*TILE, y: 25*TILE },
+  cp_forest:    { x: 15*TILE, y: 10*TILE },
+  cp_east:      { x: 40*TILE, y: 18*TILE },
+  cp_south:     { x: 25*TILE, y: 60*TILE },
+  cp_far_east:  { x: 65*TILE, y: 30*TILE },
+  cp_deep_east: { x: 95*TILE, y: 25*TILE },
+  cp_far_south: { x: 55*TILE, y: 95*TILE },
+  cp_void_gate: { x:105*TILE, y: 80*TILE },
 };
 
-function clampToWorld(x, y) {
-  return {
-    x: Math.max(BORDER, Math.min(WORLD_W - BORDER, x)),
-    y: Math.max(BORDER, Math.min(WORLD_H - BORDER, y)),
-  };
+const CHECKPOINTS = [
+  { id: 'cp_center',    x: 25*TILE, y: 25*TILE },
+  { id: 'cp_forest',    x: 15*TILE, y: 10*TILE },
+  { id: 'cp_east',      x: 40*TILE, y: 18*TILE },
+  { id: 'cp_south',     x: 25*TILE, y: 60*TILE },
+  { id: 'cp_far_east',  x: 65*TILE, y: 30*TILE },
+  { id: 'cp_deep_east', x: 95*TILE, y: 25*TILE },
+  { id: 'cp_far_south', x: 55*TILE, y: 95*TILE },
+  { id: 'cp_void_gate', x:105*TILE, y: 80*TILE },
+];
+
+// ── Obstacle clusters ─────────────────────────────────────────────────────
+// Each cluster blocks movement. Radius in tiles.
+const OBSTACLE_CLUSTERS = [
+  { type: 'trees', cx: 20, cy: 18, r: 3 },
+  { type: 'trees', cx: 30, cy: 16, r: 2 },
+  { type: 'trees', cx: 38, cy: 17, r: 2 },
+  { type: 'rocks', cx: 47, cy: 20, r: 3 },
+  { type: 'rocks', cx: 47, cy: 32, r: 2 },
+  { type: 'rocks', cx: 47, cy: 44, r: 2 },
+  { type: 'rocks', cx: 18, cy: 58, r: 2 },
+  { type: 'rocks', cx: 30, cy: 64, r: 2 },
+  { type: 'rocks', cx: 44, cy: 60, r: 3 },
+  { type: 'trees', cx: 11, cy: 40, r: 2 },
+  { type: 'trees', cx: 11, cy: 52, r: 2 },
+  { type: 'rocks', cx: 82, cy: 18, r: 3 },
+  { type: 'rocks', cx: 82, cy: 35, r: 2 },
+  { type: 'rocks', cx: 88, cy: 65, r: 3 },
+  { type: 'rocks', cx:100, cy: 45, r: 3 },
+  { type: 'rocks', cx:108, cy: 78, r: 4 },
+];
+
+function isObstacle(wx, wy) {
+  const tx = wx / TILE;
+  const ty = wy / TILE;
+  for (const c of OBSTACLE_CLUSTERS) {
+    const dx = tx - c.cx, dy = ty - c.cy;
+    if (dx*dx + dy*dy < (c.r * 0.7) * (c.r * 0.7)) return true;
+  }
+  return false;
 }
 
+// ── Landmark definitions ──────────────────────────────────────────────────
+const LANDMARK_DEFS = [
+  { type: 'ruins',         x: 28, y: 15, label: 'Ancient Ruins'   },
+  { type: 'goblin_camp',   x: 12, y: 14, label: 'Goblin Camp'     },
+  { type: 'stone_circle',  x: 55, y: 28, label: 'Stone Circle'    },
+  { type: 'lava_vents',    x: 32, y: 75, label: 'Lava Vents'      },
+  { type: 'shrine',        x:  8, y: 48, label: 'Forgotten Shrine'},
+  { type: 'crystal_spire', x: 86, y: 20, label: 'Crystal Spire'   },
+  { type: 'void_gate',     x:107, y: 82, label: 'Void Gate'       },
+  { type: 'ice_fortress',  x: 62, y: 10, label: 'Ice Fortress'    },
+];
+
 function tileColor(tx, ty) {
-  if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#2980b9';
-  if (ty < 18 && tx > 4 && tx < MAP_W-4)                  return '#1a5c35';  // Northern forest
-  if (tx > 46 && ty > 8  && ty < MAP_H-4)                 return '#636e72';  // Eastern rocky
-  if (ty > 54 && tx > 4 && tx < 52)                       return '#7d5a3c';  // Southern badlands
-  if (ty > 68 && tx > 4)                                  return '#4a2010';  // Deep volcanic
-  if (tx < 12 && ty > 25 && ty < MAP_H-8)                 return '#1e4d2b';  // Western wetlands
-  if (tx === 25 || ty === 25)                              return '#9b7a5b';  // Main paths
-  if (tx === 50 || ty === 55)                              return '#9b7a5b';  // Secondary paths
+  if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#1a6fa8';
+  // Expanded zones
+  if (tx >= 95 && ty >= 75) return '#100d14';
+  if (tx >= 90 && ty >= 50 && ty < 80) return '#1e1820';
+  if (tx >= 80 && ty < 50) return '#4a4258';
+  if (tx >= 80 && ty >= 50 && tx < 90) return '#1e3050';
+  if (tx >= 80 && ty >= 80) return '#18141e';
+  // Original zones
+  if (ty < 8  && tx > 10 && tx < 75) return '#0f3d22';
+  if (ty < 18 && tx > 4  && tx < 80) return '#1a5c35';
+  if (tx > 60 && ty > 8  && ty < 45) return '#3a2e24';
+  if (tx > 46 && ty > 8  && ty < 55) return '#4a3e32';
+  if (ty > 72 && tx > 4 && tx < 80 && ((tx + ty) % 7 < 2)) return '#4a0a00';
+  if (ty > 68 && tx > 4 && tx < 80) return '#2a1208';
+  if (ty > 54 && tx > 4 && tx < 52) return '#6b4a2e';
+  if (tx < 7  && ty > 35 && ty < 65) return '#0f2814';
+  if (tx < 12 && ty > 25 && ty < 80) return '#1a3d20';
+  if (tx === 25 || tx === 26) return '#8a6a4a';
+  if (ty === 25 || ty === 26) return '#8a6a4a';
+  if (tx === 50 || ty === 55) return '#7a5a3a';
+  if (tx === 78 || tx === 79) return '#6a5070';
   return '#2d6a3f';
 }
 
@@ -71,158 +137,147 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   if (line.trim()) ctx.fillText(line.trim(), x, currentY);
 }
 
-const CHECKPOINTS = [
-  { id: 'cp_center',   x: 25*TILE, y: 25*TILE },
-  { id: 'cp_forest',   x: 15*TILE, y: 10*TILE },
-  { id: 'cp_east',     x: 40*TILE, y: 18*TILE },
-  { id: 'cp_south',    x: 25*TILE, y: 60*TILE },
-  { id: 'cp_far_east', x: 65*TILE, y: 30*TILE },
-];
-
 const RESOURCE_DEFS = [
-  { type: 'tree',     res: 'wood',  amt: 2, x:  8*TILE, y:  7*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 12*TILE, y:  9*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 16*TILE, y:  6*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 20*TILE, y:  8*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 24*TILE, y: 11*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 30*TILE, y:  7*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 14*TILE, y: 22*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 20*TILE, y: 38*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 10*TILE, y: 30*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 32*TILE, y: 40*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 1, x: 37*TILE, y: 16*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 1, x: 41*TILE, y: 24*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 1, x: 38*TILE, y: 34*TILE },
-
-  // ── Extended northern forest ──────────────────────────
-  { type: 'tree',     res: 'wood',  amt: 3, x: 35*TILE, y:  5*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x: 45*TILE, y:  8*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x: 55*TILE, y:  6*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 65*TILE, y: 10*TILE },
-  { type: 'tree',     res: 'wood',  amt: 2, x: 72*TILE, y:  7*TILE },
-
-  // ── Eastern rocky zone (extended) ─────────────────────
-  { type: 'rock',     res: 'stone', amt: 3, x: 52*TILE, y: 20*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 60*TILE, y: 35*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 68*TILE, y: 22*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 74*TILE, y: 40*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 2, x: 55*TILE, y: 30*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 2, x: 63*TILE, y: 45*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 3, x: 70*TILE, y: 28*TILE },
-
-  // ── Southern badlands ─────────────────────────────────
-  { type: 'rock',     res: 'stone', amt: 3, x: 18*TILE, y: 60*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 35*TILE, y: 62*TILE },
-  { type: 'rock',     res: 'stone', amt: 3, x: 45*TILE, y: 58*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 2, x: 22*TILE, y: 65*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 3, x: 40*TILE, y: 70*TILE },
-  { type: 'ore_node', res: 'ore',   amt: 3, x: 30*TILE, y: 72*TILE },
-
-  // ── Western wetlands ──────────────────────────────────
-  { type: 'tree',     res: 'wood',  amt: 3, x:  6*TILE, y: 35*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x:  8*TILE, y: 48*TILE },
-  { type: 'tree',     res: 'wood',  amt: 3, x:  7*TILE, y: 60*TILE },
-  { type: 'rock',     res: 'stone', amt: 2, x: 10*TILE, y: 40*TILE },
+  // ── Original zones ─────────────────────────────────────────────────────
+  { type: 'tree',          res: 'wood',       amt: 2, x:  8*TILE, y:  7*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 12*TILE, y:  9*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 16*TILE, y:  6*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 20*TILE, y:  8*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 24*TILE, y: 11*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 30*TILE, y:  7*TILE },
+  { type: 'rock',          res: 'stone',      amt: 2, x: 14*TILE, y: 22*TILE },
+  { type: 'rock',          res: 'stone',      amt: 2, x: 20*TILE, y: 38*TILE },
+  { type: 'rock',          res: 'stone',      amt: 2, x: 10*TILE, y: 30*TILE },
+  { type: 'rock',          res: 'stone',      amt: 2, x: 32*TILE, y: 40*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 1, x: 37*TILE, y: 16*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 1, x: 41*TILE, y: 24*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 1, x: 38*TILE, y: 34*TILE },
+  { type: 'tree',          res: 'wood',       amt: 3, x: 35*TILE, y:  5*TILE },
+  { type: 'tree',          res: 'wood',       amt: 3, x: 45*TILE, y:  8*TILE },
+  { type: 'tree',          res: 'wood',       amt: 3, x: 55*TILE, y:  6*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 65*TILE, y: 10*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 72*TILE, y:  7*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 52*TILE, y: 20*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 60*TILE, y: 35*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 68*TILE, y: 22*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 74*TILE, y: 40*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 2, x: 55*TILE, y: 30*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 2, x: 63*TILE, y: 45*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 3, x: 70*TILE, y: 28*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 18*TILE, y: 60*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 35*TILE, y: 62*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 45*TILE, y: 58*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 2, x: 22*TILE, y: 65*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 3, x: 40*TILE, y: 70*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 3, x: 30*TILE, y: 72*TILE },
+  { type: 'tree',          res: 'wood',       amt: 3, x:  6*TILE, y: 35*TILE },
+  { type: 'tree',          res: 'wood',       amt: 3, x:  8*TILE, y: 48*TILE },
+  { type: 'tree',          res: 'wood',       amt: 3, x:  7*TILE, y: 60*TILE },
+  { type: 'rock',          res: 'stone',      amt: 2, x: 10*TILE, y: 40*TILE },
+  // ── Expanded zones (80–119) ────────────────────────────────────────────
+  { type: 'ore_node',      res: 'ore',        amt: 3, x: 84*TILE, y: 12*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 4, x: 90*TILE, y: 20*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 4, x: 88*TILE, y: 32*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 3, x: 97*TILE, y: 18*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 85*TILE, y: 40*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 93*TILE, y: 35*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 83*TILE, y: 55*TILE },
+  { type: 'tree',          res: 'wood',       amt: 2, x: 87*TILE, y: 62*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x: 95*TILE, y: 58*TILE },
+  { type: 'rock',          res: 'stone',      amt: 3, x:102*TILE, y: 65*TILE },
+  { type: 'ore_node',      res: 'ore',        amt: 4, x: 98*TILE, y: 70*TILE },
+  { type: 'fire_shard_node', res: 'fire_shard', amt: 1, x:104*TILE, y: 78*TILE },
+  { type: 'fire_shard_node', res: 'fire_shard', amt: 1, x:112*TILE, y: 88*TILE },
+  { type: 'fire_shard_node', res: 'fire_shard', amt: 1, x:108*TILE, y: 95*TILE },
 ];
 
 const ENEMY_DEFS = [
-  // Standard goblins — northern forest
-  { type: 'goblin', x: 12*TILE, y: 18*TILE },
-  { type: 'goblin', x: 18*TILE, y: 15*TILE },
-  { type: 'goblin', x: 22*TILE, y: 20*TILE },
-  { type: 'goblin', x:  8*TILE, y: 22*TILE },
-  // Standard golems — eastern zone
-  { type: 'golem',  x: 38*TILE, y: 20*TILE },
-  { type: 'golem',  x: 42*TILE, y: 30*TILE },
-  // ⭐ Elite: Gold Goblins — deeper forest
+  // ── Northern forest ────────────────────────────────────────────────────
+  { type: 'goblin',         x: 12*TILE, y: 18*TILE },
+  { type: 'goblin',         x: 18*TILE, y: 15*TILE },
+  { type: 'goblin',         x: 22*TILE, y: 20*TILE },
+  { type: 'goblin',         x:  8*TILE, y: 22*TILE },
   { type: 'gold_goblin',    x: 10*TILE, y:  8*TILE },
   { type: 'gold_goblin',    x: 26*TILE, y: 12*TILE },
-  // ⭐⭐ Elite: Stone Guardians — eastern rocky zone
-  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },
-  { type: 'stone_guardian', x: 45*TILE, y: 35*TILE },
-
-  // ── Extended northern forest ──────────────────────────
-  { type: 'goblin', x: 35*TILE, y: 12*TILE },
-  { type: 'goblin', x: 48*TILE, y:  9*TILE },
-  { type: 'goblin', x: 58*TILE, y: 14*TILE },
-  { type: 'goblin', x: 68*TILE, y:  8*TILE },
-
-  // ── Extended eastern rocky zone ───────────────────────
-  { type: 'golem',  x: 52*TILE, y: 22*TILE },
-  { type: 'golem',  x: 60*TILE, y: 32*TILE },
-  { type: 'golem',  x: 68*TILE, y: 45*TILE },
-  { type: 'golem',  x: 74*TILE, y: 30*TILE },
-
-  // ── Southern badlands ─────────────────────────────────
-  { type: 'goblin', x: 18*TILE, y: 58*TILE },
-  { type: 'goblin', x: 35*TILE, y: 62*TILE },
-  { type: 'goblin', x: 48*TILE, y: 56*TILE },
-  { type: 'golem',  x: 28*TILE, y: 68*TILE },
-  { type: 'golem',  x: 42*TILE, y: 70*TILE },
-
-  // ── Deep south volcanic ───────────────────────────────
-  { type: 'golem',  x: 20*TILE, y: 72*TILE },
-  { type: 'golem',  x: 38*TILE, y: 74*TILE },
-
-  // ── Western wetlands ──────────────────────────────────
-  { type: 'goblin', x:  8*TILE, y: 38*TILE },
-  { type: 'goblin', x:  6*TILE, y: 52*TILE },
-
-  // ── Additional elites (harder, in expanded zones) ─────
+  { type: 'goblin',         x: 35*TILE, y: 12*TILE },
+  { type: 'goblin',         x: 48*TILE, y:  9*TILE },
+  { type: 'goblin',         x: 58*TILE, y: 14*TILE },
+  { type: 'goblin',         x: 68*TILE, y:  8*TILE },
   { type: 'gold_goblin',    x: 55*TILE, y:  8*TILE },
   { type: 'gold_goblin',    x: 72*TILE, y: 12*TILE },
+  // ── Eastern rocky zone ────────────────────────────────────────────────
+  { type: 'golem',          x: 38*TILE, y: 20*TILE },
+  { type: 'golem',          x: 42*TILE, y: 30*TILE },
+  { type: 'stone_guardian', x: 42*TILE, y: 14*TILE },
+  { type: 'stone_guardian', x: 45*TILE, y: 35*TILE },
+  { type: 'golem',          x: 52*TILE, y: 22*TILE },
+  { type: 'golem',          x: 60*TILE, y: 32*TILE },
+  { type: 'golem',          x: 68*TILE, y: 45*TILE },
+  { type: 'golem',          x: 74*TILE, y: 30*TILE },
   { type: 'stone_guardian', x: 65*TILE, y: 40*TILE },
+  // ── Southern badlands ─────────────────────────────────────────────────
+  { type: 'goblin',         x: 18*TILE, y: 58*TILE },
+  { type: 'goblin',         x: 35*TILE, y: 62*TILE },
+  { type: 'goblin',         x: 48*TILE, y: 56*TILE },
+  { type: 'golem',          x: 28*TILE, y: 68*TILE },
+  { type: 'golem',          x: 42*TILE, y: 70*TILE },
+  { type: 'golem',          x: 20*TILE, y: 72*TILE },
+  { type: 'golem',          x: 38*TILE, y: 74*TILE },
   { type: 'stone_guardian', x: 30*TILE, y: 68*TILE },
-
-  // ── Portal guards & area density ─────────────────────
-  // Forest Realm portal guards (tile 15,12)
-  { type: 'goblin',         x: 13*TILE, y: 10*TILE },
-  { type: 'goblin',         x: 16*TILE, y: 14*TILE },
-  { type: 'goblin',         x: 11*TILE, y:  8*TILE },
-  { type: 'gold_goblin',    x: 14*TILE, y:  6*TILE },  // elite guard ⭐
-
-  // Wind Realm portal guards (tile 8,38)
-  { type: 'goblin',         x:  7*TILE, y: 35*TILE },
-  { type: 'goblin',         x:  9*TILE, y: 42*TILE },
-
-  // Earth Realm portal guards (tile 52,22)
-  { type: 'golem',          x: 50*TILE, y: 25*TILE },
-  { type: 'golem',          x: 54*TILE, y: 18*TILE },
-  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },  // elite guard ⭐⭐
-
-  // Ice Realm portal guards (tile 68,8)
-  { type: 'goblin',         x: 65*TILE, y:  6*TILE },
-  { type: 'goblin',         x: 70*TILE, y: 10*TILE },
-  { type: 'stone_guardian', x: 67*TILE, y:  5*TILE },  // elite guard ⭐⭐
-
-  // Ocean Realm portal guards (tile 5,60)
-  { type: 'goblin',         x:  5*TILE, y: 55*TILE },
-  { type: 'goblin',         x:  6*TILE, y: 63*TILE },
-
-  // Storm Realm portal guards (tile 72,38)
-  { type: 'golem',          x: 70*TILE, y: 40*TILE },
-  { type: 'golem',          x: 74*TILE, y: 35*TILE },
-  { type: 'stone_guardian', x: 73*TILE, y: 35*TILE },  // elite guard ⭐⭐
-
-  // Shadow Realm portal guards (tile 25,74)
-  { type: 'golem',          x: 22*TILE, y: 72*TILE },
-  { type: 'stone_guardian', x: 28*TILE, y: 73*TILE },  // elite guard ⭐⭐
-
-  // Lava Realm portal guards (tile 55,74)
-  { type: 'golem',          x: 53*TILE, y: 70*TILE },
-  { type: 'golem',          x: 57*TILE, y: 76*TILE },
-  { type: 'stone_guardian', x: 55*TILE, y: 70*TILE },  // elite guard ⭐⭐
-
-  // Void Realm portal guards (tile 72,65)
-  { type: 'golem',          x: 70*TILE, y: 62*TILE },
-  { type: 'stone_guardian', x: 73*TILE, y: 68*TILE },  // elite guard ⭐⭐
-
-  // Mid-map fill (sparse central areas)
+  // ── Western wetlands ──────────────────────────────────────────────────
+  { type: 'goblin',         x:  8*TILE, y: 38*TILE },
+  { type: 'goblin',         x:  6*TILE, y: 52*TILE },
+  // ── Mid-map ────────────────────────────────────────────────────────────
   { type: 'goblin',         x: 32*TILE, y: 18*TILE },
   { type: 'goblin',         x: 28*TILE, y: 14*TILE },
   { type: 'golem',          x: 48*TILE, y: 40*TILE },
   { type: 'goblin',         x: 15*TILE, y: 48*TILE },
   { type: 'goblin',         x: 40*TILE, y: 48*TILE },
+  // ── Portal guards (original) ───────────────────────────────────────────
+  { type: 'goblin',         x: 13*TILE, y: 10*TILE },
+  { type: 'goblin',         x: 16*TILE, y: 14*TILE },
+  { type: 'gold_goblin',    x: 14*TILE, y:  6*TILE },
+  { type: 'goblin',         x:  7*TILE, y: 35*TILE },
+  { type: 'goblin',         x:  9*TILE, y: 42*TILE },
+  { type: 'golem',          x: 50*TILE, y: 25*TILE },
+  { type: 'stone_guardian', x: 50*TILE, y: 20*TILE },
+  { type: 'goblin',         x: 65*TILE, y:  6*TILE },
+  { type: 'stone_guardian', x: 67*TILE, y:  5*TILE },
+  { type: 'goblin',         x:  5*TILE, y: 55*TILE },
+  { type: 'goblin',         x:  6*TILE, y: 63*TILE },
+  { type: 'golem',          x: 70*TILE, y: 40*TILE },
+  { type: 'stone_guardian', x: 73*TILE, y: 35*TILE },
+  { type: 'golem',          x: 22*TILE, y: 72*TILE },
+  { type: 'stone_guardian', x: 28*TILE, y: 73*TILE },
+  { type: 'golem',          x: 53*TILE, y: 70*TILE },
+  { type: 'stone_guardian', x: 55*TILE, y: 70*TILE },
+  { type: 'golem',          x: 70*TILE, y: 62*TILE },
+  { type: 'stone_guardian', x: 73*TILE, y: 68*TILE },
+  // ── Expanded zones (80–119) ────────────────────────────────────────────
+  { type: 'golem',          x: 84*TILE, y: 10*TILE },
+  { type: 'golem',          x: 88*TILE, y: 25*TILE },
+  { type: 'stone_guardian', x: 92*TILE, y: 15*TILE },
+  { type: 'stone_guardian', x: 96*TILE, y: 28*TILE },
+  { type: 'stone_guardian', x: 90*TILE, y: 40*TILE },
+  { type: 'goblin',         x: 83*TILE, y: 52*TILE },
+  { type: 'goblin',         x: 87*TILE, y: 58*TILE },
+  { type: 'gold_goblin',    x: 85*TILE, y: 65*TILE },
+  { type: 'gold_goblin',    x: 89*TILE, y: 72*TILE },
+  { type: 'golem',          x: 94*TILE, y: 55*TILE },
+  { type: 'golem',          x: 98*TILE, y: 62*TILE },
+  { type: 'stone_guardian', x:102*TILE, y: 58*TILE },
+  { type: 'stone_guardian', x:100*TILE, y: 72*TILE },
+  { type: 'stone_guardian', x:106*TILE, y: 75*TILE },
+  { type: 'gold_goblin',    x:103*TILE, y: 82*TILE },
+  { type: 'stone_guardian', x:110*TILE, y: 80*TILE },
+  { type: 'stone_guardian', x:112*TILE, y: 90*TILE },
+  // Expanded portal guards
+  { type: 'stone_guardian', x: 93*TILE, y: 12*TILE },
+  { type: 'golem',          x: 97*TILE, y: 10*TILE },
+  { type: 'stone_guardian', x: 98*TILE, y: 52*TILE },
+  { type: 'stone_guardian', x:102*TILE, y: 50*TILE },
+  { type: 'stone_guardian', x:108*TILE, y: 82*TILE },
+  { type: 'stone_guardian', x:112*TILE, y: 86*TILE },
 ];
 
 const PATROL_RADIUS = 80;
@@ -238,7 +293,10 @@ const NPC_HINTS = [
   'The deep south smells of sulfur. The Fire God stirs...',
   'Western wetlands hold ancient trees — good for crafting.',
   'Far east, beyond the rocky ridge, dangerous golems guard rich ore.',
-  'Two new checkpoints await in the south and far east.',
+  'The eastern highlands hold ancient crystal formations. Dangerous stone guardians guard them.',
+  'Beyond the rocky ridge lies the Ashen Wastes. Few return.',
+  'The Void Gate is said to be the final challenge. Ten gods must fall before it opens.',
+  'New checkpoints await in the deep east. Plant your flag before venturing to the void.',
 ];
 
 function makeEnemy(def) {
@@ -250,79 +308,56 @@ function makeEnemy(def) {
     state: 'patrol', alive: true,
     attackTimer: 0, patrolDir: 1, patrolTimer: 0,
     stunTimer: 0,
-    // Elite properties
     isElite:    cfg.isElite    || false,
     isBoss:     cfg.isBoss     || false,
     eliteStars: cfg.eliteStars || 0,
   };
 }
 
-// Resolve a drop item — handles resources, gear, and special items
+function clampToWorld(x, y) {
+  return {
+    x: Math.max(BORDER, Math.min(WORLD_W - BORDER, x)),
+    y: Math.max(BORDER, Math.min(WORLD_H - BORDER, y)),
+  };
+}
+
 function resolveDropItem(drop, store, floatX, floatY, addFloat) {
   const RESOURCE_TYPES = ['wood', 'stone', 'ore', 'fire_shard', 'goblin_tooth'];
-
   if (RESOURCE_TYPES.includes(drop.item)) {
     store.addResource(drop.item, drop.amount);
     addFloat(floatX, floatY, `+${drop.amount} ${drop.item}`, '#7ed321');
     return;
   }
-
   if (drop.item === 'hunters_charm') {
-    const item = {
-      id: 'hunters_charm', name: "Hunter's Charm",
-      slot: 'accessory', rarity: 'rare',
-      atk: 4, spd: 1,
-      instanceId: `item_${Date.now()}_hunters_charm`,
-    };
+    const item = { id: 'hunters_charm', name: "Hunter's Charm", slot: 'accessory', rarity: 'rare', atk: 4, spd: 1, instanceId: `item_${Date.now()}_hunters_charm` };
     if (store.addItem(item)) addFloat(floatX, floatY - 16, "🎯 Hunter's Charm!", '#3498db');
     return;
   }
-
   if (drop.item === 'shadow_armor') {
-    const item = {
-      id: 'shadow_armor', name: 'Shadow Armor',
-      slot: 'armor', tier: 'iron', rarity: 'rare',
-      def: 14,
-      instanceId: `item_${Date.now()}_shadow_armor`,
-    };
+    const item = { id: 'shadow_armor', name: 'Shadow Armor', slot: 'armor', tier: 'iron', rarity: 'rare', def: 14, instanceId: `item_${Date.now()}_shadow_armor` };
     if (store.addItem(item)) addFloat(floatX, floatY - 16, '🌑 Shadow Armor!', '#9b59b6');
     return;
   }
-
   if (drop.item === 'gear_drop_uncommon_weapon') {
-    const TYPES    = ['sword', 'hammer', 'bow', 'dagger'];
-    const ABILITY  = { sword: 'whirlwind', hammer: 'ground_slam', bow: 'power_shot', dagger: 'flurry' };
-    const type     = TYPES[Math.floor(Math.random() * TYPES.length)];
-    const name     = `Iron ${type.charAt(0).toUpperCase() + type.slice(1)}`;
-    const item = {
-      id: `iron_${type}_uncommon`, name,
-      slot: 'weapon', type, tier: 'iron', rarity: 'uncommon',
-      atk: 15,  // iron tier * uncommon rarity ≈ 8 * 1.6 * 1.25
-      abilityId: ABILITY[type],
-      instanceId: `item_${Date.now()}_${type}`,
-    };
+    const TYPES = ['sword', 'hammer', 'bow', 'dagger'];
+    const ABILITY = { sword: 'whirlwind', hammer: 'ground_slam', bow: 'power_shot', dagger: 'flurry' };
+    const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+    const name = `Iron ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    const item = { id: `iron_${type}_uncommon`, name, slot: 'weapon', type, tier: 'iron', rarity: 'uncommon', atk: 15, abilityId: ABILITY[type], instanceId: `item_${Date.now()}_${type}` };
     if (store.addItem(item)) addFloat(floatX, floatY - 16, `⚔ Uncommon ${name}!`, '#2ecc71');
     return;
   }
-
   if (drop.item === 'gear_drop_rare_weapon') {
-    const TYPES   = ['sword', 'hammer', 'bow', 'dagger'];
+    const TYPES = ['sword', 'hammer', 'bow', 'dagger'];
     const ABILITY = { sword: 'whirlwind', hammer: 'ground_slam', bow: 'power_shot', dagger: 'flurry' };
-    const type    = TYPES[Math.floor(Math.random() * TYPES.length)];
-    const name    = `Steel ${type.charAt(0).toUpperCase() + type.slice(1)}`;
-    const item = {
-      id: `steel_${type}_rare`, name,
-      slot: 'weapon', type, tier: 'steel', rarity: 'rare',
-      atk: 31,  // steel tier * rare rarity ≈ 8 * 2.4 * 1.6
-      abilityId: ABILITY[type],
-      instanceId: `item_${Date.now()}_${type}`,
-    };
+    const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+    const name = `Steel ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    const item = { id: `steel_${type}_rare`, name, slot: 'weapon', type, tier: 'steel', rarity: 'rare', atk: 31, abilityId: ABILITY[type], instanceId: `item_${Date.now()}_${type}` };
     if (store.addItem(item)) addFloat(floatX, floatY - 16, `💎 Rare ${name}!`, '#3498db');
     return;
   }
 }
 
-// Ability colors per ability ID
 const ABILITY_COLORS = {
   whirlwind:    { primary: '#4a90e2', secondary: '#7ab3e0' },
   ground_slam:  { primary: '#c0392b', secondary: '#e67e22' },
@@ -330,6 +365,172 @@ const ABILITY_COLORS = {
   flurry:       { primary: '#f39c12', secondary: '#fff' },
   arcane_burst: { primary: '#9b59b6', secondary: '#d4af37' },
 };
+
+// ── Landmark renderer ─────────────────────────────────────────────────────
+function drawLandmarks(ctx, wxFn, wyFn, onScreen, t) {
+  LANDMARK_DEFS.forEach(lm => {
+    const sx = wxFn(lm.x * TILE), sy = wyFn(lm.y * TILE);
+    if (!onScreen(sx, sy, 120)) return;
+
+    ctx.save();
+    switch (lm.type) {
+      case 'ruins': {
+        const cols = ['#7a7a7a', '#666', '#888', '#6a6a6a', '#757575'];
+        for (let i = 0; i < 5; i++) {
+          const px = sx + (i - 2) * 14;
+          const h = 18 + (i % 3) * 8;
+          const tilt = (i - 2) * 0.08;
+          ctx.save(); ctx.translate(px, sy); ctx.rotate(tilt);
+          ctx.fillStyle = cols[i % cols.length];
+          ctx.fillRect(-4, -h, 8, h);
+          // Broken top
+          ctx.fillStyle = '#555';
+          ctx.fillRect(-4, -h, 8, 4);
+          ctx.restore();
+        }
+        break;
+      }
+      case 'goblin_camp': {
+        // Campfire glow
+        const flicker = 0.7 + Math.sin(t * 8) * 0.3;
+        ctx.globalAlpha = flicker * 0.4;
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Fire
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath(); ctx.arc(sx, sy - 2, 3, 0, Math.PI*2); ctx.fill();
+        // Tents
+        [[-22, 5], [22, 5], [0, -20]].forEach(([dx, dy]) => {
+          ctx.fillStyle = '#7d5a3c';
+          ctx.beginPath();
+          ctx.moveTo(sx + dx, sy + dy + 12);
+          ctx.lineTo(sx + dx - 10, sy + dy + 12);
+          ctx.lineTo(sx + dx, sy + dy - 4);
+          ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = 1; ctx.stroke();
+        });
+        break;
+      }
+      case 'stone_circle': {
+        const r = 28;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const stx = sx + Math.cos(a) * r, sty = sy + Math.sin(a) * r;
+          ctx.fillStyle = '#7a7a8a';
+          ctx.fillRect(stx - 4, sty - 14, 8, 18);
+          ctx.fillStyle = '#9a9aaa';
+          ctx.fillRect(stx - 4, sty - 14, 8, 3);
+        }
+        // Center glow
+        ctx.globalAlpha = 0.15 + Math.sin(t * 1.5) * 0.08;
+        ctx.fillStyle = '#8888ff';
+        ctx.beginPath(); ctx.arc(sx, sy, 20, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'lava_vents': {
+        [[-18, 0], [18, 0], [0, -16]].forEach(([dx, dy]) => {
+          // Vent hole
+          ctx.fillStyle = '#1a0800';
+          ctx.beginPath(); ctx.arc(sx + dx, sy + dy, 8, 0, Math.PI*2); ctx.fill();
+          // Glow
+          const pulse = 0.5 + Math.sin(t * 4 + dx) * 0.4;
+          ctx.globalAlpha = pulse * 0.6;
+          ctx.fillStyle = '#e67e22';
+          ctx.beginPath(); ctx.arc(sx + dx, sy + dy, 14, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+        break;
+      }
+      case 'shrine': {
+        // Two pillars
+        ctx.fillStyle = '#8a8a8a';
+        ctx.fillRect(sx - 18, sy - 22, 7, 24);
+        ctx.fillRect(sx + 11, sy - 22, 7, 24);
+        // Lintel
+        ctx.fillRect(sx - 20, sy - 24, 40, 6);
+        // Teal glow at base
+        ctx.globalAlpha = 0.4 + Math.sin(t * 2) * 0.2;
+        ctx.fillStyle = '#1abc9c';
+        ctx.beginPath(); ctx.arc(sx, sy + 2, 10, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'crystal_spire': {
+        [[-14, 0, 28], [0, -8, 38], [14, 0, 28]].forEach(([dx, dy, h]) => {
+          ctx.fillStyle = '#1a3a6a';
+          ctx.beginPath();
+          ctx.moveTo(sx + dx, sy + dy + 12);
+          ctx.lineTo(sx + dx - 7, sy + dy + 12);
+          ctx.lineTo(sx + dx, sy + dy - h);
+          ctx.closePath(); ctx.fill();
+          // Inner shimmer
+          ctx.globalAlpha = 0.5 + Math.sin(t * 3 + dx) * 0.3;
+          ctx.fillStyle = '#5a9fd4';
+          ctx.beginPath();
+          ctx.moveTo(sx + dx, sy + dy - h + 10);
+          ctx.lineTo(sx + dx - 3, sy + dy + 8);
+          ctx.lineTo(sx + dx + 1, sy + dy + 8);
+          ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+        break;
+      }
+      case 'void_gate': {
+        // Two tall dark pillars
+        ctx.fillStyle = '#1a0a2a';
+        ctx.fillRect(sx - 28, sy - 36, 10, 44);
+        ctx.fillRect(sx + 18, sy - 36, 10, 44);
+        // Void swirl between
+        const swirl = t * 1.2;
+        ctx.globalAlpha = 0.6 + Math.sin(t * 2) * 0.2;
+        ctx.fillStyle = '#2a0a4a';
+        ctx.beginPath(); ctx.ellipse(sx, sy - 12, 16, 22, 0, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Rotating arc
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(sx, sy - 12, 12, swirl, swirl + Math.PI * 1.3); ctx.stroke();
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'ice_fortress': {
+        // Base wall
+        ctx.fillStyle = '#2a4a6a';
+        ctx.fillRect(sx - 24, sy - 14, 48, 20);
+        // Battlements
+        for (let i = 0; i < 6; i++) {
+          ctx.fillRect(sx - 22 + i * 9, sy - 22, 6, 10);
+        }
+        // Tower
+        ctx.fillStyle = '#3a5a7a';
+        ctx.fillRect(sx - 10, sy - 36, 20, 24);
+        // Tower point
+        ctx.fillStyle = '#5a8aaa';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 50);
+        ctx.lineTo(sx - 10, sy - 36);
+        ctx.lineTo(sx + 10, sy - 36);
+        ctx.closePath(); ctx.fill();
+        // Ice shimmer
+        ctx.globalAlpha = 0.2 + Math.sin(t * 1.8) * 0.1;
+        ctx.fillStyle = '#aaddff';
+        ctx.fillRect(sx - 24, sy - 36, 48, 44);
+        ctx.globalAlpha = 1;
+        break;
+      }
+    }
+
+    // Label
+    ctx.fillStyle = '#ffffff55';
+    ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(lm.label.toUpperCase(), sx, sy + 38);
+    ctx.restore();
+  });
+}
 
 export default function WorldCanvas() {
   const canvasRef       = useRef(null);
@@ -348,14 +549,12 @@ export default function WorldCanvas() {
     templeCooldown: 2.5,
     floats:       [],
     npcMessage:   null,
-    // ── Ability state ──────────────────────────────────
     abilityCooldown: 0,
     abilityEffect:   null,
-    projectiles:     [],    // Power Shot ability projectiles
-    basicArrows:     [],    // Bow basic attack arrows
-    attackEffect:    null,  // brief visual on melee hit (hammer/sword)
+    projectiles:     [],
+    basicArrows:     [],
+    attackEffect:    null,
     lastMoveDir:     { x: 1, y: 0 },
-    // ── Input ─────────────────────────────────────────
     keys:         {},
     prevE:        false,
     prevSpace:    false,
@@ -370,42 +569,29 @@ export default function WorldCanvas() {
     G.floats.push({ x, y, text, color, life: big ? 1.5 : 1.2, vy: big ? -50 : -40, big });
   };
 
-  // ── Kill enemy helper ────────────────────────────────────
   const killEnemy = (e, store) => {
     e.alive = false;
-    const cfg       = EnemyConfig[e.type];
-    const xpReward  = cfg?.xpReward || 10;
+    const cfg      = EnemyConfig[e.type];
+    const xpReward = cfg?.xpReward || 10;
     store.gainXP(xpReward);
     addFloat(e.x, e.y - 50, `+${xpReward} XP`, '#9b59b6');
-
     cfg?.drops?.forEach(drop => {
-      if (Math.random() < drop.chance) {
-        resolveDropItem(drop, store, e.x, e.y - 36, addFloat);
-      }
+      if (Math.random() < drop.chance) resolveDropItem(drop, store, e.x, e.y - 36, addFloat);
     });
-
     const respawnTime = cfg?.respawnTime || 0;
     if (respawnTime > 0) {
-      setTimeout(() => {
-        e.alive = true; e.hp = e.maxHp; e.state = 'patrol';
-        e.x = e.originX; e.y = e.originY; e.stunTimer = 0;
-      }, respawnTime);
+      setTimeout(() => { e.alive = true; e.hp = e.maxHp; e.state = 'patrol'; e.x = e.originX; e.y = e.originY; e.stunTimer = 0; }, respawnTime);
     }
   };
 
-  // ── Execute active ability ────────────────────────────────
   const executeAbility = (abilityId, store) => {
     const ability = AbilityConfig[abilityId];
     if (!ability) return;
-
     const p = G.player;
     G.abilityCooldown = ability.cooldown;
     store.recordAbilityFired(ability.cooldown);
-
     addFloat(p.x, p.y - 55, ability.name, '#d4af37', true);
-
     switch (ability.type) {
-      // ── AOE: Whirlwind (sword) ────────────────────────────
       case 'aoe': {
         G.enemies.forEach(e => {
           if (!e.alive || dist(p.x, p.y, e.x, e.y) > ability.range) return;
@@ -415,60 +601,32 @@ export default function WorldCanvas() {
           if (ability.stunDuration) e.stunTimer = ability.stunDuration;
           if (e.hp <= 0) killEnemy(e, store);
         });
-        G.abilityEffect = {
-          id: abilityId, x: p.x, y: p.y,
-          maxRadius: ability.range, radius: 0,
-          timer: 0.7, maxTimer: 0.7,
-        };
+        G.abilityEffect = { id: abilityId, x: p.x, y: p.y, maxRadius: ability.range, radius: 0, timer: 0.7, maxTimer: 0.7 };
         break;
       }
-
-      // ── Projectile: Power Shot (bow) ──────────────────────
       case 'projectile': {
-        // Aim at nearest enemy; fall back to last movement direction
-        let targetX = p.x + G.lastMoveDir.x * 200;
-        let targetY = p.y + G.lastMoveDir.y * 200;
-        let nearestDist = Infinity;
-        G.enemies.forEach(e => {
-          if (!e.alive) return;
-          const d = dist(p.x, p.y, e.x, e.y);
-          if (d < nearestDist) { nearestDist = d; targetX = e.x; targetY = e.y; }
-        });
+        let targetX = p.x + G.lastMoveDir.x * 200, targetY = p.y + G.lastMoveDir.y * 200, nd = Infinity;
+        G.enemies.forEach(e => { if (!e.alive) return; const d = dist(p.x, p.y, e.x, e.y); if (d < nd) { nd = d; targetX = e.x; targetY = e.y; } });
         const angle = Math.atan2(targetY - p.y, targetX - p.x);
-        G.projectiles.push({
-          x: p.x, y: p.y,
-          vx: Math.cos(angle) * 420,
-          vy: Math.sin(angle) * 420,
-          traveled: 0,
-          maxRange: ability.range,
-          dmg: Math.max(1, Math.round(store.playerATK * ability.damageMult)),
-          hitEnemies: new Set(),
-        });
+        G.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(angle) * 420, vy: Math.sin(angle) * 420, traveled: 0, maxRange: ability.range, dmg: Math.max(1, Math.round(store.playerATK * ability.damageMult)), hitEnemies: new Set() });
         break;
       }
-
-      // ── Multi-hit: Flurry (dagger) ────────────────────────
       case 'multi_hit': {
-        G.abilityEffect = {
-          id: abilityId, x: p.x, y: p.y,
-          timer: 0.6, maxTimer: 0.6,
-        };
+        G.abilityEffect = { id: abilityId, x: p.x, y: p.y, timer: 0.6, maxTimer: 0.6 };
         for (let i = 0; i < ability.hits; i++) {
           setTimeout(() => {
-            const currentStore = useGameStore.getState();
+            const cs = useGameStore.getState();
             G.enemies.forEach(e => {
               if (!e.alive || dist(G.player.x, G.player.y, e.x, e.y) > ability.range) return;
-              const dmg = Math.max(1, Math.round(currentStore.playerATK * ability.damageMult));
+              const dmg = Math.max(1, Math.round(cs.playerATK * ability.damageMult));
               e.hp -= dmg;
               addFloat(e.x, e.y - 20 - i * 8, `-${dmg}`, '#f39c12');
-              if (e.hp <= 0) killEnemy(e, currentStore);
+              if (e.hp <= 0) killEnemy(e, cs);
             });
           }, i * ability.hitDelay * 1000);
         }
         break;
       }
-
-      // ── Elemental AOE: Arcane Burst (staff) ───────────────
       case 'elemental_aoe': {
         G.enemies.forEach(e => {
           if (!e.alive || dist(p.x, p.y, e.x, e.y) > ability.range) return;
@@ -477,19 +635,13 @@ export default function WorldCanvas() {
           addFloat(e.x, e.y - 24, `-${dmg}`, '#9b59b6');
           if (e.hp <= 0) killEnemy(e, store);
         });
-        G.abilityEffect = {
-          id: abilityId, x: p.x, y: p.y,
-          maxRadius: ability.range,
-          timer: 0.8, maxTimer: 0.8,
-        };
+        G.abilityEffect = { id: abilityId, x: p.x, y: p.y, maxRadius: ability.range, timer: 0.8, maxTimer: 0.8 };
         break;
       }
-
       default: break;
     }
   };
 
-  // ── Respawn via React effect ──────────────────────────────
   useEffect(() => {
     if (prevDeathModal.current && !showDeathModal) {
       const store    = useGameStore.getState();
@@ -506,7 +658,6 @@ export default function WorldCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const resize = () => {
       setTimeout(() => {
         const rect = canvas.getBoundingClientRect();
@@ -517,11 +668,9 @@ export default function WorldCanvas() {
     };
     resize();
     window.addEventListener('resize', resize);
-
     const store = useGameStore.getState();
     if (store.position?.x) {
       let { x, y } = store.position;
-      // Reset if standing on a portal (prevents re-entry loop)
       const onPortal = REALM_PORTALS.some(p2 => dist(x, y, p2.x*TILE, p2.y*TILE) < TILE * 3);
       if (onPortal) { x = 25*TILE; y = 40*TILE; }
       const c = clampToWorld(x, y);
@@ -529,12 +678,10 @@ export default function WorldCanvas() {
       G.camera.x = c.x; G.camera.y = c.y;
     }
     if (store.inventory.some(i => i.id === 'iron_sword')) G.swordPicked = true;
-
     const kd = e => { G.keys[e.code] = true; };
     const ku = e => { G.keys[e.code] = false; };
     window.addEventListener('keydown', kd);
     window.addEventListener('keyup',   ku);
-
     const ctx = canvas.getContext('2d');
     const loop = (ts) => {
       const dt = Math.min((ts - lastTimeRef.current) / 1000, 0.05);
@@ -543,7 +690,6 @@ export default function WorldCanvas() {
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
-
     return () => {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('keydown', kd);
@@ -555,15 +701,12 @@ export default function WorldCanvas() {
   function update(dt) {
     const store = useGameStore.getState();
     if (store.showDeathModal || store.gamePhase === 'stronghold') return;
-
     const p   = G.player;
     const cfg = EnemyConfig;
-
     if (G.npcMessage) { G.npcMessage.timer -= dt; if (G.npcMessage.timer <= 0) G.npcMessage = null; }
     if (G.abilityEffect) { G.abilityEffect.timer -= dt; if (G.abilityEffect.timer <= 0) G.abilityEffect = null; }
     if (G.abilityCooldown > 0) G.abilityCooldown = Math.max(0, G.abilityCooldown - dt);
 
-    // ── Boss realm portal step-on ────────────────────────────────────────
     if (G.templeCooldown > 0) {
       G.templeCooldown -= dt;
     } else {
@@ -577,14 +720,12 @@ export default function WorldCanvas() {
       }
     }
 
-        // ── Passive health regen ──────────────────────────────
     const inCombat = G.enemies.some(e => e.alive && e.state !== 'patrol' && e.state !== 'idle');
     if (!inCombat && store.playerHP < store.playerMaxHP) {
       G.regenTimer += dt;
       if (G.regenTimer >= 4) { G.regenTimer = 0; store.healPlayer(1); }
     } else { G.regenTimer = 0; }
 
-    // ── Movement ──────────────────────────────────────────
     let vx = 0, vy = 0;
     if (G.keys['ArrowLeft']  || G.keys['KeyA']) vx -= 1;
     if (G.keys['ArrowRight'] || G.keys['KeyD']) vx += 1;
@@ -594,9 +735,18 @@ export default function WorldCanvas() {
     if (vx !== 0 && vy !== 0) { const m = Math.sqrt(vx*vx+vy*vy); vx/=m; vy/=m; }
     if (vx !== 0 || vy !== 0) G.lastMoveDir = { x: vx, y: vy };
 
-    const spd  = 150 + (store.playerSPD - 5) * 12;
-    const next = clampToWorld(p.x + vx * spd * dt, p.y + vy * spd * dt);
-    p.x = next.x; p.y = next.y;
+    const spd = 150 + (store.playerSPD - 5) * 12;
+
+    // Movement with obstacle sliding
+    const nextFull = clampToWorld(p.x + vx * spd * dt, p.y + vy * spd * dt);
+    if (!isObstacle(nextFull.x, nextFull.y)) {
+      p.x = nextFull.x; p.y = nextFull.y;
+    } else {
+      const slideX = clampToWorld(p.x + vx * spd * dt, p.y);
+      const slideY = clampToWorld(p.x, p.y + vy * spd * dt);
+      if (!isObstacle(slideX.x, slideX.y)) { p.x = slideX.x; p.y = slideX.y; }
+      else if (!isObstacle(slideY.x, slideY.y)) { p.x = slideY.x; p.y = slideY.y; }
+    }
 
     G.camera.x += (p.x - G.camera.x) * Math.min(1, 8 * dt);
     G.camera.y += (p.y - G.camera.y) * Math.min(1, 8 * dt);
@@ -606,14 +756,9 @@ export default function WorldCanvas() {
     if (p.attackCooldown > 0) p.attackCooldown -= dt;
     if (p.invincible) { p.invTimer -= dt; if (p.invTimer <= 0) p.invincible = false; }
 
-    // ── Weapon type detection ──────────────────────────────
     const weaponInstanceId = store.gear?.weapon;
-    const equippedWeapon   = weaponInstanceId
-      ? store.inventory.find(i => i.instanceId === weaponInstanceId)
-      : null;
+    const equippedWeapon   = weaponInstanceId ? store.inventory.find(i => i.instanceId === weaponInstanceId) : null;
     const weaponType = equippedWeapon?.type || 'sword';
-
-    // Attack properties per weapon type
     const WEAPON_ATTACK = {
       sword:  { cooldown: 0.60, range: 52, aoe: false },
       hammer: { cooldown: 1.00, range: 66, aoe: true  },
@@ -623,7 +768,6 @@ export default function WorldCanvas() {
     };
     const wAtk = WEAPON_ATTACK[weaponType] || WEAPON_ATTACK.sword;
 
-    // ── Normal attack ─────────────────────────────────────
     const spaceNow  = G.keys['Space'] || window.__gameAttack;
     const spaceJust = spaceNow && !G.prevSpace;
     G.prevSpace = spaceNow;
@@ -633,29 +777,12 @@ export default function WorldCanvas() {
 
     if (spaceJust && p.attackCooldown <= 0) {
       p.attackCooldown = wAtk.cooldown;
-
       if (wAtk.ranged) {
-        // ── Bow: fire basic arrow ──────────────────────────
-        let targetX = p.x + G.lastMoveDir.x * 150;
-        let targetY = p.y + G.lastMoveDir.y * 150;
-        let nearestDist = Infinity;
-        G.enemies.forEach(e => {
-          if (!e.alive) return;
-          const d = dist(p.x, p.y, e.x, e.y);
-          if (d < nearestDist) { nearestDist = d; targetX = e.x; targetY = e.y; }
-        });
+        let targetX = p.x + G.lastMoveDir.x * 150, targetY = p.y + G.lastMoveDir.y * 150, nd = Infinity;
+        G.enemies.forEach(e => { if (!e.alive) return; const d = dist(p.x, p.y, e.x, e.y); if (d < nd) { nd = d; targetX = e.x; targetY = e.y; } });
         const angle = Math.atan2(targetY - p.y, targetX - p.x);
-        G.basicArrows.push({
-          x: p.x, y: p.y,
-          vx: Math.cos(angle) * 340,
-          vy: Math.sin(angle) * 340,
-          traveled: 0,
-          maxRange: 200,
-          dmg: Math.max(1, store.playerATK),
-          hitEnemies: new Set(),
-        });
+        G.basicArrows.push({ x: p.x, y: p.y, vx: Math.cos(angle) * 340, vy: Math.sin(angle) * 340, traveled: 0, maxRange: 200, dmg: Math.max(1, store.playerATK), hitEnemies: new Set() });
       } else {
-        // ── Melee attack (sword/hammer/dagger/staff) ───────
         let hitCount = 0;
         G.enemies.forEach(e => {
           if (!e.alive || dist(p.x, p.y, e.x, e.y) > wAtk.range) return;
@@ -665,33 +792,20 @@ export default function WorldCanvas() {
           hitCount++;
           if (e.hp <= 0) killEnemy(e, store);
         });
-
-        // Attack effect visual
         if (hitCount > 0 || weaponType === 'hammer') {
-          G.attackEffect = {
-            x: p.x, y: p.y,
-            type: weaponType,
-            range: wAtk.range,
-            timer: 0.3, maxTimer: 0.3,
-          };
+          G.attackEffect = { x: p.x, y: p.y, type: weaponType, range: wAtk.range, timer: 0.3, maxTimer: 0.3 };
         }
       }
     }
 
-    // ── Active ability ─────────────────────────────────────
     const abilityNow  = G.keys['KeyQ'] || window.__gameAbility;
     const abilityJust = abilityNow && !G.prevAbility;
     G.prevAbility = abilityNow;
     if (window.__gameAbility) window.__gameAbility = false;
+    if (abilityJust && G.abilityCooldown <= 0 && store.equippedAbilityId) executeAbility(store.equippedAbilityId, store);
 
-    if (abilityJust && G.abilityCooldown <= 0 && store.equippedAbilityId) {
-      executeAbility(store.equippedAbilityId, store);
-    }
-
-    // ── Update basic arrows (bow) ─────────────────────────
     G.basicArrows = G.basicArrows.filter(arrow => {
-      arrow.x += arrow.vx * dt;
-      arrow.y += arrow.vy * dt;
+      arrow.x += arrow.vx * dt; arrow.y += arrow.vy * dt;
       arrow.traveled += Math.sqrt(arrow.vx*arrow.vx + arrow.vy*arrow.vy) * dt;
       G.enemies.forEach(e => {
         if (!e.alive || arrow.hitEnemies.has(e)) return;
@@ -702,30 +816,22 @@ export default function WorldCanvas() {
         addFloat(e.x, e.y - 20, `-${dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
-      return arrow.traveled < arrow.maxRange &&
-        arrow.x > 0 && arrow.x < WORLD_W && arrow.y > 0 && arrow.y < WORLD_H;
+      return arrow.traveled < arrow.maxRange && arrow.x > 0 && arrow.x < WORLD_W && arrow.y > 0 && arrow.y < WORLD_H;
     });
 
-    // ── Update Power Shot projectiles ─────────────────────
     G.projectiles = G.projectiles.filter(proj => {
-      proj.x += proj.vx * dt;
-      proj.y += proj.vy * dt;
+      proj.x += proj.vx * dt; proj.y += proj.vy * dt;
       proj.traveled += Math.sqrt(proj.vx*proj.vx + proj.vy*proj.vy) * dt;
-
       G.enemies.forEach(e => {
         if (!e.alive || proj.hitEnemies.has(e)) return;
         if (dist(proj.x, proj.y, e.x, e.y) > 22) return;
-        proj.hitEnemies.add(e);
-        e.hp -= proj.dmg;
+        proj.hitEnemies.add(e); e.hp -= proj.dmg;
         addFloat(e.x, e.y - 24, `-${proj.dmg}`, '#FCD34D');
         if (e.hp <= 0) killEnemy(e, store);
       });
-
-      return proj.traveled < proj.maxRange &&
-        proj.x > 0 && proj.x < WORLD_W && proj.y > 0 && proj.y < WORLD_H;
+      return proj.traveled < proj.maxRange && proj.x > 0 && proj.x < WORLD_W && proj.y > 0 && proj.y < WORLD_H;
     });
 
-    // ── Interact (E) ───────────────────────────────────────
     const eNow  = G.keys['KeyE'] || window.__gameInteract;
     const eJust = eNow && !G.prevE;
     G.prevE = eNow;
@@ -739,72 +845,43 @@ export default function WorldCanvas() {
         r.depleted = true;
         setTimeout(() => { r.depleted = false; }, 30000);
       });
-
       G.checkpoints.forEach(cp => {
         if (dist(p.x, p.y, cp.x, cp.y) > 55) return;
         if (!cp.activated) { cp.activated = true; store.activateCheckpoint(cp.id); }
         addFloat(cp.x, cp.y - 30, '✓ Checkpoint saved!', '#f1c40f');
       });
-
       const hasSword = store.inventory.some(i => i.id === 'iron_sword');
       if (!G.swordPicked && !hasSword && dist(p.x, p.y, 27*TILE, 27*TILE) <= 44) {
-        const item = {
-          id: 'iron_sword', name: 'Iron Sword', slot: 'weapon',
-          type: 'sword', tier: 'iron', rarity: 'common',
-          atk: 6, abilityId: 'whirlwind',
-          instanceId: `item_${Date.now()}_sword`,
-        };
-        if (store.addItem(item)) {
-          G.swordPicked = true;
-          store.equipItem(item);
-          addFloat(27*TILE, 27*TILE - 30, '⚔ Iron Sword + Whirlwind!', '#bdc3c7');
-        }
-      } else if (hasSword) {
-        G.swordPicked = true;
-      }
-
+        const item = { id: 'iron_sword', name: 'Iron Sword', slot: 'weapon', type: 'sword', tier: 'iron', rarity: 'common', atk: 6, abilityId: 'whirlwind', instanceId: `item_${Date.now()}_sword` };
+        if (store.addItem(item)) { G.swordPicked = true; store.equipItem(item); addFloat(27*TILE, 27*TILE - 30, '⚔ Iron Sword + Whirlwind!', '#bdc3c7'); }
+      } else if (hasSword) { G.swordPicked = true; }
       if (dist(p.x, p.y, 25*TILE, 44*TILE) <= 52) { store.setGamePhase('stronghold'); return; }
-
       if (dist(p.x, p.y, 43*TILE, 10*TILE) <= 52) {
         addFloat(p.x, p.y-40, '⚠ Entering Dungeon...', '#cc88ff');
         setTimeout(() => store.setGamePhase('dungeon'), 400);
         return;
       }
-
-      // ── Realm portals ────────────────────────────────────
       for (const portal of REALM_PORTALS) {
         if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= 52) {
           addFloat(p.x, p.y-44, `Entering ${portal.name}...`, portal.color);
           const realm = portal.realm;
-          setTimeout(() => {
-            store.setCurrentRealm(realm);
-            store.setGamePhase('realm');
-          }, 400);
+          setTimeout(() => { store.setCurrentRealm(realm); store.setGamePhase('realm'); }, 400);
           return;
         }
       }
-
       if (dist(p.x, p.y, 23*TILE, 28*TILE) <= 60) {
         G.npcMessage = { text: NPC_HINTS[G._hintIndex % NPC_HINTS.length], timer: 5 };
         G._hintIndex++;
       }
     }
 
-    // ── Enemy AI ───────────────────────────────────────────
     G.enemies.forEach(e => {
       if (!e.alive) return;
-
-      // Stun check — skip AI entirely when stunned
-      if (e.stunTimer > 0) {
-        e.stunTimer -= dt;
-        return;
-      }
-
+      if (e.stunTimer > 0) { e.stunTimer -= dt; return; }
       const ecfg    = cfg[e.type];
       const d       = dist(p.x, p.y, e.x, e.y);
       const dOrigin = dist(e.x, e.y, e.originX, e.originY);
       e.attackTimer = Math.max(0, e.attackTimer - dt);
-
       if (d <= ecfg.attackRange) {
         e.state = 'attack';
         if (e.attackTimer <= 0 && !p.invincible) {
@@ -833,10 +910,7 @@ export default function WorldCanvas() {
       e.x = ec.x; e.y = ec.y;
     });
 
-    G.floats = G.floats
-      .map(f => ({ ...f, y: f.y + f.vy * dt, life: f.life - dt }))
-      .filter(f => f.life > 0);
-
+    G.floats = G.floats.map(f => ({ ...f, y: f.y + f.vy * dt, life: f.life - dt })).filter(f => f.life > 0);
     G.saveTimer += dt;
     if (G.saveTimer > 5) {
       G.saveTimer = 0;
@@ -848,15 +922,15 @@ export default function WorldCanvas() {
     const p  = G.player;
     const cx = G.camera.x;
     const cy = G.camera.y;
+    const t  = Date.now() / 1000;
     const wx = x => Math.round(x - cx + W / 2);
     const wy = y => Math.round(y - cy + H / 2);
-    const onScreen = (sx, sy, pad = 50) =>
-      sx > -pad && sx < W + pad && sy > -pad && sy < H + pad;
+    const onScreen = (sx, sy, pad = 50) => sx > -pad && sx < W + pad && sy > -pad && sy < H + pad;
 
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, W, H);
 
-    // Tiles
+    // ── Tiles ──────────────────────────────────────────────────────────────
     const txS = Math.max(0, Math.floor((cx - W/2) / TILE));
     const txE = Math.min(MAP_W, Math.ceil((cx + W/2) / TILE) + 1);
     const tyS = Math.max(0, Math.floor((cy - H/2) / TILE));
@@ -867,22 +941,81 @@ export default function WorldCanvas() {
         ctx.fillRect(wx(tx*TILE), wy(ty*TILE), TILE+1, TILE+1);
       }
 
-    // Resources
-    G.resources.forEach(r => {
-      if (r.depleted) return;
-      const sx = wx(r.x), sy = wy(r.y);
-      if (!onScreen(sx, sy)) return;
-      ctx.fillStyle = r.type === 'tree' ? '#27ae60' : r.type === 'rock' ? '#7f8c8d' : '#e67e22';
-      ctx.beginPath(); ctx.arc(sx, sy, r.type === 'tree' ? 14 : 11, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#ffffffaa'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(r.res, sx, sy + 24);
+    // ── Obstacle cluster tinting ───────────────────────────────────────────
+    OBSTACLE_CLUSTERS.forEach(c => {
+      const osx = wx(c.cx * TILE), osy = wy(c.cy * TILE);
+      if (!onScreen(osx, osy, c.r * TILE + 40)) return;
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = c.type === 'trees' ? '#003300' : '#1a1a1a';
+      ctx.beginPath(); ctx.arc(osx, osy, c.r * TILE * 0.9, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
     });
 
-    // Checkpoints
+    // ── Landmarks ─────────────────────────────────────────────────────────
+    drawLandmarks(ctx, wx, wy, onScreen, t);
+
+    // ── Resources ─────────────────────────────────────────────────────────
+    G.resources.forEach(r => {
+      const sx = wx(r.x), sy = wy(r.y);
+      if (!onScreen(sx, sy)) return;
+
+      if (r.type === 'tree') {
+        // Trunk
+        ctx.fillStyle = r.depleted ? '#4a3010' : '#6b4226';
+        ctx.fillRect(sx - 3, sy + 2, 6, 12);
+        // Canopy
+        ctx.fillStyle = r.depleted ? '#3a5a3a' : '#2ecc71';
+        ctx.beginPath(); ctx.arc(sx, sy - 4, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = r.depleted ? '#2a4a2a' : '#27ae60';
+        ctx.beginPath(); ctx.arc(sx - 4, sy - 10, 9, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + 4, sy - 10, 9, 0, Math.PI*2); ctx.fill();
+      } else if (r.type === 'rock') {
+        ctx.fillStyle = '#00000033';
+        ctx.beginPath(); ctx.ellipse(sx, sy + 6, 13, 5, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = r.depleted ? '#555' : '#7f8c8d';
+        ctx.beginPath();
+        ctx.moveTo(sx - 11, sy + 4); ctx.lineTo(sx - 8, sy - 8);
+        ctx.lineTo(sx + 2, sy - 10); ctx.lineTo(sx + 12, sy - 3);
+        ctx.lineTo(sx + 10, sy + 5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#aaaaaa44';
+        ctx.beginPath();
+        ctx.moveTo(sx - 6, sy - 4); ctx.lineTo(sx - 2, sy - 8);
+        ctx.lineTo(sx + 4, sy - 5); ctx.closePath(); ctx.fill();
+      } else if (r.type === 'ore_node') {
+        ctx.fillStyle = r.depleted ? '#333' : '#c0392b';
+        ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI*2); ctx.fill();
+        if (!r.depleted) {
+          ctx.globalAlpha = 0.4 + Math.sin(t * 3 + sx * 0.01) * 0.3;
+          ctx.fillStyle = '#e67e22';
+          ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (r.type === 'fire_shard_node') {
+        // Void/fire shard node — pale gold pulse
+        ctx.fillStyle = r.depleted ? '#222' : '#2a1a00';
+        ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI*2); ctx.fill();
+        if (!r.depleted) {
+          ctx.globalAlpha = 0.5 + Math.sin(t * 5 + sx * 0.02) * 0.4;
+          ctx.fillStyle = '#f1c40f';
+          ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = '#f1c40f88'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('shard', sx, sy + 22);
+        return;
+      }
+
+      if (!r.depleted) {
+        ctx.fillStyle = '#ffffffaa'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(r.res, sx, sy + 24);
+      }
+    });
+
+    // ── Checkpoints ────────────────────────────────────────────────────────
     G.checkpoints.forEach(cp => {
       const sx = wx(cp.x), sy = wy(cp.y);
       if (!onScreen(sx, sy)) return;
-      ctx.globalAlpha = cp.activated ? 1 : 0.6 + Math.sin(Date.now() / 600) * 0.4;
+      ctx.globalAlpha = cp.activated ? 1 : 0.6 + Math.sin(t * 1.67) * 0.4;
       ctx.fillStyle   = cp.activated ? '#00ff88' : '#f1c40f';
       ctx.fillRect(sx-8, sy-18, 16, 26);
       ctx.globalAlpha = 1;
@@ -890,92 +1023,110 @@ export default function WorldCanvas() {
       ctx.fillText(cp.activated ? 'SAVED' : 'SAVE', sx, sy + 28);
     });
 
-    // Stronghold
+    // ── Stronghold ─────────────────────────────────────────────────────────
     const shx = wx(25*TILE), shy = wy(44*TILE);
     if (onScreen(shx, shy, 80)) {
-      ctx.globalAlpha = 0.75 + Math.sin(Date.now() / 700) * 0.25;
+      const glow = 0.75 + Math.sin(t * 0.9) * 0.25;
+      ctx.globalAlpha = glow;
+      // Base
+      ctx.fillStyle = '#8a6a20';
+      ctx.fillRect(shx - 28, shy - 18, 56, 36);
+      // Side towers
+      ctx.fillStyle = '#a07830';
+      ctx.fillRect(shx - 30, shy - 28, 14, 38);
+      ctx.fillRect(shx + 16, shy - 28, 14, 38);
+      // Center tower
+      ctx.fillStyle = '#b88a38';
+      ctx.fillRect(shx - 10, shy - 36, 20, 42);
+      // Battlements
       ctx.fillStyle = '#d4af37';
-      ctx.fillRect(shx-24, shy-24, 48, 48);
+      for (let i = 0; i < 5; i++) ctx.fillRect(shx - 28 + i * 14, shy - 34, 8, 8);
+      ctx.fillRect(shx - 10, shy - 44, 6, 10);
+      ctx.fillRect(shx + 4,  shy - 44, 6, 10);
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#000000cc'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('🏰 STRONGHOLD', shx, shy - 30);
+      ctx.fillText('🏰 STRONGHOLD', shx, shy - 50);
       ctx.fillStyle = '#d4af37bb'; ctx.font = '9px sans-serif';
-      ctx.fillText('[E] Enter', shx, shy + 36);
+      ctx.fillText('[E] Enter', shx, shy + 28);
     }
 
-    // Dungeon
+    // ── Dungeon ─────────────────────────────────────────────────────────────
     const dunx = wx(43*TILE), duny = wy(10*TILE);
     if (onScreen(dunx, duny, 80)) {
-      ctx.fillStyle = '#8e44ad';
-      ctx.fillRect(dunx-24, duny-24, 48, 48);
+      // Stone arch base
+      ctx.fillStyle = '#2c2c3a';
+      ctx.fillRect(dunx - 22, duny - 16, 44, 28);
+      // Arch cutout
+      ctx.fillStyle = tileColor(43, 10);
+      ctx.beginPath(); ctx.arc(dunx, duny + 2, 12, Math.PI, 0); ctx.fill();
+      ctx.fillRect(dunx - 12, duny - 14, 24, 16);
+      // Torches
+      ctx.fillStyle = '#e67e22';
+      ctx.globalAlpha = 0.7 + Math.sin(t * 7) * 0.3;
+      ctx.beginPath(); ctx.arc(dunx - 22, duny - 20, 5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(dunx + 22, duny - 20, 5, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('⚠ DUNGEON', dunx, duny - 30);
       ctx.fillStyle = '#cc88ffaa'; ctx.font = '9px sans-serif';
-      ctx.fillText('[E] Enter', dunx, duny + 36);
+      ctx.fillText('[E] Enter', dunx, duny + 24);
     }
 
-    // ── God realm portals ──────────────────────────────────
+    // ── Realm portals ──────────────────────────────────────────────────────
     REALM_PORTALS.forEach(portal => {
       const prx = wx(portal.x*TILE), pry = wy(portal.y*TILE);
       if (!onScreen(prx, pry, 80)) return;
-
-      const pulse     = 0.65 + Math.sin(Date.now()/700 + portal.x * 0.5) * 0.35;
+      const pulse     = 0.65 + Math.sin(t * 0.7 * 1000/700 + portal.x * 0.5) * 0.35;
       const nearPlayer = dist(p.x, p.y, portal.x*TILE, portal.y*TILE) < 64;
 
-      // Outer glow ring
-      ctx.globalAlpha = pulse * 0.25;
+      // Outer glow
+      ctx.globalAlpha = 0.15;
       ctx.fillStyle = portal.color;
-      ctx.beginPath(); ctx.arc(prx, pry, 34, 0, Math.PI*2); ctx.fill();
-
-      // Rotating ring
+      ctx.beginPath(); ctx.arc(prx, pry, 44, 0, Math.PI*2); ctx.fill();
+      // Mid ring (rotating)
+      ctx.globalAlpha = pulse * 0.5;
+      ctx.strokeStyle = portal.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(prx, pry, 32, t/1.2, t/1.2 + Math.PI * 1.6); ctx.stroke();
+      // Inner counter-rotating ring
+      ctx.globalAlpha = pulse * 0.7;
+      ctx.strokeStyle = '#ffffff44'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(prx, pry, 22, -t/0.8, -t/0.8 + Math.PI * 1.2); ctx.stroke();
+      // Center fill
       ctx.globalAlpha = pulse * 0.6;
-      ctx.strokeStyle = portal.color; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(prx, pry, 24, Date.now()/1000, Date.now()/1000 + Math.PI*1.4); ctx.stroke();
-
-      // Inner circle
-      ctx.globalAlpha = pulse;
-      ctx.fillStyle = portal.color + '44';
-      ctx.beginPath(); ctx.arc(prx, pry, 18, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = portal.color + '33';
+      ctx.beginPath(); ctx.arc(prx, pry, 16, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
 
-      // Element icon
       ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(portal.icon, prx, pry + 6);
-
-      // Realm name above
-      ctx.fillStyle = portal.color;
-      ctx.font = 'bold 8px sans-serif';
-      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 28);
-
-      // Skull difficulty
+      ctx.fillStyle = portal.color; ctx.font = 'bold 8px sans-serif';
+      ctx.fillText(portal.name.replace(' Realm','').toUpperCase(), prx, pry - 30);
       ctx.fillStyle = '#ffffff99'; ctx.font = '7px sans-serif';
-      ctx.fillText('💀'.repeat(portal.skulls), prx, pry - 38);
-
-      // Enter prompt when close
-      if (nearPlayer) {
-        ctx.fillStyle = portal.color; ctx.font = '9px sans-serif';
-        ctx.fillText('[E] Enter', prx, pry + 32);
-      }
+      ctx.fillText('💀'.repeat(portal.skulls), prx, pry - 40);
+      if (nearPlayer) { ctx.fillStyle = portal.color; ctx.font = '9px sans-serif'; ctx.fillText('[E] Enter', prx, pry + 32); }
     });
 
-    // ── Zone labels ───────────────────────────────────────
-    const zoneLabelAlpha = 0.25;
+    // ── Zone labels ────────────────────────────────────────────────────────
     [
-      { text: 'NORTHERN FOREST',   wx: wx(35*TILE), wy: wy( 8*TILE) },
-      { text: 'EASTERN REACHES',   wx: wx(62*TILE), wy: wy(25*TILE) },
-      { text: 'SOUTHERN BADLANDS', wx: wx(30*TILE), wy: wy(58*TILE) },
-      { text: 'DEEP SOUTH',        wx: wx(35*TILE), wy: wy(72*TILE) },
-      { text: 'WESTERN VALLEY',    wx: wx( 8*TILE), wy: wy(45*TILE) },
-    ].forEach(({ text, wx: lx, wy: ly }) => {
+      { text: 'NORTHERN FOREST',   lx: wx(35*TILE), ly: wy( 8*TILE) },
+      { text: 'EASTERN REACHES',   lx: wx(62*TILE), ly: wy(25*TILE) },
+      { text: 'SOUTHERN BADLANDS', lx: wx(30*TILE), ly: wy(58*TILE) },
+      { text: 'DEEP SOUTH',        lx: wx(35*TILE), ly: wy(72*TILE) },
+      { text: 'WESTERN VALLEY',    lx: wx( 8*TILE), ly: wy(45*TILE) },
+      { text: 'EASTERN HIGHLANDS', lx: wx(88*TILE), ly: wy(15*TILE) },
+      { text: 'ASHEN WASTES',      lx: wx(98*TILE), ly: wy(55*TILE) },
+      { text: 'CRYSTAL PLAINS',    lx: wx(84*TILE), ly: wy(60*TILE) },
+      { text: 'VOID APPROACH',     lx: wx(105*TILE),ly: wy(82*TILE) },
+    ].forEach(({ text, lx, ly }) => {
       if (!onScreen(lx, ly, 100)) return;
-      ctx.globalAlpha = zoneLabelAlpha;
+      ctx.globalAlpha = 0.22;
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(text, lx, ly);
       ctx.globalAlpha = 1;
     });
 
-    // NPC
+    // ── NPC ────────────────────────────────────────────────────────────────
     const nx = wx(23*TILE), ny = wy(28*TILE);
     if (onScreen(nx, ny)) {
       ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(nx, ny, 14, 0, Math.PI*2); ctx.fill();
@@ -986,11 +1137,11 @@ export default function WorldCanvas() {
       ctx.fillText('[E] Talk', nx, ny + 26);
     }
 
-    // Iron Sword pickup
+    // ── Starter sword pickup ───────────────────────────────────────────────
     if (!G.swordPicked) {
       const isx = wx(27*TILE), isy = wy(27*TILE);
       if (onScreen(isx, isy)) {
-        ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 400) * 0.5;
+        ctx.globalAlpha = 0.5 + Math.sin(t * 2.5) * 0.5;
         ctx.fillStyle = '#bdc3c7'; ctx.fillRect(isx-5, isy-14, 10, 24);
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#bdc3c7'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
@@ -1000,111 +1151,76 @@ export default function WorldCanvas() {
       }
     }
 
-    // ── Ability effect rendering ───────────────────────────
+    // ── Ability effect ─────────────────────────────────────────────────────
     if (G.abilityEffect) {
-      const fx = G.abilityEffect, px = wx(fx.x), py = wy(fx.y);
-      const progress = 1 - (fx.timer / fx.maxTimer); // 0 → 1 as effect plays
-      const alpha    = fx.timer / fx.maxTimer;        // 1 → 0 fading out
+      const fx = G.abilityEffect, fpx = wx(fx.x), fpy = wy(fx.y);
+      const progress = 1 - (fx.timer / fx.maxTimer);
+      const alpha    = fx.timer / fx.maxTimer;
       const colors   = ABILITY_COLORS[fx.id] || { primary: '#fff', secondary: '#aaa' };
-
       ctx.globalAlpha = alpha * 0.85;
-
       if (fx.id === 'whirlwind') {
-        // Expanding ring + rotating arcs
         const r = fx.maxRadius * progress;
         ctx.strokeStyle = colors.primary; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(fpx, fpy, r, 0, Math.PI*2); ctx.stroke();
         for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2 + progress * Math.PI * 4;
+          const a = (i/6)*Math.PI*2 + progress*Math.PI*4;
           ctx.strokeStyle = colors.secondary; ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(
-            px + Math.cos(a) * r * 0.5,
-            py + Math.sin(a) * r * 0.5,
-            r * 0.25, a + 0.5, a + 2.5,
-          );
-          ctx.stroke();
+          ctx.beginPath(); ctx.arc(fpx+Math.cos(a)*r*0.5, fpy+Math.sin(a)*r*0.5, r*0.25, a+0.5, a+2.5); ctx.stroke();
         }
-
       } else if (fx.id === 'ground_slam') {
-        // Multiple shockwave rings
         for (let ring = 0; ring < 4; ring++) {
-          const delay = ring * 0.12;
-          const rProg = Math.max(0, progress - delay);
-          const r = fx.maxRadius * rProg;
-          if (r <= 0) continue;
+          const rp = Math.max(0, progress - ring * 0.12);
+          const r = fx.maxRadius * rp; if (r <= 0) continue;
           ctx.strokeStyle = ring === 0 ? colors.primary : colors.secondary;
           ctx.lineWidth = Math.max(1, 5 - ring * 1.2);
           ctx.globalAlpha = alpha * (1 - ring * 0.2) * 0.85;
-          ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(fpx, fpy, r, 0, Math.PI*2); ctx.stroke();
         }
-        // Center impact flash
         ctx.globalAlpha = (1 - progress) * alpha * 0.6;
         ctx.fillStyle = colors.primary;
-        ctx.beginPath(); ctx.arc(px, py, 20 * (1 - progress), 0, Math.PI * 2); ctx.fill();
-
+        ctx.beginPath(); ctx.arc(fpx, fpy, 20 * (1-progress), 0, Math.PI*2); ctx.fill();
       } else if (fx.id === 'arcane_burst') {
-        // Expanding star burst
         const r = fx.maxRadius * progress;
         ctx.strokeStyle = colors.primary; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
-        // Star points
+        ctx.beginPath(); ctx.arc(fpx, fpy, r, 0, Math.PI*2); ctx.stroke();
         for (let i = 0; i < 8; i++) {
-          const a  = (i / 8) * Math.PI * 2 + progress * Math.PI;
-          const sx = px + Math.cos(a) * r;
-          const sy = py + Math.sin(a) * r;
+          const a = (i/8)*Math.PI*2 + progress*Math.PI;
+          const spx = fpx + Math.cos(a)*r, spy = fpy + Math.sin(a)*r;
           ctx.fillStyle = colors.secondary;
-          ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill();
-          // Spokes
-          ctx.strokeStyle = colors.primary; ctx.lineWidth = 1.5;
-          ctx.globalAlpha = alpha * 0.4;
-          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx, sy); ctx.stroke();
-          ctx.globalAlpha = alpha * 0.85;
+          ctx.beginPath(); ctx.arc(spx, spy, 4, 0, Math.PI*2); ctx.fill();
         }
-
       } else if (fx.id === 'flurry') {
-        // Rapid slash marks radiating from player
         for (let i = 0; i < 8; i++) {
-          const a  = (i / 8) * Math.PI * 2 + progress * Math.PI * 2;
-          const r1 = 20 + progress * 30;
-          const r2 = r1 + 20;
-          ctx.strokeStyle = i % 2 === 0 ? colors.primary : colors.secondary;
-          ctx.lineWidth = 3;
+          const a = (i/8)*Math.PI*2 + progress*Math.PI*2;
+          const r1 = 20 + progress * 30, r2 = r1 + 20;
+          ctx.strokeStyle = i%2===0 ? colors.primary : colors.secondary; ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.moveTo(px + Math.cos(a) * r1, py + Math.sin(a) * r1);
-          ctx.lineTo(px + Math.cos(a) * r2, py + Math.sin(a) * r2);
+          ctx.moveTo(fpx+Math.cos(a)*r1, fpy+Math.sin(a)*r1);
+          ctx.lineTo(fpx+Math.cos(a)*r2, fpy+Math.sin(a)*r2);
           ctx.stroke();
         }
       }
-
       ctx.globalAlpha = 1;
     }
 
-    // ── Power Shot projectiles ─────────────────────────────
+    // ── Power Shot projectiles ─────────────────────────────────────────────
     G.projectiles.forEach(proj => {
-      const px = wx(proj.x), py = wy(proj.y);
-      if (!onScreen(px, py)) return;
-      ctx.globalAlpha = 0.35;
-      ctx.strokeStyle = '#FCD34D'; ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px - (proj.vx/420)*22, py - (proj.vy/420)*22);
-      ctx.stroke();
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = '#F97316';
-      ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#FCD34D';
-      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+      const ppx = wx(proj.x), ppy = wy(proj.y);
+      if (!onScreen(ppx, ppy)) return;
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = '#FCD34D'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(ppx, ppy); ctx.lineTo(ppx-(proj.vx/420)*22, ppy-(proj.vy/420)*22); ctx.stroke();
+      ctx.globalAlpha = 0.55; ctx.fillStyle = '#F97316';
+      ctx.beginPath(); ctx.arc(ppx, ppy, 10, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.fillStyle = '#FCD34D';
+      ctx.beginPath(); ctx.arc(ppx, ppy, 5, 0, Math.PI*2); ctx.fill();
     });
 
-    // Basic arrows (bow normal attack)
+    // ── Basic arrows ───────────────────────────────────────────────────────
     G.basicArrows.forEach(arrow => {
       const ax = wx(arrow.x), ay = wy(arrow.y);
       if (!onScreen(ax, ay)) return;
       const angle = Math.atan2(arrow.vy, arrow.vx);
-      ctx.globalAlpha = 0.9;
-      ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5;
+      ctx.globalAlpha = 0.9; ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(ax - Math.cos(angle)*12, ay - Math.sin(angle)*12);
       ctx.lineTo(ax + Math.cos(angle)*6,  ay + Math.sin(angle)*6);
@@ -1114,12 +1230,10 @@ export default function WorldCanvas() {
       ctx.globalAlpha = 1;
     });
 
-    // Melee attack effect
+    // ── Melee attack effect ────────────────────────────────────────────────
     if (G.attackEffect) {
-      const ae = G.attackEffect;
-      const ax = wx(ae.x), ay = wy(ae.y);
-      const alpha = ae.timer / ae.maxTimer;
-      const prog  = 1 - alpha;
+      const ae = G.attackEffect, ax = wx(ae.x), ay = wy(ae.y);
+      const alpha = ae.timer / ae.maxTimer, prog = 1 - alpha;
       ctx.globalAlpha = alpha * 0.7;
       if (ae.type === 'hammer') {
         ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 4;
@@ -1146,13 +1260,12 @@ export default function WorldCanvas() {
     }
     ctx.globalAlpha = 1;
 
-    // Enemies
+    // ── Enemies ────────────────────────────────────────────────────────────
     G.enemies.forEach(e => {
       if (!e.alive) return;
       const ex = wx(e.x), ey = wy(e.y);
       if (!onScreen(ex, ey)) return;
-
-      const cfg     = EnemyConfig[e.type];
+      const ecfg    = EnemyConfig[e.type];
       const isGolem = e.type === 'golem' || e.type === 'stone_guardian';
       const r       = isGolem ? (e.isElite ? 22 : 18) : (e.isElite ? 15 : 12);
       const aggroed = e.state !== 'patrol';
@@ -1160,20 +1273,15 @@ export default function WorldCanvas() {
 
       // Elite glow ring
       if (e.isElite && !stunned) {
-        const glowColor = e.type === 'gold_goblin'    ? '#f1c40f'
-                        : e.type === 'stone_guardian' ? '#8e44ad'
-                        : '#fff';
-        ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 400) * 0.15;
-        ctx.strokeStyle = glowColor;
-        ctx.lineWidth   = 4;
-        ctx.beginPath(); ctx.arc(ex, ey, r + 5, 0, Math.PI * 2); ctx.stroke();
+        const glowColor = e.type === 'gold_goblin' ? '#f1c40f' : e.type === 'stone_guardian' ? '#8e44ad' : '#fff';
+        ctx.globalAlpha = 0.35 + Math.sin(t * 2.5) * 0.15;
+        ctx.strokeStyle = glowColor; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(ex, ey, r + 5, 0, Math.PI*2); ctx.stroke();
         ctx.globalAlpha = 1;
       }
 
-      // Body
-      ctx.globalAlpha = stunned ? (Math.sin(Date.now() / 80) > 0 ? 0.4 : 1) : 1;
+      ctx.globalAlpha = stunned ? (Math.sin(t * 12.5) > 0 ? 0.4 : 1) : 1;
 
-      // Elite tint colors
       let fillColor;
       if      (e.type === 'gold_goblin')    fillColor = aggroed ? '#e6a800' : '#f1c40f';
       else if (e.type === 'stone_guardian') fillColor = aggroed ? '#5d3a7a' : '#8e44ad';
@@ -1182,66 +1290,84 @@ export default function WorldCanvas() {
       else if (isGolem)                     fillColor = '#8e44ad';
       else                                  fillColor = '#7ed321';
 
-      ctx.fillStyle = fillColor;
-      ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
-
-      const strokeColor = stunned ? '#FCD34D'
-                        : e.isElite ? (e.type === 'gold_goblin' ? '#ffd700' : '#c39bd3')
-                        : '#fff';
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth   = e.isElite ? 2.5 : 1.5;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      // Stun stars
-      if (stunned) {
-        ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('💫', ex, ey - r - 8);
+      if (isGolem) {
+        // Stone block body
+        const hw = r * 0.85, hh = r * 1.0;
+        ctx.fillStyle = fillColor;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(ex - hw, ey - hh, hw*2, hh*2, 4);
+        else ctx.rect(ex - hw, ey - hh, hw*2, hh*2);
+        ctx.fill();
+        // Crack
+        ctx.strokeStyle = '#00000044'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(ex - hw*0.3, ey - hh*0.5); ctx.lineTo(ex + hw*0.2, ey + hh*0.3); ctx.stroke();
+        // Eyes
+        const eyeColor = e.isElite ? '#c39bd3' : '#ff4444';
+        ctx.fillStyle = eyeColor;
+        ctx.beginPath(); ctx.arc(ex - r*0.3, ey - r*0.2, r*0.18, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r*0.3, ey - r*0.2, r*0.18, 0, Math.PI*2); ctx.fill();
+      } else {
+        // Goblin body
+        ctx.fillStyle = fillColor;
+        ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
+        // Ears
+        ctx.beginPath(); ctx.arc(ex - r, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r, ey - r*0.3, r*0.35, 0, Math.PI*2); ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(ex - r*0.35, ey - r*0.1, r*0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r*0.35, ey - r*0.1, r*0.22, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(ex - r*0.35, ey - r*0.1, r*0.1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + r*0.35, ey - r*0.1, r*0.1, 0, Math.PI*2); ctx.fill();
       }
 
-      // HP bar + name + elite stars
+      const strokeColor = stunned ? '#FCD34D' : e.isElite ? (e.type === 'gold_goblin' ? '#ffd700' : '#c39bd3') : '#fff';
+      ctx.strokeStyle = strokeColor; ctx.lineWidth = e.isElite ? 2.5 : 1.5; ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      if (stunned) { ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💫', ex, ey - r - 8); }
+
       if (aggroed && !stunned) {
         const bw = e.isElite ? 48 : 36;
-
-        // HP bar background
-        ctx.fillStyle = '#333';
-        ctx.fillRect(ex - bw/2, ey - r - 10, bw, 5);
-
-        // HP bar fill — gold for elites
+        ctx.fillStyle = '#333'; ctx.fillRect(ex - bw/2, ey - r - 10, bw, 5);
         ctx.fillStyle = e.isElite ? '#f1c40f' : '#e74c3c';
         ctx.fillRect(ex - bw/2, ey - r - 10, bw * (e.hp / e.maxHp), 5);
-
-        // Name
         ctx.fillStyle = e.isElite ? '#ffd700' : '#fff';
-        ctx.font = `bold ${e.isElite ? 10 : 9}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(cfg.name || e.type, ex, ey - r - 14);
-
-        // Elite stars
-        if (e.eliteStars > 0) {
-          const stars = '⭐'.repeat(e.eliteStars);
-          ctx.font = '8px sans-serif';
-          ctx.fillText(stars, ex, ey - r - 24);
-        }
+        ctx.font = `bold ${e.isElite ? 10 : 9}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText(ecfg.name || e.type, ex, ey - r - 14);
+        if (e.eliteStars > 0) { ctx.font = '8px sans-serif'; ctx.fillText('⭐'.repeat(e.eliteStars), ex, ey - r - 24); }
       } else if (e.isElite && !aggroed) {
-        // Show elite indicator even when patrolling
         ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
         ctx.fillStyle = e.type === 'gold_goblin' ? '#ffd700aa' : '#c39bd3aa';
         ctx.fillText('⭐'.repeat(e.eliteStars), ex, ey - r - 8);
       }
     });
 
-    // Player
+    // ── Player ─────────────────────────────────────────────────────────────
     const ppx = wx(p.x), ppy = wy(p.y);
-    const blinkOn = !p.invincible || Math.sin(Date.now() / 80) > 0;
+    const blinkOn = !p.invincible || Math.sin(t * 12.5) > 0;
     ctx.globalAlpha = blinkOn ? 1 : 0.15;
+    // Body
     ctx.fillStyle = '#4a90e2';
-    ctx.beginPath(); ctx.arc(ppx, ppy, 14, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ppx, ppy, 11, 0, Math.PI*2); ctx.fill();
+    // Helmet
+    ctx.fillStyle = '#5aa5f5';
+    ctx.beginPath(); ctx.arc(ppx, ppy - 6, 7, Math.PI, 0); ctx.fill();
+    // Visor
+    ctx.fillStyle = '#ffffff55';
+    ctx.fillRect(ppx - 4, ppy - 9, 8, 2);
+    // Legs
+    ctx.fillStyle = '#3a7ad4';
+    ctx.fillRect(ppx - 6, ppy + 8, 5, 7);
+    ctx.fillRect(ppx + 1,  ppy + 8, 5, 7);
+    // Outline
     ctx.strokeStyle = p.invincible ? '#ffffff' : '#aaaaaa';
-    ctx.lineWidth = p.invincible ? 3 : 2; ctx.stroke();
+    ctx.lineWidth = p.invincible ? 3 : 2;
+    ctx.beginPath(); ctx.arc(ppx, ppy, 13, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Float texts
+    // ── Float texts ────────────────────────────────────────────────────────
     G.floats.forEach(f => {
       const fx = wx(f.x), fy = wy(f.y);
       ctx.globalAlpha = Math.max(0, f.life);
@@ -1252,11 +1378,11 @@ export default function WorldCanvas() {
     });
     ctx.globalAlpha = 1;
 
-    // NPC dialogue box — above controls
+    // ── NPC dialogue ────────────────────────────────────────────────────────
     if (G.npcMessage) {
-      const msg    = G.npcMessage;
-      const alpha  = Math.min(1, msg.timer * 1.5);
-      const pad    = 16, boxH = 90, boxY = H - boxH - 260, boxW = W - pad * 2;
+      const msg   = G.npcMessage;
+      const alpha = Math.min(1, msg.timer * 1.5);
+      const pad   = 16, boxH = 90, boxY = H - boxH - 260, boxW = W - pad * 2;
       ctx.globalAlpha = alpha;
       ctx.fillStyle   = '#000000ee';
       ctx.beginPath();
