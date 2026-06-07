@@ -15,7 +15,7 @@ const GODS = [
 ];
 
 export default function AscensionVictory() {
-  const { playerName, level, killCount, resetGame, setGamePhase } = useGameStore();
+  const { playerName, level, killCount, openPrestigeSelect, setGamePhase } = useGameStore();
   const canvasRef = useRef(null);
   const [phase, setPhase] = useState('stars'); // stars → title → gods → actions
   const [visibleGods, setVisibleGods] = useState(0);
@@ -158,12 +158,9 @@ export default function AscensionVictory() {
             width: '100%', display: 'flex', flexDirection: 'column', gap: 12,
             animation: 'gpVicFadeIn 0.6s ease forwards',
           }}>
-            {/* New Game+ */}
+            {/* Prestige / New Journey */}
             <button
-              onClick={() => {
-                // Reset world state but keep cosmetics + level as prestige bonus
-                resetGame();
-              }}
+              onClick={() => openPrestigeSelect()}
               style={{
                 width: '100%', padding: '18px',
                 background: 'linear-gradient(135deg, #1a1200, #2a2000)',
@@ -174,7 +171,7 @@ export default function AscensionVictory() {
                 boxShadow: '0 0 20px #d4af3744',
               }}
             >
-              ✨ Begin New Journey
+              ✨ Prestige — New Journey
               <div style={{ fontSize: 11, color: '#d4af3799', marginTop: 3, fontWeight: 'normal' }}>
                 Start fresh · your legend endures
               </div>
