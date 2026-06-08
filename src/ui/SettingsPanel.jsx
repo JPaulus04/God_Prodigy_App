@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { setSFXVolume, getSFXVolume, setSFXEnabled, getSFXEnabled, sfxCheckpoint } from '../utils/sfx';
+import { restorePurchases } from '../utils/iap';
 
 const LS_HAPTICS = 'gp_haptics_enabled';
 const LS_SFX_EN  = 'gp_sfx_enabled';
@@ -114,6 +115,21 @@ export default function SettingsPanel({ onClose }) {
     { key: 'E (near NPC)', action: 'Talk / interact' },
   ];
 
+  const [restoring, setRestoring] = React.useState(false);
+  const [restoreMsg, setRestoreMsg] = React.useState('');
+  const handleRestore = async () => {
+    setRestoring(true); setRestoreMsg('');
+    try {
+      const ids = await restorePurchases();
+      setRestoreMsg(ids.length > 0 ? `Restored ${ids.length} purchase${ids.length>1?'s':''}!` : 'Nothing to restore.');
+    } catch(e) {
+      setRestoreMsg('Restore failed.');
+    } finally {
+      setRestoring(false);
+      setTimeout(() => setRestoreMsg(''), 3000);
+    }
+  };
+
   return (
     <div style={overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={panel}>
@@ -122,7 +138,29 @@ export default function SettingsPanel({ onClose }) {
           <h2 style={{ margin:0, fontSize:18, fontFamily:"'Georgia',serif", color:'#d4af37', letterSpacing:0.5 }}>
             ⚙ Settings
           </h2>
-          <button onClick={onClose} style={{
+          {/* Restore Purchases */}
+        <div style={{ marginBottom: 16, textAlign: 'center' }}>
+          <button
+            onClick={handleRestore}
+            disabled={restoring}
+            style={{
+              background: 'transparent', border: '1px solid #d4af37',
+              color: '#d4af37', padding: '10px 24px', borderRadius: 8,
+              fontFamily: 'monospace', fontSize: 13, letterSpacing: '0.1em',
+              cursor: restoring ? 'not-allowed' : 'pointer', opacity: restoring ? 0.6 : 1,
+              width: '100%',
+            }}
+          >
+            {restoring ? 'Restoring...' : '↩ Restore Purchases'}
+          </button>
+          {restoreMsg && (
+            <div style={{ color: '#2ecc71', fontSize: 12, marginTop: 6, fontFamily: 'monospace' }}>
+              {restoreMsg}
+            </div>
+          )}
+        </div>
+
+        <button onClick={onClose} style={{
             background:'none', border:'none', color:'#888', fontSize:22,
             cursor:'pointer', lineHeight:1, padding:'0 4px',
           }}>✕</button>
