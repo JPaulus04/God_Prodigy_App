@@ -4,6 +4,8 @@ import { useGameStore } from '../store/useGameStore';
 // ─────────────────────────────────────────────────────────────────────────────
 // IAP Catalog
 // All prices are display-only strings (real billing via native Capacitor plugin).
+import { initIAP, purchaseProduct, restorePurchases } from '../utils/iap';
+
 // purchaseKey identifies what the store action to run on successful purchase.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -347,6 +349,31 @@ export default function IAPShop({ onClose }) {
   const [confirmItem, setConfirmItem] = useState(null);
   const [toast, setToast]           = useState(null);
   const [flashId,   setFlashId]     = useState(null);  // item id that just got purchased
+  const [loading,   setLoading]     = useState(false);
+
+  // Init RevenueCat once on mount
+  useEffect(() => { initIAP(); }, []);
+
+  const handleRestore = async () => {
+    setLoading(true);
+    try {
+      const ids = await restorePurchases();
+      // Re-grant non-consumables that match our items
+      const nonConsumables = ITEMS.filter(i => i.category === 'cosmetics' || i.id === 'inventory_expand' || i.id === 'battle_pass');
+      nonConsumables.forEach(item => {
+        if (ids.includes(item.purchaseKey)) {
+          try { item.action(store); } catch(e) {}
+        }
+      });
+      setToast(ids.length > 0 ? `Restored ${ids.length} purchase${ids.length>1?'s':''}!` : 'Nothing to restore.');
+      setTimeout(() => setToast(''), 2500);
+    } catch(e) {
+      setToast('Restore failed — try again.');
+      setTimeout(() => setToast(''), 2500);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const passActive  = store.passActive;
   const ownedSkins  = store.ownedSkins  || [];
@@ -469,7 +496,7 @@ export default function IAPShop({ onClose }) {
 
         {/* Restore purchases footer */}
         <div style={{ textAlign: 'center', padding: '16px 0 4px' }}>
-          <button onClick={() => { setToast('Purchases restored.'); setTimeout(() => setToast(null), 3000); }} style={{
+          <button onClick={handleRestore}} style={{
             background: 'none', border: 'none',
             color: '#444', fontSize: 11, cursor: 'pointer',
             textDecoration: 'underline',
@@ -487,6 +514,17 @@ export default function IAPShop({ onClose }) {
       )}
 
       {/* ── Toast ── */}
+      {loading && (
+        <div style={{
+          position:'fixed', inset:0, background:'rgba(0,0,0,0.6)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          zIndex:9999,
+        }}>
+          <div style={{ color:'#d4af37', fontFamily:'monospace', fontSize:18, letterSpacing:'0.15em' }}>
+            PROCESSING...
+          </div>
+        </div>
+      )}
       {toast && (
         <div style={{
           position: 'absolute', bottom: 80, left: '50%',
