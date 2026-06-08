@@ -1135,6 +1135,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     camera:       { x:15*TILE, y:24*TILE },
     enemies:      [],
     projectiles:  [],
+    bossHpSaveTimer: 0,
     boss:         null,
     bossPhase:    1,
     bossChargeTimer: 0,
@@ -1174,12 +1175,14 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
   const spawnBoss=()=>{
     const b=cfg.boss;
-    G.boss={ ...b, hp:b.hp, maxHp:b.hp, alive:true,
+    const _startHp = (savedBossHp && savedBossHp < b.hp) ? savedBossHp : b.hp;
+    G.boss={ ...b, hp:_startHp, maxHp:b.hp, alive:true,
       attackTimer:0, stunTimer:0, chargeTimer:b.chargeInterval, chargeState:'idle',
       telegraphTimer:0, chargeVx:0, chargeVy:0, spawnTimer:10,
       patrolDir:1, patrolTimer:0 };
     G.bossChargeTimer=b.chargeInterval;
     G.bossSpawnTimer=8;
+    if(savedBossPhase===2){ G.bossPhase=2; }
   };
 
   // ── Godkiller passive helpers ────────────────────────────────────────────
@@ -1363,6 +1366,31 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
     // Projectiles
     G.projectiles=G.projectiles.filter(proj=>{
+      // Spawn delay (wave_burst stagger)
+      if((proj.spawnDelay||0)>0){ proj.spawnDelay-=dt; return true; }
+      // Ground slam — AoE pulse, no movement
+      if(proj.slamRadius){
+        proj.slamTimer=(proj.slamTimer||0)-dt;
+        if(proj.slamTimer<=0){
+          const sb=G.boss; const sx=sb?sb.x:proj.x; const sy=sb?sb.y:proj.y;
+          if(!p.invincible&&dist(sx,sy,p.x,p.y)<proj.slamRadius){
+            const sdmg=Math.max(1,proj.dmg-store.playerDEF);
+            store.takeDamage(sdmg); addFloat(p.x,p.y-30,`-${sdmg}`,'#e74c3c');
+            p.invincible=true; p.invTimer=0.6;
+          }
+          return false;
+        }
+        return true;
+      }
+      // Homing orbs — lock onto player after delay
+      if(proj.homing){
+        proj.homingTimer=(proj.homingTimer||0)-dt;
+        if(proj.homingTimer<=0){
+          const hAng=Math.atan2(p.y-proj.y,p.x-proj.x);
+          const spd=proj.speed||220;
+          proj.vx=Math.cos(hAng)*spd; proj.vy=Math.sin(hAng)*spd;
+        } else { return true; }
+      }
       proj.x+=proj.vx*dt; proj.y+=proj.vy*dt;
       proj.traveled+=Math.sqrt(proj.vx*proj.vx+proj.vy*proj.vy)*dt;
       if(proj.fromPlayer){
@@ -1451,38 +1479,186 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
           G.enemies.push({type:'thornling',x:b.x-60,y:b.y+40,...s,alive:true,attackTimer:0,stunTimer:0,state:'patrol',patrolTimer:0,patrolDir:-1});
         }
       }
+      // ── Boss movement: orbit + patrol ────────────────────────────
+      b.orbitAngle=(b.orbitAngle||0)+dt*(G.bossPhase===2?1.4:0.9);
       if(b.chargeState==='idle'){
         b.patrolTimer=(b.patrolTimer||0)+dt;
-        if(b.patrolTimer>2.0){b.patrolDir=(b.patrolDir||1)*-1;b.patrolTimer=0;}
-        b.x=clp(b.x+80*(b.patrolDir||1)*dt,TILE*3,WW-TILE*3);
+        if(b.patrolTimer>1.8){b.patrolDir=(b.patrolDir||1)*-1;b.patrolTimer=0;}
+        b.x=clp(b.x+90*(b.patrolDir||1)*dt,TILE*3,WW-TILE*3);
+        // Slow drift toward player between attacks
+        const driftDx=p.x-b.x, driftDy=p.y-b.y;
+        const driftD=Math.sqrt(driftDx*driftDx+driftDy*driftDy)||1;
+        if(driftD>220){ b.x+=driftDx/driftD*55*dt; b.y+=driftDy/driftD*55*dt; }
         G.bossChargeTimer-=dt;
         if(G.bossChargeTimer<=0){
+          // ── Pick next attack based on boss personality ──────────
+          const bname=b.name;
+          const p2=G.bossPhase===2;
+          // Each boss has a weighted attack pool
+          const pools={
+            Sylvara:  p2?['charge','spread3','heal_pulse','spread5']:['charge','spread3','charge'],
+            Terran:   p2?['charge','ground_slam','rock_ring','charge']:['charge','ground_slam','charge'],
+            Zephyros: p2?['charge','wind_spiral','dash_shot','wind_spiral']:['charge','dash_shot','charge'],
+            Ignar:    p2?['charge','fire_ring','homing3','charge','fire_ring']:['charge','fire_ring','charge'],
+            Glacius:  p2?['charge','freeze_ring','homing3','spread5']:['charge','freeze_ring','charge'],
+            Nepthar:  p2?['charge','wave_burst','spread5','homing3']:['charge','wave_burst','charge'],
+            Vortus:   p2?['charge','lightning_cross','dash_shot','spread5','charge']:['charge','lightning_cross','charge'],
+            Umbris:   p2?['charge','shadow_clone','homing3','spread5','charge']:['charge','shadow_clone','charge'],
+            Magmara:  p2?['charge','fire_ring','ground_slam','homing3','spread5']:['charge','fire_ring','ground_slam','charge'],
+            Nihilus:  p2?['charge','spread5','homing3','lightning_cross','wave_burst','shadow_clone']:['charge','spread3','homing2','charge'],
+          };
+          const pool=pools[bname]||['charge','spread3'];
+          // Don't repeat last attack
+          let choices=pool.filter(a=>a!==b.lastAttack);
+          if(!choices.length) choices=pool;
+          const nextAtk=choices[Math.floor(Math.random()*choices.length)];
+          b.pendingAttack=nextAtk; b.lastAttack=nextAtk;
           b.chargeState='telegraph'; b.telegraphTimer=bcfg.chargeTelegraph;
           b.telegraphTargetX=p.x; b.telegraphTargetY=p.y;
         }
       } else if(b.chargeState==='telegraph'){
         b.telegraphTimer-=dt;
         if(b.telegraphTimer<=0){
-          b.chargeState='charging';
+          const p2=G.bossPhase===2;
+          const spd=p2?bcfg.chargeSpeed*1.3:bcfg.chargeSpeed;
           const ang=Math.atan2(b.telegraphTargetY-b.y,b.telegraphTargetX-b.x);
-          b.chargeVx=Math.cos(ang)*(G.bossPhase===2?bcfg.chargeSpeed*1.3:bcfg.chargeSpeed);
-          b.chargeVy=Math.sin(ang)*(G.bossPhase===2?bcfg.chargeSpeed*1.3:bcfg.chargeSpeed);
-          b.chargeTraveled=0;
+          const atk=b.pendingAttack||'charge';
+
+          if(atk==='charge'){
+            b.chargeState='charging';
+            b.chargeVx=Math.cos(ang)*spd; b.chargeVy=Math.sin(ang)*spd; b.chargeTraveled=0;
+
+          } else if(atk==='spread3'||atk==='spread5'){
+            // Fan of projectiles
+            const count=atk==='spread5'?5:3;
+            const spread=atk==='spread5'?0.55:0.38;
+            for(let i=0;i<count;i++){
+              const a=ang-spread*(count-1)/2+spread*i;
+              G.projectiles.push({x:b.x,y:b.y,vx:Math.cos(a)*320,vy:Math.sin(a)*320,
+                traveled:0,maxRange:480,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:b.color});
+            }
+            addFloat(b.x,b.y-50,'⚠ Spread Shot!','#e74c3c');
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.55:bcfg.chargeInterval*0.8;
+
+          } else if(atk==='fire_ring'||atk==='rock_ring'||atk==='freeze_ring'||atk==='wind_spiral'){
+            // Ring burst — 8 or 12 directions
+            const count=atk==='wind_spiral'?12:8;
+            const rotOff=atk==='wind_spiral'?(G.t*2):0;
+            for(let i=0;i<count;i++){
+              const a=(Math.PI*2/count)*i+rotOff;
+              G.projectiles.push({x:b.x,y:b.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,
+                traveled:0,maxRange:420,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:b.color});
+            }
+            const label=atk==='fire_ring'?'🔥 Ring!':atk==='freeze_ring'?'❄️ Ring!':atk==='rock_ring'?'🪨 Ring!':'💨 Spiral!';
+            addFloat(b.x,b.y-50,label,'#e74c3c');
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.6:bcfg.chargeInterval*0.85;
+
+          } else if(atk==='ground_slam'){
+            // Telegraph wait, then ring + charge
+            G.projectiles.push({x:b.x,y:b.y,vx:0,vy:0,
+              traveled:0,maxRange:1,dmg:b.atk*1.5|0,hitTargets:new Set(),fromPlayer:false,
+              slamRadius:160,slamTimer:0.5,color:'#c0392b'}); // handled in proj update
+            addFloat(b.x,b.y-50,'💥 SLAM!','#e74c3c',true);
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.55:bcfg.chargeInterval*0.75;
+
+          } else if(atk==='homing2'||atk==='homing3'){
+            // Delayed homing orbs
+            const count=atk==='homing3'?3:2;
+            for(let i=0;i<count;i++){
+              const delay=i*0.3;
+              G.projectiles.push({x:b.x,y:b.y,vx:0,vy:0,
+                traveled:0,maxRange:600,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,
+                homing:true,homingDelay:delay,homingTimer:delay,speed:200+i*30,color:b.color});
+            }
+            addFloat(b.x,b.y-50,'👁 Homing!','#e74c3c');
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.5:bcfg.chargeInterval*0.8;
+
+          } else if(atk==='dash_shot'){
+            // Quick dash + shoot 3 in cone behind dash direction
+            b.chargeState='charging';
+            b.chargeVx=Math.cos(ang)*spd*1.2; b.chargeVy=Math.sin(ang)*spd*1.2; b.chargeTraveled=0;
+            b.dashShotPending=true;
+
+          } else if(atk==='lightning_cross'){
+            // 4-cardinal + 4-diagonal burst
+            for(let i=0;i<8;i++){
+              const a=(Math.PI/4)*i;
+              G.projectiles.push({x:b.x,y:b.y,vx:Math.cos(a)*380,vy:Math.sin(a)*380,
+                traveled:0,maxRange:440,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:'#f1c40f'});
+            }
+            addFloat(b.x,b.y-50,'⚡ Cross!','#f1c40f',true);
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.5:bcfg.chargeInterval*0.75;
+
+          } else if(atk==='wave_burst'){
+            // 3 staggered rings
+            for(let wave=0;wave<3;wave++){
+              for(let i=0;i<6;i++){
+                const a=(Math.PI*2/6)*i+(wave*Math.PI/6);
+                G.projectiles.push({x:b.x,y:b.y,
+                  vx:Math.cos(a)*(220+wave*40),vy:Math.sin(a)*(220+wave*40),
+                  traveled:0,maxRange:460,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:b.color,
+                  spawnDelay:wave*0.25,spawnTimer:wave*0.25});
+              }
+            }
+            addFloat(b.x,b.y-50,'🌊 Wave!','#1abc9c',true);
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.55:bcfg.chargeInterval*0.8;
+
+          } else if(atk==='shadow_clone'){
+            // Teleport boss to random spot + spawn ghost clone projectiles
+            b.x=clp(TILE*5+Math.random()*(WW-TILE*10),TILE*2,WW-TILE*2);
+            b.y=clp(TILE*5+Math.random()*(WH-TILE*10),TILE*2,WH-TILE*2);
+            for(let i=0;i<5;i++){
+              const a=(Math.PI*2/5)*i;
+              G.projectiles.push({x:b.x,y:b.y,vx:Math.cos(a)*290,vy:Math.sin(a)*290,
+                traveled:0,maxRange:400,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:'#8e44ad'});
+            }
+            addFloat(b.x,b.y-50,'👥 Clone!','#8e44ad',true);
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.5:bcfg.chargeInterval*0.75;
+
+          } else if(atk==='heal_pulse'){
+            // Sylvara only: heals 5% max HP, spawns ring
+            const healAmt=Math.ceil(b.maxHp*0.05);
+            b.hp=Math.min(b.maxHp,b.hp+healAmt);
+            for(let i=0;i<6;i++){
+              const a=(Math.PI*2/6)*i;
+              G.projectiles.push({x:b.x,y:b.y,vx:Math.cos(a)*200,vy:Math.sin(a)*200,
+                traveled:0,maxRange:340,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:'#2ecc71'});
+            }
+            addFloat(b.x,b.y-50,`💚 +${healAmt} Heal!`,'#2ecc71',true);
+            b.chargeState='idle'; G.bossChargeTimer=p2?bcfg.chargeInterval*0.6:bcfg.chargeInterval*0.9;
+          } else {
+            // fallback: charge
+            b.chargeState='charging';
+            b.chargeVx=Math.cos(ang)*spd; b.chargeVy=Math.sin(ang)*spd; b.chargeTraveled=0;
+          }
         }
       } else if(b.chargeState==='charging'){
         b.x=clp(b.x+b.chargeVx*dt,TILE,WW-TILE);
         b.y=clp(b.y+b.chargeVy*dt,TILE,WH-TILE);
         b.chargeTraveled+=(Math.abs(b.chargeVx)+Math.abs(b.chargeVy))*dt;
+        // dash_shot: fire cone halfway through charge
+        if(b.dashShotPending&&b.chargeTraveled>bcfg.chargeDist*0.4){
+          b.dashShotPending=false;
+          const backAng=Math.atan2(-b.chargeVy,-b.chargeVx);
+          for(let i=-1;i<=1;i++){
+            const a=backAng+i*0.4;
+            G.projectiles.push({x:b.x,y:b.y,vx:Math.cos(a)*350,vy:Math.sin(a)*350,
+              traveled:0,maxRange:440,dmg:b.atk,hitTargets:new Set(),fromPlayer:false,color:b.color});
+          }
+        }
         if(!p.invincible&&dist(b.x,b.y,p.x,p.y)<b.size+16){
-          const dmg=Math.max(1,b.atk-store.playerDEF);
+          const dmg=Math.max(1,applyDefPierce(b.atk,store.playerDEF,store));
           store.takeDamage(dmg); addFloat(p.x,p.y-30,`-${dmg}`,'#e74c3c');
           p.invincible=true; p.invTimer=0.6;
         }
         if(b.chargeTraveled>=(G.bossPhase===2?bcfg.chargeDist*1.2:bcfg.chargeDist)){
-          b.chargeState='idle';
+          b.chargeState='idle'; b.dashShotPending=false;
           G.bossChargeTimer=G.bossPhase===2?bcfg.chargeInterval*0.6:bcfg.chargeInterval;
         }
       }
+      // Persist boss HP for checkpoint every 3 s
+      G.bossHpSaveTimer=(G.bossHpSaveTimer||0)+dt;
+      if(G.bossHpSaveTimer>=3){ G.bossHpSaveTimer=0; saveBossCheckpoint(G.boss.hp,G.bossPhase); }
       } // end stun else
     }
 
@@ -1490,6 +1666,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     if(G.boss && !G.boss.alive && !G.victory){
       try{ store.gainXP(200); }catch(e){}
       try{ if(realmId && store.defeatBoss) store.defeatBoss(realmId); }catch(e){}
+      clearBossCheckpoint();
       hapticBossDeath(); sfxBossDeath();
       G.victory=true;
       G.victoryPortal={ x:G.boss.x, y:G.boss.y };
@@ -1547,12 +1724,33 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
     // Enemy projectiles
     G.projectiles.filter(pr=>!pr.fromPlayer).forEach(pr=>{
+      // Slam ring — pulsing AoE indicator
+      if(pr.slamRadius){
+        const sb=G.boss; const sx=wxf(sb?sb.x:pr.x); const sy=wyf(sb?sb.y:pr.y);
+        const pct=1-Math.max(0,(pr.slamTimer||0)/0.5);
+        ctx.globalAlpha=0.35+pct*0.3;
+        ctx.strokeStyle='#c0392b'; ctx.lineWidth=4;
+        ctx.beginPath();ctx.arc(sx,sy,pr.slamRadius*pct,0,Math.PI*2);ctx.stroke();
+        ctx.globalAlpha=0.08+pct*0.1; ctx.fillStyle='#c0392b';
+        ctx.beginPath();ctx.arc(sx,sy,pr.slamRadius*pct,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1; return;
+      }
+      if((pr.spawnDelay||0)>0) return; // not visible yet
       const px=wxf(pr.x),py=wyf(pr.y);
-      ctx.globalAlpha=0.9; ctx.fillStyle=cfg.accent;
-      ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);ctx.fill();
-      // Glow ring
-      ctx.globalAlpha=0.35; ctx.strokeStyle=cfg.accent; ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(px,py,12,0,Math.PI*2);ctx.stroke();
+      const pc=pr.color||cfg.accent;
+      const isHoming=pr.homing&&(pr.homingTimer||0)<=0;
+      const radius=isHoming?10:8;
+      ctx.globalAlpha=0.92; ctx.fillStyle=pc;
+      ctx.beginPath();ctx.arc(px,py,radius,0,Math.PI*2);ctx.fill();
+      // Glow ring — larger for homing
+      ctx.globalAlpha=isHoming?0.5:0.35; ctx.strokeStyle=pc; ctx.lineWidth=isHoming?4:3;
+      ctx.beginPath();ctx.arc(px,py,radius+5,0,Math.PI*2);ctx.stroke();
+      // Homing: spinning indicator
+      if(isHoming){
+        ctx.globalAlpha=0.7; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+        const ta=G.t*4;
+        ctx.beginPath();ctx.arc(px,py,radius+10,ta,ta+Math.PI*0.8);ctx.stroke();
+      }
       ctx.globalAlpha=1;
     });
 
