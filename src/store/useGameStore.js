@@ -61,6 +61,8 @@ const DEFAULT_STATE = {
   showInventory:  false,
   showHelpMenu:   false,
   showDeathModal: false,
+  savedBossHp: null,
+  savedBossPhase: 1,
   showLevelUp:    false,
   showShop:       false,
   showVictory:    false,
@@ -268,10 +270,26 @@ export const useGameStore = create((set, get) => ({
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('gp:saved'));
   },
 
+
+  saveBossCheckpoint: (hp, phase) => {
+    set({ savedBossHp: hp, savedBossPhase: phase || 1 });
+  },
+  clearBossCheckpoint: () => {
+    set({ savedBossHp: null, savedBossPhase: 1 });
+  },
+
   respawn: (location) => {
-    const { playerMaxHP, resources, lastCheckpoint } = get();
+    const { playerMaxHP, resources, lastCheckpoint, gamePhase } = get();
     const penalized = {};
     Object.entries(resources).forEach(([k, v]) => { penalized[k] = Math.floor(v * 0.8); });
+    // In realm: 'checkpoint' keeps player in arena (boss HP already saved separately)
+    if (location === 'checkpoint' && gamePhase === 'realm') {
+      set({ playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false, resources: penalized });
+      SaveSystem.save(get());
+      return;
+    }
+    // Leaving realm: clear boss checkpoint
+    get().clearBossCheckpoint();
     set({
       playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false,
       resources: penalized, activeZone: 'world',
@@ -411,6 +429,8 @@ export const useGameStore = create((set, get) => ({
       playerName:         get().playerName,
       gamePhase:          'world',
       currentRealm:       null,
+      savedBossHp:        null,
+      savedBossPhase:     1,
       tutorialStep:       4,   // skip tutorial on prestige
       playerHP:           100, playerMaxHP: 100,
       playerBaseATK:      8,   playerBaseDEF: 4, playerBaseSPD: 5,
