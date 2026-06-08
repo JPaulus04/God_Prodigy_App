@@ -15,6 +15,7 @@ const ITEMS = [
   // ── Resources ──────────────────────────────────────────────────────────────
   {
     id: 'ore_small',
+    purchaseKey: 'com.godprodigy.app.ore_small',
     category: 'Resources',
     icon: '⛏',
     name: 'Ore Pouch',
@@ -25,6 +26,7 @@ const ITEMS = [
   },
   {
     id: 'ore_large',
+    purchaseKey: 'com.godprodigy.app.ore_large',
     category: 'Resources',
     icon: '⛏',
     name: 'Ore Cache',
@@ -36,6 +38,7 @@ const ITEMS = [
   },
   {
     id: 'bundle_builder',
+    purchaseKey: 'com.godprodigy.app.bundle_builder',
     category: 'Resources',
     icon: '🪵',
     name: 'Builder Bundle',
@@ -46,6 +49,7 @@ const ITEMS = [
   },
   {
     id: 'fire_shard_pack',
+    purchaseKey: 'com.godprodigy.app.fire_shard_pack',
     category: 'Resources',
     icon: '🔥',
     name: 'Fire Shard Pack',
@@ -58,6 +62,7 @@ const ITEMS = [
   // ── Boosters ───────────────────────────────────────────────────────────────
   {
     id: 'xp_boost',
+    purchaseKey: 'com.godprodigy.app.xp_boost',
     category: 'Boosters',
     icon: '✦',
     name: 'XP Surge',
@@ -68,6 +73,7 @@ const ITEMS = [
   },
   {
     id: 'xp_boost_big',
+    purchaseKey: 'com.godprodigy.app.xp_boost_big',
     category: 'Boosters',
     icon: '✦',
     name: 'XP Torrent',
@@ -79,6 +85,7 @@ const ITEMS = [
   },
   {
     id: 'respawn_shield',
+    purchaseKey: 'com.godprodigy.app.respawn_shield',
     category: 'Boosters',
     icon: '🛡',
     name: 'Death Shield',
@@ -89,6 +96,7 @@ const ITEMS = [
   },
   {
     id: 'respawn_3pack',
+    purchaseKey: 'com.godprodigy.app.respawn_shield_3',
     category: 'Boosters',
     icon: '🛡',
     name: 'Shield Pack ×3',
@@ -99,6 +107,7 @@ const ITEMS = [
   },
   {
     id: 'full_heal',
+    purchaseKey: 'com.godprodigy.app.hp_restore',
     category: 'Boosters',
     icon: '❤',
     name: 'Divine Heal',
@@ -109,6 +118,7 @@ const ITEMS = [
   },
   {
     id: 'stat_points',
+    purchaseKey: 'com.godprodigy.app.stat_points',
     category: 'Boosters',
     icon: '⬆',
     name: 'Stat Infusion',
@@ -121,6 +131,7 @@ const ITEMS = [
   // ── Cosmetics ──────────────────────────────────────────────────────────────
   {
     id: 'skin_shadow',
+    purchaseKey: 'com.godprodigy.app.skin_shadow',
     category: 'Cosmetics',
     icon: '🌑',
     name: 'Shadow Knight',
@@ -132,6 +143,7 @@ const ITEMS = [
   },
   {
     id: 'skin_gold',
+    purchaseKey: 'com.godprodigy.app.skin_gods_chosen',
     category: 'Cosmetics',
     icon: '👑',
     name: 'God\'s Chosen',
@@ -142,6 +154,7 @@ const ITEMS = [
   },
   {
     id: 'skin_ice',
+    purchaseKey: 'com.godprodigy.app.skin_frost',
     category: 'Cosmetics',
     icon: '❄️',
     name: 'Frost Warden',
@@ -152,6 +165,7 @@ const ITEMS = [
   },
   {
     id: 'trail_fire',
+    purchaseKey: 'com.godprodigy.app.trail_ember',
     category: 'Cosmetics',
     icon: '🔥',
     name: 'Ember Trail',
@@ -162,6 +176,7 @@ const ITEMS = [
   },
   {
     id: 'trail_void',
+    purchaseKey: 'com.godprodigy.app.trail_void',
     category: 'Cosmetics',
     icon: '✨',
     name: 'Void Trail',
@@ -174,6 +189,7 @@ const ITEMS = [
   // ── Utility ────────────────────────────────────────────────────────────────
   {
     id: 'inventory_expand',
+    purchaseKey: 'com.godprodigy.app.inventory_expand',
     category: 'Utility',
     icon: '🎒',
     name: 'Satchel Upgrade',
@@ -184,6 +200,7 @@ const ITEMS = [
   },
   {
     id: 'boss_skip',
+    purchaseKey: 'com.godprodigy.app.boss_skip_c',
     category: 'Utility',
     icon: '⚡',
     name: 'God\'s Mercy',
@@ -198,6 +215,7 @@ const ITEMS = [
   // ── Pass ───────────────────────────────────────────────────────────────────
   {
     id: 'god_pass',
+    purchaseKey: 'com.godprodigy.app.battle_pass',
     category: 'Pass',
     icon: '🏆',
     name: 'God Prodigy Pass',
