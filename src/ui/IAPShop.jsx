@@ -514,7 +514,7 @@ export default function IAPShop({ onClose }) {
 
         {/* Restore purchases footer */}
         <div style={{ textAlign: 'center', padding: '16px 0 4px' }}>
-          <button onClick={handleRestore}} style={{
+          <button onClick={handleRestore} style={{
             background: 'none', border: 'none',
             color: '#444', fontSize: 11, cursor: 'pointer',
             textDecoration: 'underline',
