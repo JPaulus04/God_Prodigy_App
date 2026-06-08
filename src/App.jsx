@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { initIAP } from './utils/iap';
 import { useGameStore }  from './store/useGameStore';
 import WorldCanvas       from './ui/WorldCanvas';
 import DungeonCanvas     from './ui/DungeonCanvas';
@@ -34,7 +35,7 @@ class ErrorBoundary extends React.Component {
 
 export default function App() {
   const { gamePhase, showHelpMenu, showInventory, showDeathModal, showLevelUp, showShop, toggleShop, loadSave, tutorialStep, showVictory, showPrestigeSelect } = useGameStore();
-  useEffect(() => { loadSave(); }, []);
+  useEffect(() => { loadSave(); initIAP(); }, []);
 
   // ── Phase transition fade ──────────────────────────────────────
   const prevPhaseRef = useRef(gamePhase);
