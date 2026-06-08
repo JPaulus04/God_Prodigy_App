@@ -138,25 +138,28 @@ export default function DeathModal() {
           </>
         )}
 
-        {/* ── Last Checkpoint ── */}
+        {/* ── Last Checkpoint / Retry Boss ── */}
         <button
           onClick={() => respawn('checkpoint')}
           style={{
             width: '100%', padding: '14px 16px', marginBottom: 10,
-            background: '#0a1a0d', border: '2px solid #2ecc71',
+            background: inRealm ? '#0a1520' : '#0a1a0d',
+            border: inRealm ? '2px solid #3498db' : '2px solid #2ecc71',
             borderRadius: 12, color: '#fff', cursor: 'pointer',
             textAlign: 'left',
           }}
         >
-          <div style={{ fontSize: 15, fontWeight: 'bold', color: '#2ecc71' }}>
-            🚩 Last Checkpoint
+          <div style={{ fontSize: 15, fontWeight: 'bold', color: inRealm ? '#3498db' : '#2ecc71' }}>
+            {inRealm ? '⚔️ Retry Boss' : '🚩 Last Checkpoint'}
           </div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-            Respawn near where you were
+            {inRealm
+              ? 'Stay in arena — boss keeps reduced HP from last battle'
+              : 'Respawn near where you were'}
           </div>
         </button>
 
-        {/* ── Home Stronghold ── */}
+        {/* ── Home Stronghold / Give Up ── */}
         <button
           onClick={() => respawn('stronghold')}
           style={{
@@ -167,10 +170,10 @@ export default function DeathModal() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 'bold' }}>
-            🏰 Home Stronghold
+            {inRealm ? '🏃 Flee Realm' : '🏰 Home Stronghold'}
           </div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-            Safe spawn — further from your progress
+            {inRealm ? 'Exit the realm — boss HP resets on next attempt' : 'Safe spawn — further from your progress'}
           </div>
         </button>
 
