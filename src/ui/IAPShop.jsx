@@ -131,6 +131,7 @@ const ITEMS = [
   // ── Cosmetics ──────────────────────────────────────────────────────────────
   {
     id: 'skin_shadow',
+    limitedKey: 'skin_shadow',
     purchaseKey: 'com.godprodigy.app.skin_shadow',
     category: 'Cosmetics',
     icon: '🌑',
@@ -143,6 +144,7 @@ const ITEMS = [
   },
   {
     id: 'skin_gold',
+    limitedKey: 'skin_gold',
     purchaseKey: 'com.godprodigy.app.skin_gods_chosen',
     category: 'Cosmetics',
     icon: '👑',
@@ -154,6 +156,7 @@ const ITEMS = [
   },
   {
     id: 'skin_ice',
+    limitedKey: 'skin_ice',
     purchaseKey: 'com.godprodigy.app.skin_frost',
     category: 'Cosmetics',
     icon: '❄️',
@@ -165,6 +168,7 @@ const ITEMS = [
   },
   {
     id: 'trail_fire',
+    limitedKey: 'trail_fire',
     purchaseKey: 'com.godprodigy.app.trail_ember',
     category: 'Cosmetics',
     icon: '🔥',
@@ -176,6 +180,7 @@ const ITEMS = [
   },
   {
     id: 'trail_void',
+    limitedKey: 'trail_void',
     purchaseKey: 'com.godprodigy.app.trail_void',
     category: 'Cosmetics',
     icon: '✨',
@@ -189,6 +194,7 @@ const ITEMS = [
   // ── Utility ────────────────────────────────────────────────────────────────
   {
     id: 'inventory_expand',
+    limitedKey: 'inventory_expand',
     purchaseKey: 'com.godprodigy.app.inventory_expand',
     category: 'Utility',
     icon: '🎒',
@@ -215,6 +221,7 @@ const ITEMS = [
   // ── Pass ───────────────────────────────────────────────────────────────────
   {
     id: 'god_pass',
+    limitedKey: 'god_pass',
     purchaseKey: 'com.godprodigy.app.battle_pass',
     category: 'Pass',
     icon: '🏆',
@@ -363,6 +370,18 @@ function ItemCard({ item, onBuy, purchased, flashing }) {
 
 export default function IAPShop({ onClose }) {
   const store = useGameStore();
+  const { ownedSkins=[], ownedTrails=[], bossSkipUsed=false, passActive=false, extraInventorySlots=0 } = store;
+  const isPurchased = (item) => {
+    if (item.id === 'skin_shadow')      return (ownedSkins||[]).includes('skin_shadow');
+    if (item.id === 'skin_gold')        return (ownedSkins||[]).includes('skin_gold');
+    if (item.id === 'skin_ice')         return (ownedSkins||[]).includes('skin_ice');
+    if (item.id === 'trail_fire')       return (ownedTrails||[]).includes('trail_ember');
+    if (item.id === 'trail_void')       return (ownedTrails||[]).includes('trail_void');
+    if (item.id === 'inventory_expand') return (extraInventorySlots||0) >= 16;
+    if (item.id === 'boss_skip')        return !!bossSkipUsed;
+    if (item.id === 'god_pass')         return !!passActive;
+    return false;
+  };
   const [activeTab, setActiveTab]   = useState('Resources');
   const [confirmItem, setConfirmItem] = useState(null);
   const [toast, setToast]           = useState(null);
