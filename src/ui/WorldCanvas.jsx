@@ -1307,6 +1307,16 @@ export default function WorldCanvas() {
 
     G.camera.x += (p.x - G.camera.x) * Math.min(1, 8 * dt);
     G.camera.y += (p.y - G.camera.y) * Math.min(1, 8 * dt);
+
+    // ── Trail particles ───────────────────────────────────────────────────
+    const { activeTrail: currentTrail } = useGameStore.getState();
+    if (!G.trailParticles) G.trailParticles = [];
+    if (currentTrail && (vx !== 0 || vy !== 0)) {
+      G.trailParticles.push({ x: p.x, y: p.y, r: 4 + Math.random() * 3, a: 0.7, life: 0.35 });
+    }
+    G.trailParticles = G.trailParticles
+      .map(tp => ({ ...tp, life: tp.life - dt, a: tp.a - dt * 2, r: tp.r * 0.92 }))
+      .filter(tp => tp.life > 0 && tp.a > 0);
     G.camera.x = Math.max(G.W/2, Math.min(WORLD_W - G.W/2, G.camera.x));
     G.camera.y = Math.max(G.H/2, Math.min(WORLD_H - G.H/2, G.camera.y));
 
@@ -1511,6 +1521,18 @@ export default function WorldCanvas() {
     const cx = G.camera.x;
     const cy = G.camera.y;
     const t  = Date.now() / 1000;
+    // ── Skin / Trail cosmetics ─────────────────────────────────────────────
+    const { activeSkin, activeTrail } = useGameStore.getState();
+    const SKIN_PALETTE = {
+      shadow_knight: { cape: '#1a1a2e', tunic1: '#2c003e', tunic2: '#4b0082', belt: '#6a0dad', helmet: '#1a0030', helmetFace: '#4b0082', helmetVisor: '#9b59b6', shield1: '#2c003e', shield2: '#6a0dad', boot: '#0d0010' },
+      gods_chosen:   { cape: '#7d6008', tunic1: '#b8860b', tunic2: '#d4af37', belt: '#f1c40f', helmet: '#7d6008', helmetFace: '#d4af37', helmetVisor: '#fffde7', shield1: '#b8860b', shield2: '#f1c40f', boot: '#5a4500' },
+      frost_warden:  { cape: '#0a3a5c', tunic1: '#1b6ca8', tunic2: '#56b4d3', belt: '#aee9f5', helmet: '#0a3a5c', helmetFace: '#56b4d3', helmetVisor: '#e0f7fa', shield1: '#1b6ca8', shield2: '#aee9f5', boot: '#062040' },
+    };
+    const SK = SKIN_PALETTE[activeSkin] || {
+      cape: '#1a4a7a', tunic1: '#2980b9', tunic2: '#3498db', belt: '#1a5276',
+      helmet: '#1a5276', helmetFace: '#2980b9', helmetVisor: '#85c1e9',
+      shield1: '#2471a3', shield2: '#c0392b', boot: '#6b4226',
+    };
     const wx = x => Math.round(x - cx + W / 2);
     const wy = y => Math.round(y - cy + H / 2);
     const onScreen = (sx, sy, pad = 50) => sx > -pad && sx < W + pad && sy > -pad && sy < H + pad;
@@ -2548,8 +2570,19 @@ export default function WorldCanvas() {
     ctx.fillStyle = '#00000030';
     ctx.beginPath(); ctx.ellipse(ppx, ppy + 13, 10, 3.5, 0, 0, Math.PI*2); ctx.fill();
 
+    // ── Trail effect (behind player) ─────────────────────────────────────
+    if (activeTrail && G.trailParticles && G.trailParticles.length > 0) {
+      G.trailParticles.forEach((tp, i) => {
+        const trailColor = activeTrail === 'trail_ember' ? `rgba(255,${80+i*10},0,${tp.a})` : `rgba(${80+i*8},0,${180+i*5},${tp.a})`;
+        ctx.fillStyle = trailColor;
+        ctx.beginPath();
+        ctx.arc(wx(tp.x), wy(tp.y), tp.r, 0, Math.PI*2);
+        ctx.fill();
+      });
+    }
+
     // Cape
-    ctx.fillStyle = '#1a4a7a';
+    ctx.fillStyle = SK.cape;
     ctx.beginPath();
     ctx.moveTo(ppx - 7, ppy + 1);
     ctx.bezierCurveTo(ppx - 12, ppy + 10, ppx - 9, ppy + 20, ppx - 3, ppy + 18);
@@ -2558,22 +2591,22 @@ export default function WorldCanvas() {
     ctx.closePath(); ctx.fill();
 
     // Boots
-    ctx.fillStyle = '#6b4226';
+    ctx.fillStyle = SK.boot;
     ctx.beginPath(); ctx.ellipse(ppx - 4 + owLeg, ppy + 16, 4, 3.5, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(ppx + 4 - owLeg, ppy + 16, 4, 3.5, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#8b5e3c';
+    ctx.fillStyle = SK.boot + 'cc';
     ctx.beginPath(); ctx.ellipse(ppx - 5 + owLeg, ppy + 14, 2.5, 1.8, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(ppx + 3 - owLeg, ppy + 14, 2.5, 1.8, 0, 0, Math.PI*2); ctx.fill();
 
     // Tunic
-    ctx.fillStyle = '#2980b9';
+    ctx.fillStyle = SK.tunic1;
     ctx.beginPath();
     ctx.moveTo(ppx - 9, ppy + 3); ctx.lineTo(ppx - 7, ppy - 5);
     ctx.quadraticCurveTo(ppx, ppy - 8, ppx + 7, ppy - 5);
     ctx.lineTo(ppx + 9, ppy + 3);
     ctx.quadraticCurveTo(ppx, ppy + 8, ppx - 9, ppy + 3);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#3498db';
+    ctx.fillStyle = SK.tunic2;
     ctx.beginPath();
     ctx.moveTo(ppx - 5, ppy + 1); ctx.lineTo(ppx - 4, ppy - 4);
     ctx.quadraticCurveTo(ppx, ppy - 7, ppx + 4, ppy - 4);
@@ -2581,14 +2614,14 @@ export default function WorldCanvas() {
     ctx.quadraticCurveTo(ppx, ppy + 5, ppx - 5, ppy + 1);
     ctx.closePath(); ctx.fill();
     // Belt
-    ctx.strokeStyle = '#1a5276'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = SK.belt; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(ppx - 8, ppy + 2); ctx.lineTo(ppx + 8, ppy + 2); ctx.stroke();
     ctx.fillStyle = '#f1c40f'; ctx.fillRect(ppx - 2, ppy + 1, 4, 3);
 
     // Shield (left arm)
     const lSway = owMoving ? Math.sin(t * 9 + Math.PI) * 3 : 0;
-    ctx.fillStyle = '#2471a3'; ctx.fillRect(ppx - 14, ppy - 3 + lSway, 4, 8);
-    ctx.fillStyle = '#c0392b';
+    ctx.fillStyle = SK.shield1; ctx.fillRect(ppx - 14, ppy - 3 + lSway, 4, 8);
+    ctx.fillStyle = SK.shield2;
     ctx.beginPath();
     ctx.moveTo(ppx - 18, ppy - 4 + lSway); ctx.lineTo(ppx - 11, ppy - 4 + lSway);
     ctx.lineTo(ppx - 11, ppy + 3 + lSway); ctx.quadraticCurveTo(ppx - 14, ppy + 7 + lSway, ppx - 18, ppy + 3 + lSway);
@@ -2600,7 +2633,7 @@ export default function WorldCanvas() {
 
     // Sword (right arm)
     const rSway = owMoving ? Math.sin(t * 9) * 3 : 0;
-    ctx.fillStyle = '#2471a3'; ctx.fillRect(ppx + 10, ppy - 3 + rSway, 4, 8);
+    ctx.fillStyle = SK.shield1; ctx.fillRect(ppx + 10, ppy - 3 + rSway, 4, 8);
     ctx.strokeStyle = '#d5d8dc'; ctx.lineWidth = 2; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(ppx + 15, ppy - 1 + rSway); ctx.lineTo(ppx + 15, ppy - 18 + rSway); ctx.stroke();
     ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2.5;
@@ -2610,11 +2643,11 @@ export default function WorldCanvas() {
     ctx.lineCap = 'butt';
 
     // Head / Helmet
-    ctx.fillStyle = '#1a5276';
+    ctx.fillStyle = SK.helmet;
     ctx.beginPath(); ctx.arc(ppx, ppy - 9, 9, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#2980b9';
+    ctx.fillStyle = SK.helmetFace;
     ctx.beginPath(); ctx.arc(ppx, ppy - 8, 7, Math.PI * 0.1, Math.PI * 0.9); ctx.fill();
-    ctx.fillStyle = '#85c1e9';
+    ctx.fillStyle = SK.helmetVisor;
     ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(ppx - 5, ppy - 11, 10, 3, 1); else ctx.rect(ppx-5,ppy-11,10,3);
     ctx.fill();
     ctx.fillStyle = '#aed6f1'; ctx.globalAlpha = blinkOn ? 0.6 : 0.1;
