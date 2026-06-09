@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/useGameStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -372,14 +372,17 @@ export default function IAPShop({ onClose }) {
   const store = useGameStore();
   const { ownedSkins=[], ownedTrails=[], bossSkipUsed=false, passActive=false, extraInventorySlots=0 } = store;
   const isPurchased = (item) => {
-    if (item.id === 'skin_shadow')      return (ownedSkins||[]).includes('skin_shadow');
-    if (item.id === 'skin_gold')        return (ownedSkins||[]).includes('skin_gold');
-    if (item.id === 'skin_ice')         return (ownedSkins||[]).includes('skin_ice');
+    // ownedSkins stores the ID passed to unlockSkin() e.g. 'shadow_knight','gods_chosen','frost_warden'
+    if (item.id === 'skin_shadow')      return (ownedSkins||[]).includes('shadow_knight');
+    if (item.id === 'skin_gold')        return (ownedSkins||[]).includes('gods_chosen');
+    if (item.id === 'skin_ice')         return (ownedSkins||[]).includes('frost_warden');
+    // ownedTrails stores the ID passed to unlockTrail() e.g. 'trail_ember','trail_void'
     if (item.id === 'trail_fire')       return (ownedTrails||[]).includes('trail_ember');
     if (item.id === 'trail_void')       return (ownedTrails||[]).includes('trail_void');
     if (item.id === 'inventory_expand') return (extraInventorySlots||0) >= 16;
     if (item.id === 'boss_skip')        return !!bossSkipUsed;
     if (item.id === 'god_pass')         return !!passActive;
+    if (item.id === 'battle_pass')      return !!passActive;
     return false;
   };
   const [activeTab, setActiveTab]   = useState('Resources');
