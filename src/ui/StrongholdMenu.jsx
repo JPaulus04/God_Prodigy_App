@@ -123,6 +123,7 @@ export default function StrongholdMenu() {
   const [craftTab,   setCraftTab]   = useState('weapons');
   const [weaponType, setWeaponType] = useState(null); // null = show type picker
   const [upgradeItem, setUpgradeItem] = useState(null); // item selected for upgrade
+  const [showArmory,  setShowArmory]  = useState(false);
 
   const forgeLevel    = stronghold.forge ?? 0;
   const godsDefeated  = (bossesDefeated || []).length;
