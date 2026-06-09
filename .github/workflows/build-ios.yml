@@ -101,6 +101,21 @@ jobs:
         env:
           PROVISIONING_PROFILE_UUID: ${{ secrets.PROVISIONING_PROFILE_UUID }}
 
+      - name: Patch Info.plist — portrait only
+        run: |
+          python3 - << 'EOF'
+          import plistlib, os
+          plist_path = "ios/App/App/Info.plist"
+          with open(plist_path, 'rb') as f:
+              pl = plistlib.load(f)
+          # Lock to portrait only
+          pl['UISupportedInterfaceOrientations'] = ['UIInterfaceOrientationPortrait']
+          pl['UISupportedInterfaceOrientations~ipad'] = ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown']
+          with open(plist_path, 'wb') as f:
+              plistlib.dump(pl, f)
+          print("Info.plist patched — portrait only")
+          EOF
+
       - name: Patch Podfile
         run: |
           python3 - << 'EOF'
