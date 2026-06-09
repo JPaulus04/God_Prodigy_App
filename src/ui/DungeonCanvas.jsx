@@ -374,6 +374,20 @@ export default function DungeonCanvas() {
               });
             }, i * ability.hitDelay * 1000);
           }
+        } else if (ability.type === 'elemental_aoe') {
+          // arcane_burst / elemental AOE — applies to all enemies in range with def pierce
+          const s2 = useGameStore.getState();
+          allEnemies().forEach(e => {
+            if (!e.alive || dist(p.x,p.y,e.x,e.y) > ability.range) return;
+            const cfg2 = EnemyConfig[e.type];
+            const raw  = Math.max(1, Math.round(s2.playerATK * ability.damageMult));
+            const dmg  = applyDefPierce(raw, cfg2?.def || 0, s2);
+            e.hp -= dmg;
+            if (ability.stunDuration) e.stunTimer = ability.stunDuration;
+            addFloat(e.x, e.y-24, `-${dmg}`, '#aa44ff');
+            applyGodkillerPassives(dmg, e, G.player, s2, allEnemies(), addFloat);
+            if (e.hp <= 0) killEnemy(e, s2);
+          });
         } else {
           allEnemies().forEach(e => {
             if (!e.alive || dist(p.x,p.y,e.x,e.y) > ability.range) return;
@@ -780,14 +794,65 @@ export default function DungeonCanvas() {
       );
     }
 
-    // Player
+    // Player — full skinned hero
     const ppx = wx(p.x), ppy = wy(p.y);
     const blinkOn = !p.invincible || Math.sin(Date.now()/80) > 0;
-    ctx.globalAlpha = blinkOn ? 1 : 0.15;
-    ctx.fillStyle = '#4a90e2';
-    ctx.beginPath(); ctx.arc(ppx, ppy, 14, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = p.invincible ? '#fff' : '#aaa';
-    ctx.lineWidth = p.invincible ? 3 : 2; ctx.stroke();
+    ctx.globalAlpha = blinkOn ? 1 : 0.2;
+
+    const { activeSkin: _dSkin, activeTrail: _dTrail } = useGameStore.getState();
+    const DUN_SKINS = {
+      shadow_knight: { cape:'#1a1a2e', tunic1:'#2c003e', tunic2:'#4b0082', belt:'#6a0dad', helmet:'#1a0030', helmetFace:'#4b0082', helmetVisor:'#9b59b6', shield1:'#2c003e', shield2:'#6a0dad', boot:'#0d0010' },
+      gods_chosen:   { cape:'#7d6008', tunic1:'#b8860b', tunic2:'#d4af37', belt:'#f1c40f', helmet:'#7d6008', helmetFace:'#d4af37', helmetVisor:'#fffde7', shield1:'#b8860b', shield2:'#f1c40f', boot:'#5a4500' },
+      frost_warden:  { cape:'#c8eeff', tunic1:'#e8f8ff', tunic2:'#ffffff', belt:'#80d8ff', helmet:'#b0e0ff', helmetFace:'#e8f8ff', helmetVisor:'#ffffff', shield1:'#7ecfff', shield2:'#b3ecff', boot:'#6abcdf' },
+    };
+    const DSK = DUN_SKINS[_dSkin] || { cape:'#1a4a7a', tunic1:'#2980b9', tunic2:'#3498db', belt:'#1a5276', helmet:'#1a5276', helmetFace:'#2980b9', helmetVisor:'#85c1e9', shield1:'#2471a3', shield2:'#c0392b', boot:'#6b4226' };
+    const dunMoving = !!(G.keys['ArrowLeft']||G.keys['ArrowRight']||G.keys['ArrowUp']||G.keys['ArrowDown']||G.keys['KeyA']||G.keys['KeyD']||G.keys['KeyW']||G.keys['KeyS']||G._joyX||G._joyY);
+    const dunLeg = dunMoving ? Math.sin(Date.now()/120) * 4 : 0;
+
+    // Trail
+    if (!G.dunTrail) G.dunTrail = [];
+    if (_dTrail && dunMoving) {
+      for (let i=0;i<2;i++) G.dunTrail.push({ x:p.x+(Math.random()-0.5)*5, y:p.y+(Math.random()-0.5)*5, r:3+Math.random()*3, a:0.85, life:1.0, type:_dTrail });
+    }
+    G.dunTrail = G.dunTrail.map(tp=>({...tp,life:tp.life-0.016,a:tp.a-0.013,r:tp.r*0.98})).filter(tp=>tp.life>0&&tp.a>0.04);
+    G.dunTrail.forEach(tp => {
+      const tc = tp.type==='trail_ember' ? `rgba(255,${Math.round(120+(1-tp.a)*135)},20,${tp.a})` : `rgba(${Math.round(160+(1-tp.a)*95)},0,255,${tp.a})`;
+      ctx.fillStyle=tc; ctx.beginPath(); ctx.arc(wx(tp.x),wy(tp.y),tp.r,0,Math.PI*2); ctx.fill();
+    });
+
+    // Cape
+    ctx.fillStyle=DSK.cape;
+    ctx.beginPath(); ctx.moveTo(ppx-7,ppy+1); ctx.bezierCurveTo(ppx-12,ppy+10,ppx-9,ppy+20,ppx-3,ppy+18); ctx.lineTo(ppx+3,ppy+18); ctx.bezierCurveTo(ppx+9,ppy+20,ppx+12,ppy+10,ppx+7,ppy+1); ctx.closePath(); ctx.fill();
+    // Boots
+    ctx.fillStyle=DSK.boot;
+    ctx.beginPath(); ctx.ellipse(ppx-4+dunLeg,ppy+16,4,3.5,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ppx+4-dunLeg,ppy+16,4,3.5,0,0,Math.PI*2); ctx.fill();
+    // Tunic
+    ctx.fillStyle=DSK.tunic1;
+    ctx.beginPath(); ctx.moveTo(ppx-9,ppy+3); ctx.lineTo(ppx-7,ppy-5); ctx.quadraticCurveTo(ppx,ppy-8,ppx+7,ppy-5); ctx.lineTo(ppx+9,ppy+3); ctx.quadraticCurveTo(ppx,ppy+8,ppx-9,ppy+3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=DSK.tunic2;
+    ctx.beginPath(); ctx.moveTo(ppx-5,ppy+1); ctx.lineTo(ppx-4,ppy-4); ctx.quadraticCurveTo(ppx,ppy-7,ppx+4,ppy-4); ctx.lineTo(ppx+5,ppy+1); ctx.quadraticCurveTo(ppx,ppy+5,ppx-5,ppy+1); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=DSK.belt; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(ppx-8,ppy+2); ctx.lineTo(ppx+8,ppy+2); ctx.stroke();
+    ctx.fillStyle='#f1c40f'; ctx.fillRect(ppx-2,ppy+1,4,3);
+    // Shield
+    const dLSway=dunMoving?Math.sin(Date.now()/111+Math.PI)*3:0;
+    ctx.fillStyle=DSK.shield1; ctx.fillRect(ppx-14,ppy-3+dLSway,4,8);
+    ctx.fillStyle=DSK.shield2;
+    ctx.beginPath(); ctx.moveTo(ppx-18,ppy-4+dLSway); ctx.lineTo(ppx-11,ppy-4+dLSway); ctx.lineTo(ppx-11,ppy+3+dLSway); ctx.quadraticCurveTo(ppx-14,ppy+7+dLSway,ppx-18,ppy+3+dLSway); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#f1c40f'; ctx.beginPath(); ctx.arc(ppx-14,ppy+dLSway,2,0,Math.PI*2); ctx.fill();
+    // Sword
+    const dRSway=dunMoving?Math.sin(Date.now()/111)*3:0;
+    ctx.fillStyle=DSK.shield1; ctx.fillRect(ppx+10,ppy-3+dRSway,4,8);
+    ctx.strokeStyle='#d5d8dc'; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(ppx+15,ppy-1+dRSway); ctx.lineTo(ppx+15,ppy-18+dRSway); ctx.stroke();
+    ctx.strokeStyle='#f1c40f'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(ppx+11,ppy-3+dRSway); ctx.lineTo(ppx+19,ppy-3+dRSway); ctx.stroke();
+    ctx.lineCap='butt';
+    // Helmet
+    ctx.fillStyle=DSK.helmet; ctx.beginPath(); ctx.arc(ppx,ppy-9,9,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=DSK.helmetFace; ctx.beginPath(); ctx.arc(ppx,ppy-8,7,Math.PI*0.1,Math.PI*0.9); ctx.fill();
+    ctx.fillStyle=DSK.helmetVisor;
+    ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(ppx-5,ppy-11,10,3,1); else ctx.rect(ppx-5,ppy-11,10,3); ctx.fill();
+
     ctx.globalAlpha = 1;
 
     // Ability effects
