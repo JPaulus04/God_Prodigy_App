@@ -108,9 +108,14 @@ jobs:
           plist_path = "ios/App/App/Info.plist"
           with open(plist_path, 'rb') as f:
               pl = plistlib.load(f)
-          # Lock to portrait only
+          # Lock iPhone to portrait only; iPad must include all 4 for App Store multitasking requirement
           pl['UISupportedInterfaceOrientations'] = ['UIInterfaceOrientationPortrait']
-          pl['UISupportedInterfaceOrientations~ipad'] = ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown']
+          pl['UISupportedInterfaceOrientations~ipad'] = [
+              'UIInterfaceOrientationPortrait',
+              'UIInterfaceOrientationPortraitUpsideDown',
+              'UIInterfaceOrientationLandscapeLeft',
+              'UIInterfaceOrientationLandscapeRight',
+          ]
           with open(plist_path, 'wb') as f:
               plistlib.dump(pl, f)
           print("Info.plist patched — portrait only")
