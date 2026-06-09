@@ -255,8 +255,16 @@ export const useGameStore = create((set, get) => ({
     const newLevel     = currentLevel + 1;
     Object.entries(costPaid).forEach(([res, amt]) => get().spendResource(res, amt));
     const updatedInventory = inventory.map(item => {
-      if (item.instanceId !== instanceId || item.slot !== 'weapon') return item;
-      return { ...item, atk: (item.atk || 0) + 2, upgradeLevel: newLevel };
+      if (item.instanceId !== instanceId) return item;
+      // Apply the right stat based on slot
+      if (item.slot === 'weapon')    return { ...item, atk: (item.atk || 0) + 2, upgradeLevel: newLevel };
+      if (item.slot === 'armor')     return { ...item, def: (item.def || 0) + 2, upgradeLevel: newLevel };
+      if (item.slot === 'accessory') {
+        // Boost whichever primary stat the accessory provides; spd items get +1 spd, otherwise +1 def
+        if ((item.spd || 0) > 0) return { ...item, spd: (item.spd || 0) + 1, upgradeLevel: newLevel };
+        return { ...item, def: (item.def || 0) + 1, upgradeLevel: newLevel };
+      }
+      return { ...item, upgradeLevel: newLevel };
     });
     set({ itemUpgrades: { ...itemUpgrades, [instanceId]: newLevel }, inventory: updatedInventory });
     if (Object.values(get().gear).includes(instanceId)) get().recalculateStats();
