@@ -2,15 +2,34 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { LEGACY_WEAPONS, FRAGMENT_TYPES } from '../game/config/FragmentConfig';
 
+const ESSENCE_META = {
+  forest_essence: { icon: '🌿', color: '#27ae60', name: 'Forest Essence' },
+  wind_essence:   { icon: '💨', color: '#87ceeb', name: 'Wind Essence'   },
+  earth_essence:  { icon: '🪨', color: '#95a5a6', name: 'Earth Essence'  },
+  fire_essence:   { icon: '🔥', color: '#e74c3c', name: 'Fire Essence'   },
+  ice_essence:    { icon: '❄️', color: '#3498db', name: 'Ice Essence'    },
+  ocean_essence:  { icon: '🌊', color: '#1abc9c', name: 'Ocean Essence'  },
+  storm_essence:  { icon: '⚡', color: '#9b59b6', name: 'Storm Essence'  },
+  shadow_essence: { icon: '🌑', color: '#6c3483', name: 'Shadow Essence' },
+  lava_essence:   { icon: '🍋', color: '#e67e22', name: 'Lava Essence'   },
+  void_essence:   { icon: '✨', color: '#f1c40f', name: 'Void Essence'   },
+};
+
 const RARITY_COLOR = { godkiller: '#d4af37' };
 
 export default function LegacyArmory({ onClose }) {
-  const { fragments, legacyWeapons, spendFragments, unlockLegacyWeapon, addItem, inventory } = useGameStore();
+  const { fragments, legacyWeapons, spendFragments, unlockLegacyWeapon, addItem, inventory, resources } = useGameStore();
   const [forging, setForging] = useState(null);
   const [toast, setToast]     = useState(null);
 
-  const canAfford = (cost) =>
+  const canAffordFragments = (cost) =>
     Object.entries(cost).every(([t, n]) => (fragments[t] || 0) >= n);
+
+  const canAffordEssence = (cost) =>
+    !cost || Object.entries(cost).every(([k, n]) => (resources[k] || 0) >= n);
+
+  const canAfford = (weapon) =>
+    canAffordFragments(weapon.fragmentCost) && canAffordEssence(weapon.essenceCost);
 
   const handleForge = (weapon) => {
     if (legacyWeapons.includes(weapon.id)) {
@@ -29,7 +48,13 @@ export default function LegacyArmory({ onClose }) {
       }
       return;
     }
-    if (!canAfford(weapon.fragmentCost)) return;
+    if (!canAfford(weapon)) return;
+    // Spend essence first
+    if (weapon.essenceCost) {
+      Object.entries(weapon.essenceCost).forEach(([k, n]) => {
+        useGameStore.getState().addResource(k, -n);
+      });
+    }
     if (spendFragments(weapon.fragmentCost)) {
       unlockLegacyWeapon(weapon.id);
       const item = {
@@ -112,7 +137,7 @@ export default function LegacyArmory({ onClose }) {
       }}>
         {LEGACY_WEAPONS.map(weapon => {
           const unlocked  = legacyWeapons.includes(weapon.id);
-          const affordable = canAfford(weapon.fragmentCost);
+          const affordable = canAfford(weapon);
           const canCraft  = unlocked || affordable;
 
           return (
@@ -165,7 +190,7 @@ export default function LegacyArmory({ onClose }) {
                 </div>
               </div>
 
-              {/* Fragment cost */}
+              {/* Fragment + Essence cost */}
               <div style={{
                 marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
               }}>
@@ -184,6 +209,21 @@ export default function LegacyArmory({ onClose }) {
                     </span>
                   );
                 })}
+                {weapon.essenceCost && Object.entries(weapon.essenceCost).map(([key, need]) => {
+                  const have = resources[key] || 0;
+                  const ok   = have >= need;
+                  const em   = ESSENCE_META[key] || { icon: '✨', color: '#d4af37', name: key };
+                  return (
+                    <span key={key} style={{
+                      fontSize: 11, padding: '3px 9px', borderRadius: 8,
+                      background: ok ? '#1a2a1a' : '#2a1a1a',
+                      color:      ok ? '#2ecc71' : '#e74c3c',
+                      border:     `1px solid ${ok ? '#2ecc7166' : '#e74c3c66'}`,
+                    }}>
+                      {em.icon} {have}/{need} {em.name}
+                    </span>
+                  );
+                })}
 
                 <button
                   onClick={() => handleForge(weapon)}
@@ -198,7 +238,7 @@ export default function LegacyArmory({ onClose }) {
                     cursor: canCraft ? 'pointer' : 'default',
                   }}
                 >
-                  {unlocked ? '⚒ Re-forge' : (affordable ? '⚒ Forge' : 'Need Fragments')}
+                  {unlocked ? '⚒ Re-forge' : (affordable ? '⚒ Forge' : 'Need Materials')}
                 </button>
               </div>
             </div>
