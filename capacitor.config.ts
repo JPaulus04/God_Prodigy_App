@@ -7,6 +7,12 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
   },
+  ios: {
+    allowsLinkPreview: false,
+    scrollEnabled: false,
+    // Lock to portrait only
+    preferredContentMode: 'mobile',
+  },
 };
 
 export default config;
