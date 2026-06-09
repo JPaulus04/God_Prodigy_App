@@ -49,6 +49,8 @@ const DEFAULT_STATE = {
   passActive:           false,
   respawnShields:       0,
   ownedSkins:           [],   // e.g. ['shadow_knight', 'gods_chosen']
+  activeSkin:           null, // currently equipped skin id
+  activeTrail:          null, // currently equipped trail id
   ownedTrail:           null, // active trail id
   ownedTrails:          [],
   extraInventorySlots:  0,
@@ -344,6 +346,15 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
+  equipSkin: (skinId) => {
+    set({ activeSkin: skinId });
+    SaveSystem.save(get());
+  },
+  equipTrail: (trailId) => {
+    set({ activeTrail: trailId });
+    SaveSystem.save(get());
+  },
+
   expandInventory: (slots) => {
     set(s => ({ extraInventorySlots: (s.extraInventorySlots || 0) + slots }));
     SaveSystem.save(get());
@@ -455,6 +466,8 @@ export const useGameStore = create((set, get) => ({
       fragments,
       passActive:         get().passActive,
       ownedSkins:         get().ownedSkins,
+      activeSkin:         get().activeSkin,
+      activeTrail:        get().activeTrail,
       ownedTrails:        get().ownedTrails,
       ownedTrail:         get().ownedTrail,
       // UI reset
