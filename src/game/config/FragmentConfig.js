@@ -9,7 +9,7 @@ export const FRAGMENT_TYPES = {
 };
 
 // ── God-tier Killer Weapon recipes ───────────────────────────────────────────
-// Each weapon requires one of each fragment set (different "tier" of fragments)
+// Each weapon requires fragments AND realm essence (dropped by realm bosses).
 export const LEGACY_WEAPONS = [
   {
     id:          'soulbreaker',
@@ -23,6 +23,7 @@ export const LEGACY_WEAPONS = [
     desc:        'Each hit drains life from the target.',
     passiveDesc: 'Lifesteal: restore 15% of damage dealt as HP',
     fragmentCost: { rune: 1, shard: 1, seal: 1 },
+    essenceCost:  { fire_essence: 1, lava_essence: 1 },
     setIndex:    1,
   },
   {
@@ -37,6 +38,7 @@ export const LEGACY_WEAPONS = [
     desc:        'Arrows ignore all enemy defense.',
     passiveDesc: 'Piercing: ignores 100% of target DEF',
     fragmentCost: { rune: 2, shard: 1, seal: 1 },
+    essenceCost:  { shadow_essence: 1, void_essence: 1 },
     setIndex:    2,
   },
   {
@@ -51,6 +53,7 @@ export const LEGACY_WEAPONS = [
     desc:        'Slams the earth, stunning all nearby enemies.',
     passiveDesc: 'Seismic: every slam stuns enemies in 80px radius for 1.5s',
     fragmentCost: { rune: 1, shard: 2, seal: 2 },
+    essenceCost:  { storm_essence: 1, void_essence: 1 },
     setIndex:    3,
   },
 ];
