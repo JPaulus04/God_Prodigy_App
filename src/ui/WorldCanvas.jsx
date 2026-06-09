@@ -1455,6 +1455,19 @@ export default function WorldCanvas() {
       }
       for (const portal of REALM_PORTALS) {
         if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= 52) {
+          // Soft level gate: warn if under-leveled but still allow entry
+          const recLv = portal.skulls * 4;
+          if (store.level < recLv && !G._levelGateShown?.[portal.realm]) {
+            if (!G._levelGateShown) G._levelGateShown = {};
+            G._levelGateShown[portal.realm] = true;
+            G.npcMessage = {
+              text: `⚠️ Danger! Recommended level ${recLv}+ (you are ${store.level}). Proceed at your own risk.`,
+              speaker: portal.name,
+              speakerColor: '#e74c3c',
+              timer: 4,
+            };
+            // still let them enter after the warning flashes
+          }
           addFloat(p.x, p.y-44, `Entering ${portal.name}...`, portal.color);
           sfxPortal();
           const realm = portal.realm;
