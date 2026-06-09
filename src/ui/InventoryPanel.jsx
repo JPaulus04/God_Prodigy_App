@@ -524,7 +524,6 @@ export default function InventoryPanel() {
             </button>
           );
         })}
-      </div>
       </>
       )}
     </div>
