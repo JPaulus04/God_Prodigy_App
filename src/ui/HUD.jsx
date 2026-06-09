@@ -325,9 +325,10 @@ export default function HUD() {
         {/* Resources */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[
-            { k: 'wood',  icon: '🪵', col: '#27ae60' },
-            { k: 'stone', icon: '🪨', col: '#95a5a6' },
-            { k: 'ore',   icon: '⛏',  col: '#e67e22' },
+            { k: 'wood',       icon: '🪵', col: '#27ae60' },
+            { k: 'stone',      icon: '🪨', col: '#95a5a6' },
+            { k: 'ore',        icon: '⛏',  col: '#e67e22' },
+            { k: 'fire_shard', icon: '🔥', col: '#ff6b35' },
           ].map(({ k, icon, col }) => (
             <div key={k} style={{
               display: 'flex', alignItems: 'center', gap: 4,
