@@ -1664,18 +1664,55 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
 
     // Boss death → victory (only once)
     if(G.boss && !G.boss.alive && !G.victory){
-      try{ store.gainXP(200); }catch(e){}
+      // XP — scale by boss xpReward from config
+      const bossXP = G.boss.xpReward || 400;
+      try{ store.gainXP(bossXP); }catch(e){}
       try{ if(realmId && store.defeatBoss) store.defeatBoss(realmId); }catch(e){}
       clearBossCheckpoint();
       hapticBossDeath(); sfxBossDeath();
       G.victory=true;
       G.victoryPortal={ x:G.boss.x, y:G.boss.y };
       G.victoryBannerTimer=5.0;
-      // Clear all enemies on victory
       G.enemies.forEach(e=>{ e.alive=false; });
       G.projectiles=[];
+
+      // Process all boss drops (essence, ore, fire_shard, gear items)
+      const RESOURCE_KEYS = ['ore','stone','wood','fire_shard','forest_essence','wind_essence','earth_essence','fire_essence','ice_essence','ocean_essence','storm_essence','shadow_essence','lava_essence','void_essence'];
+      let dropLines = [];
+      if(G.boss.drops){
+        G.boss.drops.forEach(drop => {
+          if(Math.random() > drop.chance) return;
+          if(RESOURCE_KEYS.includes(drop.item)){
+            store.addResource(drop.item, drop.amount || 1);
+            // Label essence drops nicely
+            if(drop.item.endsWith('_essence')){
+              const label = drop.item.replace('_essence','').charAt(0).toUpperCase() + drop.item.replace('_essence','').slice(1);
+              dropLines.push({ text:`✦ ${label} Essence`, color:'#d4af37' });
+            } else {
+              dropLines.push({ text:`+${drop.amount} ${drop.item}`, color:'#7ed321' });
+            }
+          } else if(drop.item === 'shadow_armor'){
+            const item={id:'shadow_armor',name:'Shadow Armor',slot:'armor',tier:'iron',rarity:'rare',def:14,instanceId:`item_${Date.now()}_shadow_armor`};
+            if(store.addItem(item)) dropLines.push({ text:'🌑 Shadow Armor!', color:'#9b59b6' });
+          } else if(drop.item === 'gear_drop_rare_weapon'){
+            const TYPES=['sword','hammer','bow','dagger'];
+            const ABILITY={sword:'whirlwind',hammer:'ground_slam',bow:'power_shot',dagger:'flurry'};
+            const type=TYPES[Math.floor(Math.random()*TYPES.length)];
+            const item={id:`steel_${type}_rare`,name:`Steel ${type.charAt(0).toUpperCase()+type.slice(1)}`,slot:'weapon',type,tier:'steel',rarity:'rare',atk:31,abilityId:ABILITY[type],instanceId:`item_${Date.now()}_${type}`};
+            if(store.addItem(item)) dropLines.push({ text:`💎 Rare ${item.name}!`, color:'#3498db' });
+          }
+        });
+      }
+
+      // Show reward floats staggered above boss
       addFloat(G.boss.x, G.boss.y-60,'VICTORY!','#f1c40f',true);
-      addFloat(G.boss.x, G.boss.y-90,'+200 XP','#9b59b6',true);
+      addFloat(G.boss.x, G.boss.y-92,`+${bossXP} XP`,'#9b59b6',true);
+      dropLines.forEach((line, i) => {
+        addFloat(G.boss.x, G.boss.y - 124 - i*28, line.text, line.color, false);
+      });
+
+      // Store reward lines for victory banner
+      G.victoryDrops = dropLines;
     }
 
     // Victory banner countdown — movement still works
@@ -1911,8 +1948,17 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     ctx.fillStyle='#00000033';
     ctx.beginPath();ctx.ellipse(ppx,ppy+16,12,4,0,0,Math.PI*2);ctx.fill();
 
+    // ── Skin palette ─────────────────────────────────────────────────────────
+    const { activeSkin: _rSkin } = useGameStore.getState();
+    const REALM_SKINS = {
+      shadow_knight: { cape:'#1a1a2e', tunic1:'#2c003e', tunic2:'#4b0082', belt:'#6a0dad', helmet:'#1a0030', helmetFace:'#4b0082', helmetVisor:'#9b59b6', shield1:'#2c003e', shield2:'#6a0dad', boot:'#0d0010' },
+      gods_chosen:   { cape:'#7d6008', tunic1:'#b8860b', tunic2:'#d4af37', belt:'#f1c40f', helmet:'#7d6008', helmetFace:'#d4af37', helmetVisor:'#fffde7', shield1:'#b8860b', shield2:'#f1c40f', boot:'#5a4500' },
+      frost_warden:  { cape:'#c8eeff', tunic1:'#e8f8ff', tunic2:'#ffffff', belt:'#80d8ff', helmet:'#b0e0ff', helmetFace:'#e8f8ff', helmetVisor:'#ffffff', shield1:'#7ecfff', shield2:'#b3ecff', boot:'#6abcdf' },
+    };
+    const RSK = REALM_SKINS[_rSkin] || { cape:'#1a4a7a', tunic1:'#2980b9', tunic2:'#3498db', belt:'#1a5276', helmet:'#1a5276', helmetFace:'#2980b9', helmetVisor:'#85c1e9', shield1:'#2471a3', shield2:'#e74c3c', boot:'#6b4226' };
+
     // Cloak / cape (behind body)
-    ctx.fillStyle='#1a4a7a';
+    ctx.fillStyle=RSK.cape;
     ctx.beginPath();
     ctx.moveTo(ppx-8,ppy+2);
     ctx.bezierCurveTo(ppx-14,ppy+12,ppx-10,ppy+24,ppx-4,ppy+22);
@@ -1921,17 +1967,16 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     ctx.closePath();ctx.fill();
 
     // Boots
-    ctx.fillStyle='#6b4226';
+    ctx.fillStyle=RSK.boot;
     const lbx=ppx-5+legSwing, rbx=ppx+5-legSwing;
     ctx.beginPath();ctx.ellipse(lbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.ellipse(rbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
-    // Boot highlight
-    ctx.fillStyle='#8b5e3c';
+    ctx.fillStyle=RSK.boot+'cc';
     ctx.beginPath();ctx.ellipse(lbx-1,ppy+18,3,2,0,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.ellipse(rbx-1,ppy+18,3,2,0,0,Math.PI*2);ctx.fill();
 
-    // Tunic body — triangular top-down hero shape
-    ctx.fillStyle='#2980b9';
+    // Tunic body
+    ctx.fillStyle=RSK.tunic1;
     ctx.beginPath();
     ctx.moveTo(ppx-11,ppy+4);
     ctx.lineTo(ppx-9,ppy-6);
@@ -1939,8 +1984,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     ctx.lineTo(ppx+11,ppy+4);
     ctx.quadraticCurveTo(ppx,ppy+10,ppx-11,ppy+4);
     ctx.closePath();ctx.fill();
-    // Tunic highlight
-    ctx.fillStyle='#3498db';
+    ctx.fillStyle=RSK.tunic2;
     ctx.beginPath();
     ctx.moveTo(ppx-6,ppy+2);
     ctx.lineTo(ppx-5,ppy-5);
@@ -1948,44 +1992,36 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     ctx.lineTo(ppx+6,ppy+2);
     ctx.quadraticCurveTo(ppx,ppy+7,ppx-6,ppy+2);
     ctx.closePath();ctx.fill();
-    // Belt line
-    ctx.strokeStyle='#1a5276';ctx.lineWidth=2;
+    ctx.strokeStyle=RSK.belt;ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(ppx-10,ppy+3);ctx.lineTo(ppx+10,ppy+3);ctx.stroke();
-    // Belt buckle
-    ctx.fillStyle='#f1c40f';
-    ctx.fillRect(ppx-3,ppy+1,6,4);
+    ctx.fillStyle='#f1c40f'; ctx.fillRect(ppx-3,ppy+1,6,4);
 
     // Left arm + shield
     const lArmSway=moving?Math.sin(G.t*9+Math.PI)*4:0;
-    ctx.fillStyle='#2471a3';
+    ctx.fillStyle=RSK.shield1;
     ctx.fillRect(ppx-17,ppy-4+lArmSway,5,10);
-    // Shield
-    ctx.fillStyle='#e74c3c';
+    ctx.fillStyle=RSK.shield2;
     ctx.beginPath();
     ctx.moveTo(ppx-22,ppy-5+lArmSway);
     ctx.lineTo(ppx-14,ppy-5+lArmSway);
     ctx.lineTo(ppx-14,ppy+4+lArmSway);
     ctx.quadraticCurveTo(ppx-18,ppy+9+lArmSway,ppx-22,ppy+4+lArmSway);
     ctx.closePath();ctx.fill();
-    // Shield cross
-    ctx.strokeStyle='#c0392b';ctx.lineWidth=1.5;
+    ctx.strokeStyle='#922b21';ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(ppx-18,ppy-4+lArmSway);ctx.lineTo(ppx-18,ppy+4+lArmSway);ctx.stroke();
     ctx.beginPath();ctx.moveTo(ppx-22,ppy+lArmSway);ctx.lineTo(ppx-15,ppy+lArmSway);ctx.stroke();
-    // Shield boss
     ctx.fillStyle='#f39c12';
     ctx.beginPath();ctx.arc(ppx-18,ppy+lArmSway,2.5,0,Math.PI*2);ctx.fill();
 
-    // Right arm + sword hint
+    // Right arm + sword
     const rArmSway=moving?Math.sin(G.t*9)*4:0;
-    ctx.fillStyle='#2471a3';
+    ctx.fillStyle=RSK.shield1;
     ctx.fillRect(ppx+12,ppy-4+rArmSway,5,10);
-    // Sword
     ctx.strokeStyle='#d5d8dc';ctx.lineWidth=2.5;ctx.lineCap='round';
     ctx.beginPath();
     ctx.moveTo(ppx+18,ppy-2+rArmSway);
     ctx.lineTo(ppx+18,ppy-22+rArmSway);
     ctx.stroke();
-    // Crossguard
     ctx.strokeStyle='#f1c40f';ctx.lineWidth=3;
     ctx.beginPath();ctx.moveTo(ppx+14,ppy-4+rArmSway);ctx.lineTo(ppx+22,ppy-4+rArmSway);ctx.stroke();
     // Handle
@@ -1994,13 +2030,13 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     ctx.lineCap='butt';
 
     // Head — hero helmet
-    ctx.fillStyle='#1a5276';
+    ctx.fillStyle=RSK.helmet;
     ctx.beginPath();ctx.arc(ppx,ppy-12,11,0,Math.PI*2);ctx.fill();
     // Helmet faceplate
-    ctx.fillStyle='#2980b9';
+    ctx.fillStyle=RSK.helmetFace;
     ctx.beginPath();ctx.arc(ppx,ppy-11,9,Math.PI*0.1,Math.PI*0.9);ctx.fill();
     // Visor slit
-    ctx.fillStyle='#85c1e9';
+    ctx.fillStyle=RSK.helmetVisor;
     ctx.beginPath();ctx.roundRect(ppx-6,ppy-13,12,4,2);ctx.fill();
     // Visor shine
     ctx.fillStyle='#aed6f1';ctx.globalAlpha=blinkOn?0.7:0.1;
