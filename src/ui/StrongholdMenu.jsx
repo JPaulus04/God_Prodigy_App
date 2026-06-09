@@ -116,7 +116,7 @@ export default function StrongholdMenu() {
     upgradeStructure, spendResource, addItem, equipItem,
     applyTrainingBonus, setGamePhase,
     playerATK, playerDEF, playerSPD,
-    bossesDefeated,
+    bossesDefeated, legacyWeapons,
   } = useGameStore();
 
   const [tab,        setTab]        = useState('build');
