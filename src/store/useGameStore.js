@@ -37,7 +37,7 @@ const DEFAULT_STATE = {
   inventory:    [],
   itemUpgrades: {},
 
-  resources:    { wood: 0, stone: 0, ore: 0, fire_shard: 0 },
+  resources:    { wood: 0, stone: 0, ore: 0, fire_shard: 0, forest_essence: 0, wind_essence: 0, earth_essence: 0, fire_essence: 0, ice_essence: 0, ocean_essence: 0, storm_essence: 0, shadow_essence: 0, lava_essence: 0, void_essence: 0 },
 
   checkpoints:       [],
   lastCheckpoint:    'stronghold',
@@ -184,10 +184,10 @@ export const useGameStore = create((set, get) => ({
   },
 
   recalculateStats: () => {
-    const { gear, inventory, playerBaseATK, playerBaseDEF, playerBaseSPD, trainingATKBonus, trainingDEFBonus, prestigeClass, level } = get();
-    let atk = (playerBaseATK || 8); // base already includes training + stat points
-    let def = (playerBaseDEF || 4); // base already includes training + stat points
-    let spd = (get().playerBaseSPD || 5);
+    const { gear, inventory, playerBaseATK, playerBaseDEF, playerBaseSPD, prestigeClass, level } = get();
+    let atk = (playerBaseATK || 8);
+    let def = (playerBaseDEF || 4);
+    let spd = (playerBaseSPD || 5);
     let abilityId = null;
 
     Object.values(gear).forEach(instanceId => {
@@ -201,18 +201,23 @@ export const useGameStore = create((set, get) => ({
       if (item.slot === 'weapon' && item.abilityId) abilityId = item.abilityId;
     });
 
-    // Apply prestige class bonuses (inlined to avoid circular imports)
+    // Apply prestige class bonuses
     const CLASS_BONUSES = {
-      warrior:  { atkMult: 1.0,  defPerLevel: 2, spdMult: 1.0  },
-      mage:     { atkMult: 1.2,  defPerLevel: 0, spdMult: 1.0  },
-      assassin: { atkMult: 1.35, defPerLevel: 0, spdMult: 1.5  },
-      god:      { atkMult: 1.5,  defPerLevel: 1, spdMult: 1.3  },
+      warrior:  { atkMult: 1.0,  defPerLevel: 2,  spdMult: 1.0,  maxHPMult: 1.15 },
+      mage:     { atkMult: 1.2,  defPerLevel: 0,  spdMult: 1.0,  maxHPMult: 0.9  },
+      assassin: { atkMult: 1.35, defPerLevel: 0,  spdMult: 1.5,  maxHPMult: 0.85 },
+      god:      { atkMult: 1.5,  defPerLevel: 1,  spdMult: 1.3,  maxHPMult: 1.25 },
     };
     const cb = CLASS_BONUSES[prestigeClass || 'warrior'] || CLASS_BONUSES.warrior;
     atk = Math.round(atk * cb.atkMult);
     def = Math.round(def + (cb.defPerLevel * (level || 1)));
     spd = Math.round(spd * cb.spdMult);
-    set({ playerATK: atk, playerDEF: def, playerSPD: spd, equippedAbilityId: abilityId });
+    // Apply class max HP multiplier (only on prestige — base is always 100+upgrades)
+    const baseHP = 100 + ((level || 1) - 1) * 2; // 2 max HP per level
+    const newMaxHP = Math.round(baseHP * (cb.maxHPMult || 1.0));
+    const curHP = get().playerHP;
+    set({ playerATK: atk, playerDEF: def, playerSPD: spd, equippedAbilityId: abilityId,
+          playerMaxHP: newMaxHP, playerHP: Math.min(curHP, newMaxHP) });
   },
 
   equipItem: (item) => {
