@@ -412,21 +412,6 @@ export default function IAPShop({ onClose }) {
     }
   };
 
-  const passActive  = store.passActive;
-  const ownedSkins  = store.ownedSkins  || [];
-  const ownedTrails = store.ownedTrails || [];
-  const bossSkipUsed = store.bossSkipUsed || false;
-  const extraSlots  = store.extraInventorySlots || 0;
-
-  const isPurchased = (item) => {
-    if (item.id === 'god_pass')       return passActive;
-    if (item.id === 'boss_skip')      return bossSkipUsed;
-    if (item.id === 'inventory_expand') return extraSlots >= 16;
-    if (item.id.startsWith('skin_'))  return ownedSkins.includes(item.id.replace('skin_',''));
-    if (item.id.startsWith('trail_')) return ownedTrails.includes(item.id.replace('trail_',''));
-    return false;
-  };
-
   const handleBuy = (item) => setConfirmItem(item);
 
   const handleConfirm = () => {
