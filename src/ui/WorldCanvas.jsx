@@ -1312,20 +1312,20 @@ export default function WorldCanvas() {
     const { activeTrail: currentTrail } = useGameStore.getState();
     if (!G.trailParticles) G.trailParticles = [];
     if (currentTrail && (vx !== 0 || vy !== 0)) {
-      // Spawn 2 particles per frame for denser trail
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
         G.trailParticles.push({
-          x: p.x + (Math.random() - 0.5) * 4,
-          y: p.y + (Math.random() - 0.5) * 4,
-          r: 6 + Math.random() * 4,
-          a: 0.85,
-          life: 1.1,   // was 0.35 — ~3x longer
+          x: p.x + (Math.random() - 0.5) * 5,
+          y: p.y + (Math.random() - 0.5) * 5,
+          r: 3 + Math.random() * 3,   // max 6px — no big dark blobs
+          a: 0.9,
+          life: 1.2,
+          type: currentTrail,         // store trail type per particle
         });
       }
     }
     G.trailParticles = G.trailParticles
-      .map(tp => ({ ...tp, life: tp.life - dt, a: tp.a - dt * 0.8, r: tp.r * 0.97 }))
-      .filter(tp => tp.life > 0 && tp.a > 0.05);
+      .map(tp => ({ ...tp, life: tp.life - dt, a: tp.a - dt * 0.75, r: tp.r * 0.98 }))
+      .filter(tp => tp.life > 0 && tp.a > 0.04);
     G.camera.x = Math.max(G.W/2, Math.min(WORLD_W - G.W/2, G.camera.x));
     G.camera.y = Math.max(G.H/2, Math.min(WORLD_H - G.H/2, G.camera.y));
 
@@ -1535,7 +1535,7 @@ export default function WorldCanvas() {
     const SKIN_PALETTE = {
       shadow_knight: { cape: '#1a1a2e', tunic1: '#2c003e', tunic2: '#4b0082', belt: '#6a0dad', helmet: '#1a0030', helmetFace: '#4b0082', helmetVisor: '#9b59b6', shield1: '#2c003e', shield2: '#6a0dad', boot: '#0d0010' },
       gods_chosen:   { cape: '#7d6008', tunic1: '#b8860b', tunic2: '#d4af37', belt: '#f1c40f', helmet: '#7d6008', helmetFace: '#d4af37', helmetVisor: '#fffde7', shield1: '#b8860b', shield2: '#f1c40f', boot: '#5a4500' },
-      frost_warden:  { cape: '#0a3a5c', tunic1: '#1b6ca8', tunic2: '#56b4d3', belt: '#aee9f5', helmet: '#0a3a5c', helmetFace: '#56b4d3', helmetVisor: '#e0f7fa', shield1: '#1b6ca8', shield2: '#aee9f5', boot: '#062040' },
+      frost_warden:  { cape: '#c8eeff', tunic1: '#e8f8ff', tunic2: '#ffffff', belt: '#80d8ff', helmet: '#b0e0ff', helmetFace: '#e8f8ff', helmetVisor: '#ffffff', shield1: '#7ecfff', shield2: '#b3ecff', boot: '#6abcdf' },
     };
     const SK = SKIN_PALETTE[activeSkin] || {
       cape: '#1a4a7a', tunic1: '#2980b9', tunic2: '#3498db', belt: '#1a5276',
@@ -2580,9 +2580,18 @@ export default function WorldCanvas() {
     ctx.beginPath(); ctx.ellipse(ppx, ppy + 13, 10, 3.5, 0, 0, Math.PI*2); ctx.fill();
 
     // ── Trail effect (behind player) ─────────────────────────────────────
-    if (activeTrail && G.trailParticles && G.trailParticles.length > 0) {
-      G.trailParticles.forEach((tp, i) => {
-        const trailColor = activeTrail === 'trail_ember' ? `rgba(255,${80+i*10},0,${tp.a})` : `rgba(${80+i*8},0,${180+i*5},${tp.a})`;
+    if (G.trailParticles && G.trailParticles.length > 0) {
+      G.trailParticles.forEach(tp => {
+        let trailColor;
+        if (tp.type === 'trail_ember') {
+          // Ember: bright orange → yellow core, hot fire feel
+          const g = Math.round(120 + (1 - tp.a) * 135);  // fades orange→yellow as it dies
+          trailColor = `rgba(255,${g},20,${tp.a})`;
+        } else {
+          // Void: bright electric violet → white core, distinctly different from ember
+          const r = Math.round(160 + (1 - tp.a) * 95);   // fades purple→white as it dies
+          trailColor = `rgba(${r},0,255,${tp.a})`;
+        }
         ctx.fillStyle = trailColor;
         ctx.beginPath();
         ctx.arc(wx(tp.x), wy(tp.y), tp.r, 0, Math.PI*2);
