@@ -1312,11 +1312,20 @@ export default function WorldCanvas() {
     const { activeTrail: currentTrail } = useGameStore.getState();
     if (!G.trailParticles) G.trailParticles = [];
     if (currentTrail && (vx !== 0 || vy !== 0)) {
-      G.trailParticles.push({ x: p.x, y: p.y, r: 4 + Math.random() * 3, a: 0.7, life: 0.35 });
+      // Spawn 2 particles per frame for denser trail
+      for (let i = 0; i < 2; i++) {
+        G.trailParticles.push({
+          x: p.x + (Math.random() - 0.5) * 4,
+          y: p.y + (Math.random() - 0.5) * 4,
+          r: 6 + Math.random() * 4,
+          a: 0.85,
+          life: 1.1,   // was 0.35 — ~3x longer
+        });
+      }
     }
     G.trailParticles = G.trailParticles
-      .map(tp => ({ ...tp, life: tp.life - dt, a: tp.a - dt * 2, r: tp.r * 0.92 }))
-      .filter(tp => tp.life > 0 && tp.a > 0);
+      .map(tp => ({ ...tp, life: tp.life - dt, a: tp.a - dt * 0.8, r: tp.r * 0.97 }))
+      .filter(tp => tp.life > 0 && tp.a > 0.05);
     G.camera.x = Math.max(G.W/2, Math.min(WORLD_W - G.W/2, G.camera.x));
     G.camera.y = Math.max(G.H/2, Math.min(WORLD_H - G.H/2, G.camera.y));
 
