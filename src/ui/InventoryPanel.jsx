@@ -1,5 +1,5 @@
 // GP_INV_FINAL_v4
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 
 const SLOT_SIZE = 76;
@@ -202,7 +202,10 @@ export default function InventoryPanel() {
     playerSPD,
     playerMaxHP,
     toggleInventory,
+    ownedSkins,   activeSkin,   equipSkin,
+    ownedTrails,  activeTrail,  equipTrail,
   } = useGameStore();
+  const [activeTab, setActiveTab] = useState('gear'); // 'gear' | 'cosmetics'
 
   const equippedWeapon    = getEquippedItem('weapon',    gear, inventory);
   const equippedArmor     = getEquippedItem('armor',     gear, inventory);
@@ -268,6 +271,25 @@ export default function InventoryPanel() {
         </button>
       </div>
 
+      {/* ── Tab bar ── */}
+      <div style={{ display:'flex', gap:4, marginBottom:12 }}>
+        {['gear','cosmetics'].map(t => (
+          <button
+            key={t}
+            onClick={() => setActiveTab(t)}
+            style={{
+              flex:1, padding:'7px 0',
+              background: activeTab===t ? '#d4af37' : '#ffffff0f',
+              border: activeTab===t ? '1px solid #d4af37' : '1px solid #ffffff18',
+              borderRadius:8, color: activeTab===t ? '#0a0a0a' : '#aaa',
+              fontWeight: activeTab===t ? 700 : 400,
+              fontSize:12, letterSpacing:'0.08em', textTransform:'uppercase',
+              cursor:'pointer',
+            }}
+          >{t === 'gear' ? '⚔️ Gear' : '✨ Cosmetics'}</button>
+        ))}
+      </div>
+
       {/* ── Equipped gear slots ── */}
       <div
         style={{
@@ -326,7 +348,71 @@ export default function InventoryPanel() {
           justifyContent: 'center',
         }}
       >
-        {slots.map((item, i) => {
+        {activeTab === 'cosmetics' ? (
+        /* ── Cosmetics panel ── */
+        <div style={{ display:'flex', flexDirection:'column', gap:10, paddingBottom:16 }}>
+          {/* Skins */}
+          <div style={{ color:'#d4af37', fontSize:11, letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>Skins</div>
+          {(ownedSkins||[]).length === 0 && (
+            <div style={{ color:'#555', fontSize:13, textAlign:'center', padding:16 }}>No skins owned yet.<br/>Purchase from the Shop.</div>
+          )}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {(ownedSkins||[]).map(skinId => {
+              const isActive = activeSkin === skinId;
+              const labels = { skin_shadow:'Shadow Knight', skin_gold:"God's Chosen", skin_ice:'Frost Warden' };
+              const icons  = { skin_shadow:'🖤', skin_gold:'👑', skin_ice:'❄️' };
+              return (
+                <button
+                  key={skinId}
+                  onClick={() => equipSkin(isActive ? null : skinId)}
+                  style={{
+                    flex:'0 0 calc(50% - 4px)',
+                    padding:'14px 10px',
+                    background: isActive ? '#d4af3722' : '#ffffff08',
+                    border: isActive ? '2px solid #d4af37' : '1px solid #ffffff18',
+                    borderRadius:10, color:'#fff', cursor:'pointer', textAlign:'center',
+                  }}
+                >
+                  <div style={{ fontSize:28, marginBottom:6 }}>{icons[skinId]||'🎭'}</div>
+                  <div style={{ fontSize:12, fontWeight:700, color: isActive?'#d4af37':'#fff' }}>{labels[skinId]||skinId}</div>
+                  <div style={{ fontSize:10, color: isActive?'#d4af37':'#666', marginTop:2 }}>{isActive?'✓ Equipped':'Tap to equip'}</div>
+                </button>
+              );
+            })}
+          </div>
+          {/* Trails */}
+          <div style={{ color:'#d4af37', fontSize:11, letterSpacing:'0.15em', textTransform:'uppercase', marginTop:8, marginBottom:4 }}>Trails</div>
+          {(ownedTrails||[]).length === 0 && (
+            <div style={{ color:'#555', fontSize:13, textAlign:'center', padding:'8px 0' }}>No trails owned yet.</div>
+          )}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {(ownedTrails||[]).map(trailId => {
+              const isActive = activeTrail === trailId;
+              const labels = { trail_ember:'Ember Trail', trail_void:'Void Trail' };
+              const icons  = { trail_ember:'🔥', trail_void:'🌀' };
+              return (
+                <button
+                  key={trailId}
+                  onClick={() => equipTrail(isActive ? null : trailId)}
+                  style={{
+                    flex:'0 0 calc(50% - 4px)',
+                    padding:'14px 10px',
+                    background: isActive ? '#e99b3822' : '#ffffff08',
+                    border: isActive ? '2px solid #e99b38' : '1px solid #ffffff18',
+                    borderRadius:10, color:'#fff', cursor:'pointer', textAlign:'center',
+                  }}
+                >
+                  <div style={{ fontSize:28, marginBottom:6 }}>{icons[trailId]||'✨'}</div>
+                  <div style={{ fontSize:12, fontWeight:700, color: isActive?'#e99b38':'#fff' }}>{labels[trailId]||trailId}</div>
+                  <div style={{ fontSize:10, color: isActive?'#e99b38':'#666', marginTop:2 }}>{isActive?'✓ Active':'Tap to equip'}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+      /* ── Gear grid ── */
+      <>{slots.map((item, i) => {
           const accent = getSlotAccent(item);
           const isEquipped = !!item && (
             gear.weapon    === item.instanceId ||
@@ -439,6 +525,8 @@ export default function InventoryPanel() {
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }
