@@ -22,6 +22,9 @@ const PERSIST_FIELDS = [
   'prestigeLevel', 'prestigeClass',
   'fragments', 'legacyWeapons',
   'challengeCleared',
+  'tutorialStep',
+  'activeSkin',
+  'activeTrail',
 ];
 
 export const SaveSystem = {
