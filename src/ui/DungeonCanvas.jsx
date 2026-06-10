@@ -220,7 +220,10 @@ export default function DungeonCanvas() {
       const raw = (ts - lastTimeRef.current) / 1000;
       const dt  = lastTimeRef.current === 0 ? 0 : Math.min(raw, 0.05);
       lastTimeRef.current = ts;
-      if (dt > 0 && G.W > 100) { update(dt); render(ctx, G.W, G.H); }
+      if (dt > 0 && G.W > 100) {
+        try { update(dt); } catch(err) { console.warn('[Dungeon] update error:', err); }
+        try { render(ctx, G.W, G.H); } catch(err) { console.warn('[Dungeon] render error:', err); }
+      }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
