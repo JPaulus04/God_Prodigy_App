@@ -62,8 +62,11 @@ export default function SettingsPanel({ onClose }) {
     padding:      '28px 24px 22px',
     width:        '100%',
     maxWidth:     340,
+    maxHeight:    '88vh',
+    overflowY:    'auto',
     color:        '#fff',
     boxShadow:    '0 12px 48px rgba(0,0,0,0.8)',
+    position:     'relative',
   };
 
   const row = {
@@ -133,13 +136,20 @@ export default function SettingsPanel({ onClose }) {
   return (
     <div style={overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={panel}>
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
+        {/* Header row: title + close */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
           <h2 style={{ margin:0, fontSize:18, fontFamily:"'Georgia',serif", color:'#d4af37', letterSpacing:0.5 }}>
             ⚙ Settings
           </h2>
-          {/* Restore Purchases */}
-        <div style={{ marginBottom: 16, textAlign: 'center' }}>
+          <button onClick={onClose} style={{
+            background:'none', border:'none', color:'#888', fontSize:24,
+            cursor:'pointer', lineHeight:1, padding:'4px 6px',
+            minWidth:36, minHeight:36,
+          }}>✕</button>
+        </div>
+
+        {/* Restore Purchases */}
+        <div style={{ marginBottom: 20, textAlign: 'center' }}>
           <button
             onClick={handleRestore}
             disabled={restoring}
@@ -158,12 +168,6 @@ export default function SettingsPanel({ onClose }) {
               {restoreMsg}
             </div>
           )}
-        </div>
-
-        <button onClick={onClose} style={{
-            background:'none', border:'none', color:'#888', fontSize:22,
-            cursor:'pointer', lineHeight:1, padding:'0 4px',
-          }}>✕</button>
         </div>
 
         {/* Haptics */}
