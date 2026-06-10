@@ -217,7 +217,8 @@ export default function DungeonCanvas() {
 
     const ctx = canvas.getContext('2d');
     const loop = (ts) => {
-      const dt = Math.min((ts - lastTimeRef.current) / 1000, 0.05);
+      const raw = (ts - lastTimeRef.current) / 1000;
+      const dt  = lastTimeRef.current === 0 ? 0 : Math.min(raw, 0.05);
       lastTimeRef.current = ts;
       if (dt > 0 && G.W > 100) { update(dt); render(ctx, G.W, G.H); }
       rafRef.current = requestAnimationFrame(loop);
