@@ -345,8 +345,9 @@ export default function HUD() {
       </div>
 
       {/* ── Top-right: Ascension (tappable) + Bag ──────────── */}
+      {/* top: 160 keeps this column below the canvas minimap (which occupies ~top:50–150) */}
       <div style={{
-        position: 'absolute', top: 56, right: 14,
+        position: 'absolute', top: 160, right: 14,
         display: 'flex', flexDirection: 'column',
         gap: 10, alignItems: 'flex-end', pointerEvents: 'all',
       }}>
