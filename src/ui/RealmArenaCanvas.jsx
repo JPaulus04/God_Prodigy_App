@@ -1176,20 +1176,25 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
   const spawnBoss=()=>{
     const b=cfg.boss;
     const _startHp = (savedBossHp && savedBossHp < b.hp) ? savedBossHp : b.hp;
+    // Spawn boss at arena center so it's always on screen
+    const spawnX = WW / 2;
+    const spawnY = WH * 0.35;
     G.boss={ ...b, hp:_startHp, maxHp:b.hp, alive:true,
-      // attackTimer starts at 3s so boss can't attack on spawn frame
-      attackTimer:3.0, stunTimer:0, chargeTimer:b.chargeInterval||4, chargeState:'idle',
+      x: spawnX, y: spawnY,
+      // attackTimer starts at 2.5s so boss can't attack on spawn frame
+      attackTimer:2.5, stunTimer:0, chargeTimer:b.chargeInterval||4, chargeState:'idle',
       telegraphTimer:0, chargeVx:0, chargeVy:0, spawnTimer:10,
       patrolDir:1, patrolTimer:0,
-      // introTimer: boss is invulnerable + non-targeting for 2s while intro plays
-      introTimer:2.0 };
+      // introTimer: boss is non-attacking for 1.5s while intro plays
+      introTimer:1.5 };
     G.bossChargeTimer=b.chargeInterval||4;
     G.bossSpawnTimer=8;
     G.bossPhase=1;
-    // Clear any leftover projectiles from minion waves
+    // Clear dead minions and enemy projectiles so arena feels clean
+    G.enemies=[];
     G.projectiles=G.projectiles.filter(proj=>proj.fromPlayer);
     if(savedBossPhase===2){ G.bossPhase=2; }
-    addFloat(G.boss.x, G.boss.y-80, `⚠ ${G.boss.name || 'BOSS'} APPROACHES!`, '#e74c3c', true);
+    addFloat(spawnX, spawnY-80, `⚠ ${b.name || 'BOSS'} APPROACHES!`, '#e74c3c', true);
   };
 
   // ── Godkiller passive helpers ────────────────────────────────────────────
