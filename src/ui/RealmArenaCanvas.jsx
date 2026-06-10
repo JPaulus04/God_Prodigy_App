@@ -1284,7 +1284,10 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       const raw = (ts - lastTimeRef.current) / 1000;
       const dt  = lastTimeRef.current === 0 ? 0 : Math.min(raw, 0.05);
       lastTimeRef.current = ts;
-      if(dt>=0&&G.W>100){ update(dt); render(ctx); }
+      if(dt>=0&&G.W>100){
+        try{ update(dt); }catch(err){ console.warn('[RealmArena] update error:', err); }
+        try{ render(ctx); }catch(err){ console.warn('[RealmArena] render error:', err); }
+      }
       rafRef.current=requestAnimationFrame(loop);
     };
     rafRef.current=requestAnimationFrame(loop);
@@ -1294,12 +1297,16 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
   },[]);
 
   function update(dt){
-    if(G.victory && G.victoryBannerTimer <= 0) {
-      // After banner fades, only check for portal walk-in — still update time
-    }
     G.t += dt;
     const store=useGameStore.getState();
     const p=G.player;
+
+    // Stop all combat processing once player is dead — prevents save-spam freeze
+    if(store.playerHP <= 0) return;
+
+    if(G.victory && G.victoryBannerTimer <= 0) {
+      // After banner fades, only check for portal walk-in — still update time
+    }
     if(G.abilityEffect){G.abilityEffect.timer-=dt;if(G.abilityEffect.timer<=0)G.abilityEffect=null;}
     if(G.attackFlash){G.attackFlash.timer-=dt;if(G.attackFlash.timer<=0)G.attackFlash=null;}
     if(G.abilityCooldown>0)G.abilityCooldown=Math.max(0,G.abilityCooldown-dt);
