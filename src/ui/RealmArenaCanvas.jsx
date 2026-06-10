@@ -1177,12 +1177,19 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     const b=cfg.boss;
     const _startHp = (savedBossHp && savedBossHp < b.hp) ? savedBossHp : b.hp;
     G.boss={ ...b, hp:_startHp, maxHp:b.hp, alive:true,
-      attackTimer:0, stunTimer:0, chargeTimer:b.chargeInterval, chargeState:'idle',
+      // attackTimer starts at 3s so boss can't attack on spawn frame
+      attackTimer:3.0, stunTimer:0, chargeTimer:b.chargeInterval||4, chargeState:'idle',
       telegraphTimer:0, chargeVx:0, chargeVy:0, spawnTimer:10,
-      patrolDir:1, patrolTimer:0 };
-    G.bossChargeTimer=b.chargeInterval;
+      patrolDir:1, patrolTimer:0,
+      // introTimer: boss is invulnerable + non-targeting for 2s while intro plays
+      introTimer:2.0 };
+    G.bossChargeTimer=b.chargeInterval||4;
     G.bossSpawnTimer=8;
+    G.bossPhase=1;
+    // Clear any leftover projectiles from minion waves
+    G.projectiles=G.projectiles.filter(proj=>proj.fromPlayer);
     if(savedBossPhase===2){ G.bossPhase=2; }
+    addFloat(G.boss.x, G.boss.y-80, `⚠ ${G.boss.name || 'BOSS'} APPROACHES!`, '#e74c3c', true);
   };
 
   // ── Godkiller passive helpers ────────────────────────────────────────────
@@ -1474,7 +1481,10 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     // Boss AI
     if(G.boss&&G.boss.alive&&!G.victory){
       const b=G.boss; const bcfg=cfg.boss;
-      if(b.stunTimer>0){ b.stunTimer=Math.max(0,b.stunTimer-dt); }
+      // Intro grace period — boss visible but not yet attacking
+      if(b.introTimer>0){
+        b.introTimer=Math.max(0,b.introTimer-dt);
+      } else if(b.stunTimer>0){ b.stunTimer=Math.max(0,b.stunTimer-dt); }
       else {
       b.attackTimer=Math.max(0,(b.attackTimer||0)-dt);
       if(b.hp<=b.maxHp*0.5&&G.bossPhase===1){
