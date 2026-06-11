@@ -2,6 +2,88 @@ import { create } from 'zustand';
 import { SaveSystem } from '../game/systems/SaveSystem';
 import { XP_THRESHOLDS } from '../game/config/ItemConfig';
 
+const ESSENCE_KEYS = [
+  'forest_essence', 'wind_essence', 'earth_essence', 'fire_essence', 'ice_essence',
+  'ocean_essence', 'storm_essence', 'shadow_essence', 'lava_essence', 'void_essence',
+];
+
+const BASE_RESOURCES = {
+  wood: 0,
+  stone: 0,
+  ore: 0,
+  fire_shard: 0,
+  forest_essence: 0,
+  wind_essence: 0,
+  earth_essence: 0,
+  fire_essence: 0,
+  ice_essence: 0,
+  ocean_essence: 0,
+  storm_essence: 0,
+  shadow_essence: 0,
+  lava_essence: 0,
+  void_essence: 0,
+};
+
+const PRESTIGE_WEAPON_BALANCE = {
+  soulbreaker: {
+    name: 'Soulbreaker',
+    type: 'sword',
+    atk: 72,
+    abilityId: 'whirlwind',
+    passiveId: 'lifesteal',
+    passiveDesc: 'Lifesteal: restores 5% of damage dealt as HP.',
+  },
+  voidpiercer: {
+    name: 'Voidpiercer',
+    type: 'bow',
+    atk: 68,
+    abilityId: 'power_shot',
+    passiveId: 'def_pierce_35',
+    passiveDesc: 'Piercing: ignores 35% of target DEF.',
+  },
+  godsplitter: {
+    name: 'Godsplitter',
+    type: 'hammer',
+    atk: 78,
+    abilityId: 'ground_slam',
+    passiveId: 'seismic_stun',
+    passiveDesc: 'Seismic: 15% chance to stun nearby enemies for 0.75s.',
+  },
+};
+
+function normalizePrestigeWeapon(item) {
+  if (!item) return item;
+  const id = item.id || item.weaponId;
+  const balance = PRESTIGE_WEAPON_BALANCE[id];
+  if (!balance && item.tier !== 'godkiller' && item.tier !== 'prestige') return item;
+
+  if (balance) {
+    return {
+      ...item,
+      name: balance.name,
+      slot: 'weapon',
+      type: balance.type,
+      tier: 'godkiller',
+      rarity: 'godkiller',
+      atk: balance.atk,
+      abilityId: balance.abilityId,
+      passiveId: balance.passiveId,
+      passiveDesc: balance.passiveDesc,
+      upgradeLevel: item.upgradeLevel || 0,
+    };
+  }
+
+  // Safety clamp for old overpowered godkiller items from previous builds.
+  const maxAtk = item.type === 'hammer' ? 78 : item.type === 'bow' ? 68 : 72;
+  return {
+    ...item,
+    tier: 'godkiller',
+    rarity: item.rarity || 'godkiller',
+    atk: Math.min(item.atk || maxAtk, maxAtk),
+  };
+}
+
+
 const DEFAULT_STATE = {
   playerName:  '',
   gamePhase:   'menu',
@@ -37,7 +119,7 @@ const DEFAULT_STATE = {
   inventory:    [],
   itemUpgrades: {},
 
-  resources:    { wood: 0, stone: 0, ore: 0, fire_shard: 0, forest_essence: 0, wind_essence: 0, earth_essence: 0, fire_essence: 0, ice_essence: 0, ocean_essence: 0, storm_essence: 0, shadow_essence: 0, lava_essence: 0, void_essence: 0 },
+  resources:    { ...BASE_RESOURCES },
 
   checkpoints:       [],
   lastCheckpoint:    'stronghold',
@@ -169,10 +251,10 @@ export const useGameStore = create((set, get) => ({
     const { inventory, stronghold } = get();
     const maxSlots = 16 + ((stronghold.storage || 0) * 8);
     if (inventory.length >= maxSlots) return false;
-    const newItem = {
+    const newItem = normalizePrestigeWeapon({
       ...item,
       instanceId: item.instanceId || `item_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-    };
+    });
     set({ inventory: [...inventory, newItem] });
     SaveSystem.save(get());
     return true;
@@ -441,6 +523,14 @@ export const useGameStore = create((set, get) => ({
     }
   },
 
+  hasPrestigeForgeUnlocked: () => (get().prestigeLevel || 0) >= 1,
+
+  normalizePrestigeInventory: () => {
+    const normalized = (get().inventory || []).map(normalizePrestigeWeapon);
+    set({ inventory: normalized });
+    SaveSystem.save(get());
+  },
+
   // ── Prestige actions ──────────────────────────────────────────
   openPrestigeSelect: () => set({ showPrestigeSelect: true }),
 
@@ -467,7 +557,7 @@ export const useGameStore = create((set, get) => ({
       respawnAt:          null,
       gear:               { weapon: null, armor: null, accessory: null },
       inventory:          [],  itemUpgrades: {},
-      resources:          { wood: 0, stone: 0, ore: 0, fire_shard: 0 },
+      resources:          { ...BASE_RESOURCES, fire_shard: (get().resources.fire_shard || 0), ...Object.fromEntries(ESSENCE_KEYS.map(k => [k, get().resources[k] || 0])) },
       checkpoints:        [],  lastCheckpoint: 'stronghold',
       stronghold:         { forge: 0, storage: 0, trainingGrounds: 0 },
       bossesDefeated:     [],  ascensionProgress: 0,
@@ -497,8 +587,11 @@ export const useGameStore = create((set, get) => ({
   loadSave: () => {
     const saved = SaveSystem.load();
     if (!saved) return;
+    if (saved.resources) {
+      saved.resources = { ...BASE_RESOURCES, ...saved.resources };
+    }
     if (saved.inventory) {
-      saved.inventory = saved.inventory.map((item, i) => ({
+      saved.inventory = saved.inventory.map((item, i) => normalizePrestigeWeapon({
         ...item,
         instanceId: item.instanceId || `item_migrated_${i}_${item.id}`,
       }));
