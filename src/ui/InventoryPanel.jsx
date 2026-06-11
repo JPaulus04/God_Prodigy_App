@@ -24,6 +24,9 @@ function getItemIcon(item) {
 
 function getSlotAccent(item) {
   if (!item) return { bg:'#101014', border:'#282832', glow:'none', label:'#5c5f6b' };
+  if (item.tier === 'godkiller' || item.tier === 'prestige') {
+    return { bg:'#211804', border:'#d4af37', glow:'0 0 14px #d4af3744, 0 0 0 1px #d4af3744 inset', label:'#f3d66b' };
+  }
   if (item.slot === 'weapon')    return { bg:'#192537', border:'#a84343', glow:'0 0 0 1px #a8434333 inset', label:'#ff8b8b' };
   if (item.slot === 'armor')     return { bg:'#182433', border:'#4b7bec', glow:'0 0 0 1px #4b7bec33 inset', label:'#8db6ff' };
   return { bg:'#241d33', border:'#b08d2f', glow:'0 0 0 1px #b08d2f33 inset', label:'#e7c86e' };
@@ -36,13 +39,21 @@ function getRarityColor(rarity) {
     case 'rare':      return '#3498db';
     case 'epic':      return '#9b59b6';
     case 'legendary': return '#f1c40f';
+    case 'godkiller': return '#d4af37';
+    case 'prestige':  return '#d4af37';
     default:          return '#7f8c8d';
   }
 }
 
 function getTierLabel(item) {
   if (!item) return '';
+  if (item.tier === 'godkiller' || item.tier === 'prestige') return 'PRESTIGE';
   return item.tier ? String(item.tier).toUpperCase() : (item.rarity ? String(item.rarity).toUpperCase() : '');
+}
+
+function getPassiveText(item) {
+  if (!item?.passiveDesc) return '';
+  return item.passiveDesc.replace(/^([^:]+):\s*/, '');
 }
 
 function getPrimaryStatText(item) {
@@ -94,6 +105,11 @@ function GearSlot({ label, item, onUnequip }) {
               <div style={{ color:accent.label, fontSize:8, marginTop:1 }}>
                 {getCategoryLabel(item)}{getPrimaryStatText(item) ? ` • ${getPrimaryStatText(item)}` : ''}
               </div>
+              {getPassiveText(item) && (
+                <div style={{ color:'#d4af37', fontSize:7, marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {getPassiveText(item)}
+                </div>
+              )}
             </div>
           </div>
           <div style={{ position:'absolute', top:7, right:7, width:8, height:8, borderRadius:999, background:'#d4af37', boxShadow:'0 0 8px #d4af37aa' }} />
@@ -214,6 +230,11 @@ function GearGrid({ slots, gear, handleItemPress }) {
                 <div style={{ color: item.atk?'#ff7b7b':item.def?'#66b3ff':'#7bed9f', fontSize:9, marginTop:2, fontWeight:700 }}>
                   {getPrimaryStatText(item)}
                 </div>
+                {getPassiveText(item) && (
+                  <div style={{ color:'#d4af37', fontSize:7, marginTop:1, lineHeight:1.05, maxHeight:15, overflow:'hidden' }}>
+                    {getPassiveText(item)}
+                  </div>
+                )}
               </>
             ) : (
               <div style={{ color:'#1f2633', fontSize:22, marginTop:16 }}>+</div>
