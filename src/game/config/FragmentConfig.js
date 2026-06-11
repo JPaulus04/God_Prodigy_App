@@ -8,8 +8,16 @@ export const FRAGMENT_TYPES = {
   seal:  { id: 'seal',  name: 'Void Seal',       icon: '🔴', color: '#e74c3c', desc: 'Radiates dark energy. Handle with care.' },
 };
 
-// ── God-tier Killer Weapon recipes ───────────────────────────────────────────
-// Each weapon requires fragments AND realm essence (dropped by realm bosses).
+// ── God-tier Legacy Weapon recipes ───────────────────────────────────────────
+//
+// DESIGN INTENT: These are end-game weapons requiring essence from 5 different
+// realm bosses. The craft entry is HIDDEN until you have ALL materials in hand.
+// There is no in-game hint about what is needed — players must discover on their own.
+//
+// Soulbreaker  — requires deep realm progression (fire + lava + shadow, 3 realms)
+// Voidpiercer  — requires sky/storm arc (wind + storm + void, 3 realms)
+// Godsplitter  — requires earth/ice arc  (earth + ice + ocean + void, 4 realms)
+//
 export const LEGACY_WEAPONS = [
   {
     id:          'soulbreaker',
@@ -22,8 +30,10 @@ export const LEGACY_WEAPONS = [
     abilityId:   'lifesteal_strike',
     desc:        'Each hit drains life from the target.',
     passiveDesc: 'Lifesteal: restore 15% of damage dealt as HP',
-    fragmentCost: { rune: 1, shard: 1, seal: 1 },
-    essenceCost:  { fire_essence: 1, lava_essence: 1 },
+    fragmentCost: { rune: 3, shard: 2, seal: 2 },
+    essenceCost:  { fire_essence: 2, lava_essence: 2, shadow_essence: 1 },
+    // Hidden until player holds ALL required materials
+    hiddenUntilReady: true,
     setIndex:    1,
   },
   {
@@ -37,8 +47,9 @@ export const LEGACY_WEAPONS = [
     abilityId:   'void_shot',
     desc:        'Arrows ignore all enemy defense.',
     passiveDesc: 'Piercing: ignores 100% of target DEF',
-    fragmentCost: { rune: 2, shard: 1, seal: 1 },
-    essenceCost:  { shadow_essence: 1, void_essence: 1 },
+    fragmentCost: { rune: 2, shard: 3, seal: 2 },
+    essenceCost:  { wind_essence: 2, storm_essence: 2, void_essence: 1 },
+    hiddenUntilReady: true,
     setIndex:    2,
   },
   {
@@ -52,8 +63,9 @@ export const LEGACY_WEAPONS = [
     abilityId:   'seismic_slam',
     desc:        'Slams the earth, stunning all nearby enemies.',
     passiveDesc: 'Seismic: every slam stuns enemies in 80px radius for 1.5s',
-    fragmentCost: { rune: 1, shard: 2, seal: 2 },
-    essenceCost:  { storm_essence: 1, void_essence: 1 },
+    fragmentCost: { rune: 3, shard: 3, seal: 3 },
+    essenceCost:  { earth_essence: 2, ice_essence: 2, ocean_essence: 1, void_essence: 1 },
+    hiddenUntilReady: true,
     setIndex:    3,
   },
 ];
