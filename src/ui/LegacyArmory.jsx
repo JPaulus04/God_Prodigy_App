@@ -31,6 +31,10 @@ export default function LegacyArmory({ onClose }) {
   const canAfford = (weapon) =>
     canAffordFragments(weapon.fragmentCost) && canAffordEssence(weapon.essenceCost);
 
+  // Hidden until ALL materials are in hand (discovery mechanic)
+  const isVisible = (weapon) =>
+    legacyWeapons.includes(weapon.id) || !weapon.hiddenUntilReady || canAfford(weapon);
+
   const handleForge = (weapon) => {
     if (legacyWeapons.includes(weapon.id)) {
       // Already unlocked — just craft into inventory
@@ -135,17 +139,31 @@ export default function LegacyArmory({ onClose }) {
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom))',
         display: 'flex', flexDirection: 'column', gap: 14,
       }}>
-        {LEGACY_WEAPONS.map(weapon => {
+        {/* Show count of hidden weapons so player knows they exist */}
+        {LEGACY_WEAPONS.some(w => !isVisible(w)) && (
+          <div style={{ textAlign:'center', color:'#666', fontSize:12, padding:'8px 0', fontStyle:'italic' }}>
+            {LEGACY_WEAPONS.filter(w => !isVisible(w)).length} weapon{LEGACY_WEAPONS.filter(w=>!isVisible(w)).length>1?'s':''} locked — collect the required essences to reveal
+          </div>
+        )}
+
+        {LEGACY_WEAPONS.filter(isVisible).map(weapon => {
           const unlocked  = legacyWeapons.includes(weapon.id);
           const affordable = canAfford(weapon);
           const canCraft  = unlocked || affordable;
 
           return (
             <div key={weapon.id} style={{
-              background: unlocked ? '#120f00' : '#0d0d1a',
-              border: `2px solid ${unlocked ? weapon.color : (affordable ? weapon.color + '66' : '#333')}`,
+              background: unlocked
+                ? `linear-gradient(135deg, #120f00 60%, ${weapon.color}18 100%)`
+                : '#0d0d1a',
+              border: `2px solid ${unlocked ? weapon.color : (affordable ? weapon.color + '88' : '#2a2a3e')}`,
               borderRadius: 16, padding: '16px',
               position: 'relative', overflow: 'hidden',
+              boxShadow: unlocked
+                ? `0 0 24px ${weapon.color}66, 0 0 6px ${weapon.color}33 inset`
+                : affordable
+                ? `0 0 10px ${weapon.color}33`
+                : 'none',
             }}>
               {/* Gold shimmer on unlocked */}
               {unlocked && (
@@ -157,13 +175,14 @@ export default function LegacyArmory({ onClose }) {
               )}
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                {/* Icon */}
+                {/* Icon — glows on unlocked */}
                 <div style={{
-                  width: 58, height: 58, borderRadius: 14, flexShrink: 0,
-                  background: `${weapon.color}22`,
-                  border: `1px solid ${weapon.color}55`,
+                  width: 62, height: 62, borderRadius: 14, flexShrink: 0,
+                  background: unlocked ? `${weapon.color}33` : `${weapon.color}15`,
+                  border: `2px solid ${unlocked ? weapon.color : weapon.color + '44'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 28,
+                  fontSize: 30,
+                  boxShadow: unlocked ? `0 0 12px ${weapon.color}88` : 'none',
                 }}>{weapon.icon}</div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
