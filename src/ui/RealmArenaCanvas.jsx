@@ -1277,6 +1277,32 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       G.W=canvas.width; G.H=canvas.height; },50); };
     resize(); window.addEventListener('resize',resize);
 
+    // ── Full G reset on every mount (fixes re-entry stale state) ──────────
+    G.player       = { x:15*TILE, y:24*TILE, attackCooldown:0, invincible:true, invTimer:2.0 };
+    G.camera       = { x:15*TILE, y:24*TILE };
+    G.enemies      = [];
+    G.projectiles  = [];
+    G.boss         = null;
+    G.bossPhase    = 1;
+    G.bossChargeTimer = 0;
+    G.bossSpawnTimer  = 0;
+    G.bossHpSaveTimer = 0;
+    G.wave         = 0;
+    G.victory      = false;
+    G.victoryTimer = 0;
+    G.victoryBannerTimer = 0;
+    G.victoryPortal = null;
+    G.abilityEffect = null;
+    G.abilityCooldown = 0;
+    G.floats       = [];
+    G.keys         = {};
+    G.prevSpace    = false;
+    G.prevAbility  = false;
+    G.attackFlash  = null;
+    G.lastMoveDir  = { x:0, y:1 };
+    G.t            = 0;
+    lastTimeRef.current = 0;
+
     // ── Wave start logic ──────────────────────────────────────────────
     if (cfg.waves.length > 0) {
       spawnWave(0); G.wave = 1;
