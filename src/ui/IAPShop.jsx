@@ -276,9 +276,18 @@ export default function IAPShop({ onClose }) {
     setLoading(true);
 
     try {
-      const purchased = await purchaseProduct(item.purchaseKey);
+      const purchaseResult = await purchaseProduct(item.purchaseKey);
+      const purchased = purchaseResult === true || purchaseResult?.success === true;
+
       if (!purchased) {
-        showToast('Purchase canceled.');
+        const reason = purchaseResult?.reason || 'error';
+        let message = 'Purchase did not complete.';
+        if (reason === 'cancelled') message = 'Purchase canceled.';
+        if (reason === 'timeout') message = 'App Store purchase timed out. Try again.';
+        if (reason === 'no_offering') message = 'Store products are not available yet.';
+        if (reason === 'not_in_offering') message = 'This product is not in the current offering.';
+        showToast(message, true);
+        setConfirmItem(null);
         return;
       }
 
@@ -297,6 +306,7 @@ export default function IAPShop({ onClose }) {
     } catch (e) {
       console.warn('IAP purchase failed', e);
       showToast('Purchase failed. Try again.', true);
+      setConfirmItem(null);
     } finally {
       setLoading(false);
     }
@@ -422,7 +432,7 @@ export default function IAPShop({ onClose }) {
         />
       )}
 
-      {loading && (
+      {loading && !confirmItem && (
         <div style={{
           position: 'fixed',
           inset: 0,
