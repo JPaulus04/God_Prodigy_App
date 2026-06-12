@@ -147,6 +147,7 @@ const DEFAULT_STATE = {
   showDeathModal: false,
   savedBossHp: null,
   savedBossPhase: 1,
+  bossRetryNonce: 0,
   showLevelUp:    false,
   showShop:       false,
   showVictory:    false,
@@ -187,6 +188,15 @@ export const useGameStore = create((set, get) => ({
     const { playerHP, playerMaxHP } = get();
     set({ playerHP: Math.min(playerMaxHP, playerHP + amount) });
     SaveSystem.save(get());
+  },
+
+  recoverPlayer: () => {
+    const { playerMaxHP } = get();
+    set({ playerHP: playerMaxHP });
+    SaveSystem.save(get());
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gp:recovered'));
+    }
   },
 
   gainXP: (amount) => {
@@ -379,20 +389,38 @@ export const useGameStore = create((set, get) => ({
     const { playerMaxHP, resources, lastCheckpoint, gamePhase } = get();
     const penalized = {};
     Object.entries(resources).forEach(([k, v]) => { penalized[k] = Math.floor(v * 0.8); });
-    // In realm: 'checkpoint' keeps player in arena (boss HP already saved separately)
+
+    // Retry Boss: restart the boss fight from full HP, skip minions, and keep the player in the arena.
     if (location === 'checkpoint' && gamePhase === 'realm') {
-      set({ playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false, resources: penalized });
+      get().clearBossCheckpoint();
+      set(s => ({
+        playerHP: playerMaxHP,
+        showDeathModal: false,
+        resources: penalized,
+        bossRetryNonce: (s.bossRetryNonce || 0) + 1,
+      }));
       SaveSystem.save(get());
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gp:realmRetryBoss'));
+      }
       return;
     }
-    // Leaving realm: clear boss checkpoint
+
+    // Flee Realm / normal death recovery: leave the active run and return to the Stronghold.
     get().clearBossCheckpoint();
     set({
-      playerHP: Math.floor(playerMaxHP * 0.5), showDeathModal: false,
-      resources: penalized, activeZone: 'world',
+      playerHP: Math.floor(playerMaxHP * 0.5),
+      showDeathModal: false,
+      resources: penalized,
+      gamePhase: 'world',
+      currentRealm: null,
+      activeZone: 'world',
       respawnAt: location === 'stronghold' ? 'stronghold' : (lastCheckpoint || 'stronghold'),
     });
     SaveSystem.save(get());
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gp:fleeRealm'));
+    }
   },
 
   upgradeStructure: (structure) => {
@@ -545,6 +573,7 @@ export const useGameStore = create((set, get) => ({
       currentRealm:       null,
       savedBossHp:        null,
       savedBossPhase:     1,
+      bossRetryNonce:     0,
       tutorialStep:       4,   // skip tutorial on prestige
       playerHP:           100, playerMaxHP: 100,
       playerBaseATK:      8,   playerBaseDEF: 4, playerBaseSPD: 5,
