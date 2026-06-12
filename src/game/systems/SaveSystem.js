@@ -14,7 +14,7 @@ const PERSIST_FIELDS = [
   'checkpoints', 'lastCheckpoint',
   'gear', 'inventory', 'itemUpgrades',
   'resources',
-  'stronghold', 'bossesDefeated', 'ascensionProgress',
+  'stronghold', 'bossesDefeated', 'ascensionProgress', 'fullGodPathCompleted',
   'killCount', 'totalDamageDealt',
   'passActive', 'respawnShields', 'ownedSkins', 'ownedTrail', 'ownedTrails',
   'extraInventorySlots', 'bossSkipUsed',
