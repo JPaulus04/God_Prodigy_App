@@ -35,7 +35,7 @@ const STRUCTURES = {
   },
   prestigeForge: {
     name: 'Prestige Forge', icon: '🔱',
-    description: 'Unlocked after your first Ascension. Forge balanced prestige weapons.',
+    description: 'Unlocked after completing the full god path and ascending. Forge balanced legacy weapons.',
     prestige: true,
     minGods: 10,
     levels: [
@@ -116,7 +116,7 @@ export default function StrongholdMenu() {
     upgradeStructure, spendResource, addItem, equipItem,
     applyTrainingBonus, setGamePhase, recoverPlayer,
     playerATK, playerDEF, playerSPD, playerHP, playerMaxHP,
-    bossesDefeated, legacyWeapons, prestigeLevel,
+    bossesDefeated, legacyWeapons, prestigeLevel, fullGodPathCompleted, hasPrestigeForgeUnlocked,
   } = useGameStore();
 
   const [tab,        setTab]        = useState('build');
@@ -128,6 +128,9 @@ export default function StrongholdMenu() {
   const forgeLevel    = stronghold.forge ?? 0;
   const godsDefeated  = (bossesDefeated || []).length;
   const prestigeForgeLevel = stronghold.prestigeForge ?? 0;
+  const prestigeForgeUnlocked = typeof hasPrestigeForgeUnlocked === 'function'
+    ? hasPrestigeForgeUnlocked()
+    : ((prestigeLevel || 0) >= 1 && !!fullGodPathCompleted);
 
   // ── Build tab handlers ────────────────────────────────────────────────
   const handleUpgrade = (structure) => {
@@ -295,7 +298,7 @@ export default function StrongholdMenu() {
           <button onClick={() => setShowArmory(true)} style={{
             background: (prestigeLevel || 0) >= 1 ? '#1a120022' : '#111',
             border: `2px solid ${(prestigeLevel || 0) >= 1 ? '#d4af3766' : '#333'}`,
-            color: (prestigeLevel || 0) >= 1 ? '#d4af37' : '#777',
+            color: prestigeForgeUnlocked ? '#d4af37' : '#777',
             borderRadius: 12,
             padding: '10px 14px',
             cursor: 'pointer',
@@ -441,27 +444,27 @@ export default function StrongholdMenu() {
         {/* ── PRESTIGE FORGE ACCESS ── */}
         {tab === 'build' && (
           <div style={{
-            background: (prestigeLevel || 0) >= 1 ? 'linear-gradient(135deg, #1a1000, #0d0d1a)' : '#0d0d1a',
-            border: `1px solid ${(prestigeLevel || 0) >= 1 ? '#d4af3755' : '#2a2a2a'}`,
+            background: prestigeForgeUnlocked ? 'linear-gradient(135deg, #1a1000, #0d0d1a)' : '#0d0d1a',
+            border: `1px solid ${prestigeForgeUnlocked ? '#d4af3755' : '#2a2a2a'}`,
             borderRadius: 10,
             padding: 14,
             marginTop: 4,
             marginBottom: 12,
-            opacity: (prestigeLevel || 0) >= 1 ? 1 : 0.75,
+            opacity: prestigeForgeUnlocked ? 1 : 0.75,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{
                   fontSize: 15,
                   fontWeight: 'bold',
-                  color: (prestigeLevel || 0) >= 1 ? '#d4af37' : '#777',
+                  color: prestigeForgeUnlocked ? '#d4af37' : '#777',
                 }}>
                   🔱 Prestige Forge
                 </div>
                 <div style={{ color: '#777', fontSize: 11, marginTop: 3 }}>
-                  {(prestigeLevel || 0) >= 1
-                    ? 'Unlocked by Ascension. Forge balanced prestige weapons from god essences.'
-                    : 'Locked. Defeat all 10 Elemental Gods, ascend, then return here.'}
+                  {prestigeForgeUnlocked
+                    ? 'Unlocked. Forge one balanced legacy weapon from the complete god essence set.'
+                    : `Locked. Defeat all 10 Elemental Gods (${godsDefeated}/10), ascend, then return here.`}
                 </div>
               </div>
               <button onClick={() => setShowArmory(true)} style={{
@@ -469,13 +472,13 @@ export default function StrongholdMenu() {
                 borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
-                background: (prestigeLevel || 0) >= 1 ? '#d4af37' : '#2a2a2a',
-                color: (prestigeLevel || 0) >= 1 ? '#0d0d1a' : '#aaa',
+                background: prestigeForgeUnlocked ? '#d4af37' : '#2a2a2a',
+                color: prestigeForgeUnlocked ? '#0d0d1a' : '#aaa',
                 fontSize: 12,
                 fontWeight: 'bold',
                 flexShrink: 0,
               }}>
-                {(prestigeLevel || 0) >= 1 ? 'Open' : 'View Lock'}
+                {prestigeForgeUnlocked ? 'Open' : 'View Lock'}
               </button>
             </div>
           </div>
@@ -686,10 +689,10 @@ export default function StrongholdMenu() {
                   fontSize: 12,
                   lineHeight: 1.35,
                 }}>
-                  🔱 Prestige weapons are now handled in the Prestige Forge button at the top of the Stronghold.
+                  🔱 Legacy weapons are handled in the Prestige Forge button at the top of the Stronghold.
                   {(prestigeLevel || 0) < 1 && (
                     <div style={{ color: '#777', marginTop: 4 }}>
-                      Unlocks after your first Ascension.
+                      Unlocks after all 10 Elemental Gods are defeated and you ascend.
                     </div>
                   )}
                 </div>

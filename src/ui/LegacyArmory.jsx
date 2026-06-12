@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
-import { FRAGMENT_TYPES } from '../game/config/FragmentConfig';
+import { FRAGMENT_TYPES, LEGACY_WEAPONS } from '../game/config/FragmentConfig';
 
 const ESSENCE_META = {
   forest_essence: { icon: '🌿', color: '#27ae60', name: 'Forest Essence' },
@@ -15,50 +15,6 @@ const ESSENCE_META = {
   void_essence:   { icon: '✨', color: '#f1c40f', name: 'Void Essence'   },
 };
 
-const PRESTIGE_WEAPONS = [
-  {
-    id: 'soulbreaker',
-    name: 'Soulbreaker',
-    icon: '⚔️',
-    type: 'sword',
-    color: '#ff6b35',
-    atk: 72,
-    abilityId: 'whirlwind',
-    passiveId: 'lifesteal',
-    passiveDesc: 'Lifesteal: restores 5% of damage dealt as HP.',
-    desc: 'A prestige blade forged from fire, lava, and shadow essence.',
-    fragmentCost: { rune: 2, shard: 2 },
-    essenceCost: { fire_essence: 1, lava_essence: 1, shadow_essence: 1 },
-  },
-  {
-    id: 'voidpiercer',
-    name: 'Voidpiercer',
-    icon: '🏹',
-    type: 'bow',
-    color: '#9b59ff',
-    atk: 68,
-    abilityId: 'power_shot',
-    passiveId: 'def_pierce_35',
-    passiveDesc: 'Piercing: ignores 35% of target DEF.',
-    desc: 'A prestige bow shaped by wind, storm, and void essence.',
-    fragmentCost: { rune: 2, seal: 1 },
-    essenceCost: { wind_essence: 1, storm_essence: 1, void_essence: 1 },
-  },
-  {
-    id: 'godsplitter',
-    name: 'Godsplitter',
-    icon: '🔨',
-    type: 'hammer',
-    color: '#d4af37',
-    atk: 78,
-    abilityId: 'ground_slam',
-    passiveId: 'seismic_stun',
-    passiveDesc: 'Seismic: 15% chance to stun nearby enemies for 0.75s.',
-    desc: 'A prestige hammer formed from earth, ice, and ocean essence.',
-    fragmentCost: { rune: 2, shard: 1, seal: 1 },
-    essenceCost: { earth_essence: 1, ice_essence: 1, ocean_essence: 1 },
-  },
-];
 
 function CostPill({ icon, label, have, need, color }) {
   const ok = have >= need;
@@ -88,11 +44,18 @@ export default function LegacyArmory({ onClose }) {
     spendResource,
     spendFragments,
     prestigeLevel,
+    bossesDefeated,
+    fullGodPathCompleted,
+    hasPrestigeForgeUnlocked,
   } = useGameStore();
 
   const [toast, setToast] = useState(null);
 
   const ascended = (prestigeLevel || 0) >= 1;
+  const godsDefeated = (bossesDefeated || []).length;
+  const forgeUnlocked = typeof hasPrestigeForgeUnlocked === 'function'
+    ? hasPrestigeForgeUnlocked()
+    : (ascended && !!fullGodPathCompleted);
 
   const canAffordFragments = (cost) =>
     Object.entries(cost || {}).every(([t, n]) => (fragments[t] || 0) >= n);
@@ -125,7 +88,7 @@ export default function LegacyArmory({ onClose }) {
   };
 
   const handleForge = (weapon) => {
-    if (!ascended) return;
+    if (!forgeUnlocked) return;
 
     const unlocked = (legacyWeapons || []).includes(weapon.id);
     const alreadyInInventory = (inventory || []).some(item => item.id === weapon.id);
@@ -189,9 +152,9 @@ export default function LegacyArmory({ onClose }) {
               🔱 Prestige Forge
             </div>
             <div style={{ color: '#ffffff77', fontSize: 11, marginTop: 2 }}>
-              {ascended
-                ? 'Forge prestige weapons from god essence and fragments'
-                : 'Locked until your first Ascension'}
+              {forgeUnlocked
+                ? 'Forge legacy weapons from the complete god essence set'
+                : 'Locked until all gods are defeated and you ascend'}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -208,17 +171,17 @@ export default function LegacyArmory({ onClose }) {
 
         <div style={{
           marginTop: 14,
-          background: ascended ? '#102011' : '#241a08',
-          border: `1px solid ${ascended ? '#2ecc7166' : '#d4af3766'}`,
+          background: forgeUnlocked ? '#102011' : '#241a08',
+          border: `1px solid ${forgeUnlocked ? '#2ecc7166' : '#d4af3766'}`,
           borderRadius: 12,
           padding: '10px 12px',
-          color: ascended ? '#9ff0b5' : '#f5d06f',
+          color: forgeUnlocked ? '#9ff0b5' : '#f5d06f',
           fontSize: 12,
           lineHeight: 1.35,
         }}>
-          {ascended
-            ? `Ascension Rank ${prestigeLevel}. Prestige forging is unlocked.`
-            : 'Defeat all 10 Elemental Gods, ascend, then return here to unlock divine forging.'}
+          {forgeUnlocked
+            ? `Ascension Rank ${prestigeLevel}. Legacy forging is unlocked.`
+            : `Defeat all 10 Elemental Gods (${godsDefeated}/10), ascend, then return here to unlock divine forging.`}
         </div>
 
         <div style={{
@@ -262,7 +225,7 @@ export default function LegacyArmory({ onClose }) {
         flexDirection: 'column',
         gap: 14,
       }}>
-        {!ascended && (
+        {!forgeUnlocked && (
           <div style={{
             textAlign: 'center',
             color: '#b38b30',
@@ -274,12 +237,12 @@ export default function LegacyArmory({ onClose }) {
           }}>
             🔒 Prestige Forge locked
             <div style={{ color: '#ffffff77', fontSize: 11, marginTop: 8 }}>
-              This is an end-map reward. Complete the full god path and ascend to reveal these weapons.
+              This is an end-map reward. Complete all 10 gods, ascend, then return to reveal these weapons.
             </div>
           </div>
         )}
 
-        {ascended && PRESTIGE_WEAPONS.map(weapon => {
+        {forgeUnlocked && LEGACY_WEAPONS.map(weapon => {
           const unlocked = (legacyWeapons || []).includes(weapon.id);
           const alreadyInInventory = (inventory || []).some(item => item.id === weapon.id);
           const affordable = canAfford(weapon);
@@ -405,7 +368,7 @@ export default function LegacyArmory({ onClose }) {
         })}
 
         <div style={{ color: '#ffffff33', fontSize: 11, textAlign: 'center', padding: '8px 0' }}>
-          Prestige weapons are intentionally stronger than normal gear, but not overpowering.
+          Legacy weapons are intentionally stronger than normal gear, but not overpowering.
         </div>
       </div>
 
