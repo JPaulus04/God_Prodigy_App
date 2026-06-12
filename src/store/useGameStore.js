@@ -24,19 +24,32 @@ const BASE_RESOURCES = {
   void_essence: 0,
 };
 
+const GOD_MERCY_REALMS = [
+  { id: 'forest', name: 'Sylvara', essence: 'forest_essence', xp: 400 },
+  { id: 'wind',   name: 'Zephyros', essence: 'wind_essence',   xp: 400 },
+  { id: 'earth',  name: 'Terran', essence: 'earth_essence',    xp: 600 },
+  { id: 'fire',   name: 'Ignar', essence: 'fire_essence',      xp: 600 },
+  { id: 'ice',    name: 'Glacius', essence: 'ice_essence',     xp: 900 },
+  { id: 'ocean',  name: 'Nepthar', essence: 'ocean_essence',   xp: 900 },
+  { id: 'storm',  name: 'Vortus', essence: 'storm_essence',    xp: 1200 },
+  { id: 'shadow', name: 'Umbris', essence: 'shadow_essence',   xp: 1200 },
+  { id: 'lava',   name: 'Magmara', essence: 'lava_essence',    xp: 1800 },
+  { id: 'void',   name: 'Nihilus', essence: 'void_essence',    xp: 2500 },
+];
+
 const PRESTIGE_WEAPON_BALANCE = {
   soulbreaker: {
     name: 'Soulbreaker',
     type: 'sword',
-    atk: 72,
+    atk: 150,
     abilityId: 'whirlwind',
     passiveId: 'lifesteal',
-    passiveDesc: 'Lifesteal: restores 5% of damage dealt as HP.',
+    passiveDesc: 'Lifesteal: restores 7% of damage dealt as HP.',
   },
   voidpiercer: {
     name: 'Voidpiercer',
     type: 'bow',
-    atk: 68,
+    atk: 145,
     abilityId: 'power_shot',
     passiveId: 'def_pierce_35',
     passiveDesc: 'Piercing: ignores 35% of target DEF.',
@@ -44,7 +57,7 @@ const PRESTIGE_WEAPON_BALANCE = {
   godsplitter: {
     name: 'Godsplitter',
     type: 'hammer',
-    atk: 78,
+    atk: 160,
     abilityId: 'ground_slam',
     passiveId: 'seismic_stun',
     passiveDesc: 'Seismic: 15% chance to stun nearby enemies for 0.75s.',
@@ -74,7 +87,7 @@ function normalizePrestigeWeapon(item) {
   }
 
   // Safety clamp for old overpowered godkiller items from previous builds.
-  const maxAtk = item.type === 'hammer' ? 78 : item.type === 'bow' ? 68 : 72;
+  const maxAtk = item.type === 'hammer' ? 160 : item.type === 'bow' ? 145 : 150;
   return {
     ...item,
     tier: 'godkiller',
@@ -126,6 +139,7 @@ const DEFAULT_STATE = {
   stronghold:        { forge: 0, storage: 0, trainingGrounds: 0 },
   bossesDefeated:    [],
   ascensionProgress: 0,
+  fullGodPathCompleted: false,
 
   // IAP state
   passActive:           false,
@@ -507,16 +521,63 @@ export const useGameStore = create((set, get) => ({
     SaveSystem.save(get());
   },
 
-  grantBossSkip: () => {
-    set({ bossSkipPending: true });
+  grantGodMercy: () => {
+    const state = get();
+    const defeated = state.bossesDefeated || [];
+    const nextBoss = GOD_MERCY_REALMS.find(b => !defeated.includes(b.id));
+
+    if (!nextBoss) {
+      set({ bossSkipPending: false });
+      SaveSystem.save(get());
+      return { ok: false, reason: 'all_defeated', message: 'All Elemental Gods are already defeated.' };
+    }
+
+    const updated = [...defeated, nextBoss.id];
+    const completedPath = updated.length >= GOD_MERCY_REALMS.length;
+    const updatedResources = {
+      ...(state.resources || {}),
+      [nextBoss.essence]: ((state.resources || {})[nextBoss.essence] || 0) + 1,
+    };
+
+    set({
+      bossesDefeated: updated,
+      ascensionProgress: updated.length,
+      fullGodPathCompleted: completedPath || state.fullGodPathCompleted || false,
+      resources: updatedResources,
+      bossSkipPending: false,
+      bossSkipUsed: false,
+    });
+
+    if (nextBoss.xp) {
+      try { get().gainXP(nextBoss.xp); } catch (e) {}
+    }
+
+    if (completedPath) {
+      setTimeout(() => set({ showVictory: true, fullGodPathCompleted: true }), 800);
+    }
+
     SaveSystem.save(get());
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gp:godMercyUsed', {
+        detail: { bossId: nextBoss.id, bossName: nextBoss.name, essence: nextBoss.essence },
+      }));
+    }
+
+    return { ok: true, bossId: nextBoss.id, bossName: nextBoss.name, essence: nextBoss.essence };
+  },
+
+  grantBossSkip: () => {
+    // Backward-compatible wrapper for older shop code/product callbacks.
+    return get().grantGodMercy();
   },
 
   consumeBossSkip: (realmId) => {
-    if (!realmId) return;
+    if (!realmId) return get().grantGodMercy();
     get().defeatBoss(realmId);
-    set({ bossSkipPending: false, bossSkipUsed: true });
+    set({ bossSkipPending: false, bossSkipUsed: false });
     SaveSystem.save(get());
+    return { ok: true, bossId: realmId };
   },
 
   activatePass: () => {
@@ -532,10 +593,15 @@ export const useGameStore = create((set, get) => ({
     const { bossesDefeated } = get();
     if (!bossesDefeated.includes(bossId)) {
       const updated = [...bossesDefeated, bossId];
-      set({ bossesDefeated: updated, ascensionProgress: updated.length });
-      if (updated.length >= 10) {
+      const completedPath = updated.length >= 10;
+      set({
+        bossesDefeated: updated,
+        ascensionProgress: updated.length,
+        fullGodPathCompleted: completedPath || get().fullGodPathCompleted || false,
+      });
+      if (completedPath) {
         // All gods defeated — trigger victory screen after a short delay
-        setTimeout(() => set({ showVictory: true }), 1500);
+        setTimeout(() => set({ showVictory: true, fullGodPathCompleted: true }), 1500);
       }
       SaveSystem.save(get());
     }
@@ -575,7 +641,7 @@ export const useGameStore = create((set, get) => ({
     }
   },
 
-  hasPrestigeForgeUnlocked: () => (get().prestigeLevel || 0) >= 1,
+  hasPrestigeForgeUnlocked: () => ((get().prestigeLevel || 0) >= 1) && !!get().fullGodPathCompleted,
 
   normalizePrestigeInventory: () => {
     const normalized = (get().inventory || []).map(normalizePrestigeWeapon);
@@ -587,7 +653,7 @@ export const useGameStore = create((set, get) => ({
   openPrestigeSelect: () => set({ showPrestigeSelect: true }),
 
   doPrestige: (chosenClass) => {
-    const { prestigeLevel, legacyWeapons, fragments } = get();
+    const { prestigeLevel, legacyWeapons, fragments, fullGodPathCompleted } = get();
     const newPrestigeLevel = prestigeLevel + 1;
     SaveSystem.clear();
     // Full reset, preserving only legacy fields
@@ -614,6 +680,7 @@ export const useGameStore = create((set, get) => ({
       checkpoints:        [],  lastCheckpoint: 'stronghold',
       stronghold:         { forge: 0, storage: 0, trainingGrounds: 0 },
       bossesDefeated:     [],  ascensionProgress: 0,
+      fullGodPathCompleted,
       killCount:          0,   totalDamageDealt: 0,
       // Preserved
       prestigeLevel:      newPrestigeLevel,
@@ -642,6 +709,9 @@ export const useGameStore = create((set, get) => ({
     if (!saved) return;
     if (saved.resources) {
       saved.resources = { ...BASE_RESOURCES, ...saved.resources };
+    }
+    if (saved.fullGodPathCompleted === undefined) {
+      saved.fullGodPathCompleted = ((saved.prestigeLevel || 0) >= 1) || ((saved.bossesDefeated || []).length >= 10);
     }
     if (saved.inventory) {
       saved.inventory = saved.inventory.map((item, i) => normalizePrestigeWeapon({
