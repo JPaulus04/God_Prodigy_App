@@ -126,6 +126,101 @@ function GearSlot({ label, item, onUnequip }) {
   );
 }
 
+
+function ItemsTab({ respawnShields, resources, fragments }) {
+  const resourceLabels = {
+    wood: { icon: '🪵', name: 'Wood' },
+    stone: { icon: '🪨', name: 'Stone' },
+    ore: { icon: '⛏️', name: 'Ore' },
+    fire_shard: { icon: '🔥', name: 'Fire Shard' },
+    forest_essence: { icon: '🌿', name: 'Forest Essence' },
+    wind_essence: { icon: '💨', name: 'Wind Essence' },
+    earth_essence: { icon: '🪨', name: 'Earth Essence' },
+    fire_essence: { icon: '🔥', name: 'Fire Essence' },
+    ice_essence: { icon: '❄️', name: 'Ice Essence' },
+    ocean_essence: { icon: '🌊', name: 'Ocean Essence' },
+    storm_essence: { icon: '⚡', name: 'Storm Essence' },
+    shadow_essence: { icon: '🌑', name: 'Shadow Essence' },
+    lava_essence: { icon: '🌋', name: 'Lava Essence' },
+    void_essence: { icon: '✨', name: 'Void Essence' },
+  };
+
+  const fragmentLabels = {
+    rune: { icon: 'ᚱ', name: 'Ancient Rune' },
+    shard: { icon: '🔹', name: 'Legacy Shard' },
+    seal: { icon: '🔱', name: 'Divine Seal' },
+  };
+
+  const cards = [
+    {
+      id: 'death_shield',
+      icon: '🛡',
+      name: 'Death Shield',
+      count: respawnShields || 0,
+      accent: '#3498db',
+      desc: 'Purchased item. Prevents resource loss and restores full HP after death.',
+    },
+    ...Object.entries(resources || {})
+      .filter(([, count]) => (count || 0) > 0)
+      .map(([id, count]) => ({
+        id,
+        icon: resourceLabels[id]?.icon || '📦',
+        name: resourceLabels[id]?.name || id.replaceAll('_', ' '),
+        count,
+        accent: id.includes('essence') ? '#d4af37' : '#7f8c8d',
+        desc: id.includes('essence') ? 'Boss material used for endgame progression.' : 'Crafting and upgrade resource.',
+      })),
+    ...Object.entries(fragments || {})
+      .filter(([, count]) => (count || 0) > 0)
+      .map(([id, count]) => ({
+        id: `fragment_${id}`,
+        icon: fragmentLabels[id]?.icon || '🔸',
+        name: fragmentLabels[id]?.name || id,
+        count,
+        accent: '#9b59b6',
+        desc: 'Legacy / Prestige crafting material.',
+      })),
+  ];
+
+  const hasVisibleItems = cards.some(c => (c.count || 0) > 0);
+
+  if (!hasVisibleItems) {
+    return (
+      <div style={{ color:'#555', fontSize:13, textAlign:'center', padding:20 }}>
+        No items yet.{`\n`}Death Shields will appear here after purchase.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:8, paddingBottom:16 }}>
+      {cards.filter(c => (c.count || 0) > 0).map(item => (
+        <div key={item.id} style={{
+          background:'#ffffff08', border:`1px solid ${item.accent}66`,
+          borderRadius:12, padding:'12px 10px', minHeight:92,
+          boxShadow:`0 0 0 1px ${item.accent}22 inset`,
+        }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+            <div style={{ fontSize:26 }}>{item.icon}</div>
+            <div style={{
+              background:item.accent, color:'#050712', borderRadius:999,
+              fontSize:12, fontWeight:800, padding:'2px 8px', minWidth:28, textAlign:'center',
+            }}>
+              x{item.count}
+            </div>
+          </div>
+          <div style={{ color:'#f2f2f2', fontSize:12, fontWeight:800, marginTop:8, lineHeight:1.1 }}>
+            {item.name}
+          </div>
+          <div style={{ color:'#888', fontSize:9, marginTop:4, lineHeight:1.25 }}>
+            {item.desc}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CosmeticsTab({ ownedSkins, activeSkin, equipSkin, ownedTrails, activeTrail, equipTrail }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10, paddingBottom:16 }}>
@@ -251,6 +346,7 @@ export default function InventoryPanel() {
     inventory, gear,
     equipItem, unequipItem,
     playerATK, playerDEF, playerSPD, playerMaxHP,
+    resources, fragments, respawnShields,
     toggleInventory,
     ownedSkins, activeSkin, equipSkin,
     ownedTrails, activeTrail, equipTrail,
@@ -293,7 +389,7 @@ export default function InventoryPanel() {
 
       {/* Tab bar */}
       <div style={{ display:'flex', gap:4, marginBottom:12 }}>
-        {['gear','cosmetics'].map(t => (
+        {['gear','items','cosmetics'].map(t => (
           <button key={t} onClick={() => setActiveTab(t)} style={{
             flex:1, padding:'7px 0',
             background: activeTab===t ? '#d4af37' : '#ffffff0f',
@@ -302,7 +398,7 @@ export default function InventoryPanel() {
             fontWeight: activeTab===t ? 700 : 400,
             fontSize:12, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer',
           }}>
-            {t === 'gear' ? '⚔️ Gear' : '✨ Cosmetics'}
+            {t === 'gear' ? '⚔️ Gear' : t === 'items' ? '🎒 Items' : '✨ Cosmetics'}
           </button>
         ))}
       </div>
@@ -335,6 +431,8 @@ export default function InventoryPanel() {
           ownedSkins={ownedSkins}   activeSkin={activeSkin}   equipSkin={equipSkin}
           ownedTrails={ownedTrails} activeTrail={activeTrail} equipTrail={equipTrail}
         />
+      ) : activeTab === 'items' ? (
+        <ItemsTab respawnShields={respawnShields} resources={resources} fragments={fragments} />
       ) : (
         <GearGrid slots={slots} gear={gear} handleItemPress={handleItemPress} />
       )}

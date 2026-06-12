@@ -136,6 +136,12 @@ export default function RealmCanvas() {
   );
 
   useEffect(() => {
+    const handleFleeRealm = () => setInArena(false);
+    window.addEventListener('gp:fleeRealm', handleFleeRealm);
+    return () => window.removeEventListener('gp:fleeRealm', handleFleeRealm);
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -164,7 +170,12 @@ export default function RealmCanvas() {
     return (
       <RealmArenaCanvas
         realmId={currentRealm || 'forest'}
-        onFlee={() => { setInArena(false); setGamePhase('world'); }}
+        onFlee={() => {
+          setInArena(false);
+          useGameStore.getState().clearBossCheckpoint?.();
+          useGameStore.setState({ respawnAt: 'stronghold', currentRealm: null, activeZone: 'world' });
+          setGamePhase('world');
+        }}
       />
     );
   }

@@ -1,28 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 
 export default function DeathModal() {
   const {
-    respawn, playerName, resources,
-    respawnShields, useRespawnShield,
-    gamePhase, setGamePhase,
+    respawn,
+    playerName,
+    resources,
+    respawnShields,
+    useRespawnShield,
+    gamePhase,
     toggleShop,
-    killCount, totalDamageDealt,
+    killCount,
+    totalDamageDealt,
   } = useGameStore();
 
-  // Preview 20% penalty
+  const [actionLocked, setActionLocked] = useState(false);
+
   const penalties = Object.entries(resources)
     .filter(([, v]) => v > 0)
     .map(([k, v]) => `${k}: -${v - Math.floor(v * 0.8)}`)
     .join('  ');
 
   const hasShield = (respawnShields || 0) > 0;
-  const inRealm   = gamePhase === 'realm';
+  const inRealm = gamePhase === 'realm';
+
+  const runOnce = (fn) => {
+    if (actionLocked) return;
+    setActionLocked(true);
+    fn();
+  };
 
   const handleShield = () => {
     if (!hasShield) return;
-    useRespawnShield();
-    useGameStore.setState({ showDeathModal: false, playerHP: useGameStore.getState().playerMaxHP });
+    runOnce(() => {
+      useRespawnShield();
+      useGameStore.setState({
+        showDeathModal: false,
+        playerHP: useGameStore.getState().playerMaxHP,
+      });
+    });
+  };
+
+  const handleShop = () => {
+    if (actionLocked) return;
+    useGameStore.setState({ showDeathModal: false });
+    toggleShop();
   };
 
   return (
@@ -37,7 +59,6 @@ export default function DeathModal() {
         width: '88%', maxWidth: 340,
         textAlign: 'center', color: '#fff',
       }}>
-        {/* Icon */}
         <div style={{ fontSize: 54, marginBottom: 8, filter: 'drop-shadow(0 0 16px #e74c3c88)' }}>💀</div>
 
         <h2 style={{ color: '#e74c3c', fontSize: 24, margin: '0 0 8px', letterSpacing: 1 }}>
@@ -47,10 +68,7 @@ export default function DeathModal() {
           {playerName || 'Warrior'}, the path to godhood is not over.
         </p>
 
-        {/* Kill + damage stats */}
-        <div style={{
-          display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center',
-        }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center' }}>
           <div style={{
             flex: 1, background: '#1a0a0a', border: '1px solid #e74c3c44',
             borderRadius: 8, padding: '8px 4px',
@@ -71,7 +89,6 @@ export default function DeathModal() {
           </div>
         </div>
 
-        {/* Resource penalty */}
         {penalties ? (
           <div style={{
             background: '#1a0505', border: '1px solid #e74c3c44',
@@ -86,37 +103,38 @@ export default function DeathModal() {
           <p style={{ color: '#333', fontSize: 12, marginBottom: 16 }}>No resources to lose.</p>
         )}
 
-        {/* ── Death Shield option (top priority if in realm) ── */}
         {inRealm && (
           <>
             {hasShield ? (
               <button
+                disabled={actionLocked}
                 onClick={handleShield}
                 style={{
                   width: '100%', padding: '16px', marginBottom: 10,
                   background: 'linear-gradient(135deg, #0a2040, #0d3060)',
                   border: '2px solid #3498db',
-                  borderRadius: 12, color: '#fff', cursor: 'pointer',
+                  borderRadius: 12, color: '#fff', cursor: actionLocked ? 'default' : 'pointer',
                   textAlign: 'left', paddingLeft: 18,
-                  boxShadow: '0 0 16px #3498db44',
+                  boxShadow: '0 0 16px #3498db44', opacity: actionLocked ? 0.6 : 1,
                 }}
               >
                 <div style={{ fontSize: 15, fontWeight: 'bold', color: '#3498db' }}>
                   🛡 Use Death Shield
                 </div>
                 <div style={{ fontSize: 11, color: '#7fb3d3', marginTop: 3 }}>
-                  Stay in realm at full HP · {respawnShields} shield{respawnShields !== 1 ? 's' : ''} remaining
+                  Stay in realm at full HP · no resource loss · {respawnShields} shield{respawnShields !== 1 ? 's' : ''} remaining
                 </div>
               </button>
             ) : (
               <button
-                onClick={() => { useGameStore.setState({ showDeathModal: false }); toggleShop(); }}
+                disabled={actionLocked}
+                onClick={handleShop}
                 style={{
                   width: '100%', padding: '14px', marginBottom: 10,
                   background: 'linear-gradient(135deg, #12101a, #1a1530)',
                   border: '2px solid #9b59b688',
-                  borderRadius: 12, color: '#fff', cursor: 'pointer',
-                  textAlign: 'left', paddingLeft: 18,
+                  borderRadius: 12, color: '#fff', cursor: actionLocked ? 'default' : 'pointer',
+                  textAlign: 'left', paddingLeft: 18, opacity: actionLocked ? 0.6 : 1,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -125,7 +143,7 @@ export default function DeathModal() {
                       🛡 Get a Death Shield
                     </div>
                     <div style={{ fontSize: 11, color: '#777', marginTop: 2 }}>
-                      Stay in realm, no resource loss — $0.99
+                      Purchased only · stay in realm with no resource loss
                     </div>
                   </div>
                   <div style={{
@@ -138,15 +156,15 @@ export default function DeathModal() {
           </>
         )}
 
-        {/* ── Last Checkpoint / Retry Boss ── */}
         <button
-          onClick={() => respawn('checkpoint')}
+          disabled={actionLocked}
+          onClick={() => runOnce(() => respawn('checkpoint'))}
           style={{
             width: '100%', padding: '14px 16px', marginBottom: 10,
             background: inRealm ? '#0a1520' : '#0a1a0d',
             border: inRealm ? '2px solid #3498db' : '2px solid #2ecc71',
-            borderRadius: 12, color: '#fff', cursor: 'pointer',
-            textAlign: 'left',
+            borderRadius: 12, color: '#fff', cursor: actionLocked ? 'default' : 'pointer',
+            textAlign: 'left', opacity: actionLocked ? 0.6 : 1,
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 'bold', color: inRealm ? '#3498db' : '#2ecc71' }}>
@@ -154,31 +172,31 @@ export default function DeathModal() {
           </div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
             {inRealm
-              ? 'Stay in arena — boss keeps reduced HP from last battle'
+              ? 'Restart boss at full health. Minion waves are skipped.'
               : 'Respawn near where you were'}
           </div>
         </button>
 
-        {/* ── Home Stronghold / Give Up ── */}
         <button
-          onClick={() => respawn('stronghold')}
+          disabled={actionLocked}
+          onClick={() => runOnce(() => respawn('stronghold'))}
           style={{
             width: '100%', padding: '14px 16px',
             background: '#0d0d20', border: '2px solid #d4af37',
-            borderRadius: 12, color: '#d4af37', cursor: 'pointer',
-            textAlign: 'left',
+            borderRadius: 12, color: '#d4af37', cursor: actionLocked ? 'default' : 'pointer',
+            textAlign: 'left', opacity: actionLocked ? 0.6 : 1,
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 'bold' }}>
             {inRealm ? '🏃 Flee Realm' : '🏰 Home Stronghold'}
           </div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-            {inRealm ? 'Exit the realm — boss HP resets on next attempt' : 'Safe spawn — further from your progress'}
+            {inRealm ? 'Return to Stronghold. Boss progress resets.' : 'Safe spawn — further from your progress'}
           </div>
         </button>
 
         <p style={{ color: '#333', fontSize: 10, marginTop: 14, marginBottom: 0 }}>
-          You respawn at 50% HP. Death Shields prevent all resource loss.
+          Retry Boss restarts the boss. Flee Realm sends you to Stronghold.
         </p>
       </div>
     </div>

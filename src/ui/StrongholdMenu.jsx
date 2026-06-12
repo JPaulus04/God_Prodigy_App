@@ -114,8 +114,8 @@ export default function StrongholdMenu() {
   const {
     stronghold, resources, inventory,
     upgradeStructure, spendResource, addItem, equipItem,
-    applyTrainingBonus, setGamePhase,
-    playerATK, playerDEF, playerSPD,
+    applyTrainingBonus, setGamePhase, recoverPlayer,
+    playerATK, playerDEF, playerSPD, playerHP, playerMaxHP,
     bossesDefeated, legacyWeapons, prestigeLevel,
   } = useGameStore();
 
@@ -289,7 +289,7 @@ export default function StrongholdMenu() {
       }}>
         <div>
           <h2 style={{ color: '#d4af37', fontSize: 22, margin: 0, letterSpacing: 1 }}>🏰 Stronghold</h2>
-          <p style={{ color: '#888', fontSize: 11, margin: '3px 0 0' }}>Build · Craft · Upgrade</p>
+          <p style={{ color: '#888', fontSize: 11, margin: '3px 0 0' }}>Build · Craft · Upgrade · Recover</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => setShowArmory(true)} style={{
@@ -330,12 +330,27 @@ export default function StrongholdMenu() {
           { label: 'ATK', val: playerATK, col: '#e74c3c' },
           { label: 'DEF', val: playerDEF, col: '#3498db' },
           { label: 'SPD', val: playerSPD, col: '#2ecc71' },
+          { label: 'HP',  val: `${playerHP}/${playerMaxHP}`, col: '#ff6b6b' },
         ].map(({ label, val, col }) => (
-          <div key={label} style={{ textAlign: 'center', minWidth: 36 }}>
-            <div style={{ color: col,    fontSize: 18, fontWeight: 'bold' }}>{val}</div>
+          <div key={label} style={{ textAlign: 'center', minWidth: label === 'HP' ? 58 : 36 }}>
+            <div style={{ color: col,    fontSize: label === 'HP' ? 15 : 18, fontWeight: 'bold' }}>{val}</div>
             <div style={{ color: '#555', fontSize: 10 }}>{label}</div>
           </div>
         ))}
+        <button onClick={recoverPlayer} disabled={playerHP >= playerMaxHP} style={{
+          marginLeft: 4,
+          background: playerHP >= playerMaxHP ? '#ffffff08' : '#1a3a1a',
+          border: playerHP >= playerMaxHP ? '1px solid #ffffff18' : '1px solid #2ecc71',
+          color: playerHP >= playerMaxHP ? '#666' : '#2ecc71',
+          borderRadius: 10,
+          padding: '7px 10px',
+          fontSize: 12,
+          fontWeight: 'bold',
+          cursor: playerHP >= playerMaxHP ? 'default' : 'pointer',
+          whiteSpace: 'nowrap',
+        }}>
+          ❤️ Recover
+        </button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {[{ k: 'wood', icon: '🪵' }, { k: 'stone', icon: '🪨' }, { k: 'ore', icon: '⛏' }].map(({ k, icon }) => (
             <div key={k} style={{
@@ -361,6 +376,32 @@ export default function StrongholdMenu() {
       <div style={{ padding: 16, flex: 1, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
 
         {/* ── BUILD TAB ── */}
+        {tab === 'build' && (
+          <div style={{
+            background: '#102015', border: '1px solid #2ecc7155',
+            borderRadius: 10, padding: 14, marginBottom: 12,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 'bold', color: '#2ecc71' }}>❤️ Recovery Station</div>
+                <div style={{ color: '#888', fontSize: 11, marginTop: 3 }}>
+                  Restore health to full before returning to battle.
+                </div>
+              </div>
+              <button onClick={recoverPlayer} disabled={playerHP >= playerMaxHP} style={{
+                background: playerHP >= playerMaxHP ? '#ffffff08' : '#2ecc71',
+                border: 'none', borderRadius: 10,
+                color: playerHP >= playerMaxHP ? '#666' : '#061006',
+                padding: '10px 14px', fontSize: 13, fontWeight: 'bold',
+                cursor: playerHP >= playerMaxHP ? 'default' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}>
+                {playerHP >= playerMaxHP ? 'Full HP' : 'Recover'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {tab === 'build' && Object.entries(STRUCTURES).filter(([key]) => key !== 'prestigeForge').map(([key, def]) => {
           const level     = stronghold[key] ?? 0;
           const maxed     = level >= def.levels.length;

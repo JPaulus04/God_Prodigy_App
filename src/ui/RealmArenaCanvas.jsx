@@ -1267,6 +1267,35 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     }
   };
 
+  const resetToBossFight = () => {
+    G.player       = { x:15*TILE, y:24*TILE, attackCooldown:0, invincible:true, invTimer:2.0 };
+    G.camera       = { x:15*TILE, y:24*TILE };
+    G.enemies      = [];
+    G.projectiles  = [];
+    G.boss         = null;
+    G.bossPhase    = 1;
+    G.bossChargeTimer = 0;
+    G.bossSpawnTimer  = 0;
+    G.bossHpSaveTimer = 0;
+    G.wave         = 'boss';
+    G.victory      = false;
+    G.victoryTimer = 0;
+    G.victoryBannerTimer = 0;
+    G.victoryPortal = null;
+    G.abilityEffect = null;
+    G.abilityCooldown = 0;
+    G.floats       = [];
+    G.keys         = {};
+    G.prevSpace    = false;
+    G.prevAbility  = false;
+    G.attackFlash  = null;
+    G.lastMoveDir  = { x:0, y:1 };
+    G.t            = 0;
+    lastTimeRef.current = 0;
+    spawnBoss();
+    addFloat(15*TILE, 20*TILE, '⚔ BOSS RETRY — MINIONS SKIPPED', '#3498db', true);
+  };
+
   useEffect(()=>{
     const canvas=canvasRef.current; if(!canvas) return;
     const resize=()=>{ setTimeout(()=>{ const r=canvas.getBoundingClientRect();
@@ -1311,7 +1340,11 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     }
 
     const kd=e=>{G.keys[e.code]=true;}; const ku=e=>{G.keys[e.code]=false;};
+    const retryBoss=()=>resetToBossFight();
+    const fleeRealm=()=>{ G.keys={}; G.projectiles=[]; G.enemies=[]; };
     window.addEventListener('keydown',kd); window.addEventListener('keyup',ku);
+    window.addEventListener('gp:realmRetryBoss', retryBoss);
+    window.addEventListener('gp:fleeRealm', fleeRealm);
     canvas.addEventListener('pointerdown', () => resumeAudio(), { once: true });
 
     const ctx=canvas.getContext('2d');
@@ -1329,6 +1362,8 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     rafRef.current=requestAnimationFrame(loop);
     return ()=>{ cancelAnimationFrame(rafRef.current);
       window.removeEventListener('keydown',kd); window.removeEventListener('keyup',ku);
+      window.removeEventListener('gp:realmRetryBoss', retryBoss);
+      window.removeEventListener('gp:fleeRealm', fleeRealm);
       window.removeEventListener('resize',resize); };
   },[]);
 
