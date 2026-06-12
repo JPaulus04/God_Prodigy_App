@@ -145,6 +145,7 @@ const DEFAULT_STATE = {
   showInventory:  false,
   showHelpMenu:   false,
   showDeathModal: false,
+  deathShopPending: false,
   savedBossHp: null,
   savedBossPhase: 1,
   bossRetryNonce: 0,
@@ -406,16 +407,19 @@ export const useGameStore = create((set, get) => ({
       return;
     }
 
-    // Flee Realm / normal death recovery: leave the active run and return to the Stronghold.
+    // Flee Realm / stronghold recovery: leave the active run and return to the Stronghold at full HP.
+    // Boss progress is fully cleared. Resource penalty still applies unless a Death Shield is used.
     get().clearBossCheckpoint();
+    const goingStronghold = location === 'stronghold';
     set({
-      playerHP: Math.floor(playerMaxHP * 0.5),
+      playerHP: goingStronghold ? playerMaxHP : Math.floor(playerMaxHP * 0.5),
       showDeathModal: false,
+      deathShopPending: false,
       resources: penalized,
       gamePhase: 'world',
       currentRealm: null,
       activeZone: 'world',
-      respawnAt: location === 'stronghold' ? 'stronghold' : (lastCheckpoint || 'stronghold'),
+      respawnAt: goingStronghold ? 'stronghold' : (lastCheckpoint || 'stronghold'),
     });
     SaveSystem.save(get());
     if (typeof window !== 'undefined') {
@@ -439,6 +443,26 @@ export const useGameStore = create((set, get) => ({
 
   // ── IAP Actions ────────────────────────────────────────────────────────────
   grantRespawnShield: (count = 1) => {
+    const state = get();
+    const shouldAutoRevive = state.deathShopPending && state.playerHP <= 0;
+
+    if (shouldAutoRevive) {
+      // Purchase from the death screen: immediately consume one shield and revive with no resource loss.
+      // Extra shields from bundles remain in inventory.
+      const remainingPurchased = Math.max(0, count - 1);
+      set(s => ({
+        respawnShields: (s.respawnShields || 0) + remainingPurchased,
+        playerHP: s.playerMaxHP,
+        showDeathModal: false,
+        deathShopPending: false,
+      }));
+      SaveSystem.save(get());
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gp:deathShieldAutoUsed'));
+      }
+      return;
+    }
+
     set(s => ({ respawnShields: (s.respawnShields || 0) + count }));
     SaveSystem.save(get());
   },
@@ -603,7 +627,7 @@ export const useGameStore = create((set, get) => ({
       ownedTrails:        get().ownedTrails,
       ownedTrail:         get().ownedTrail,
       // UI reset
-      showInventory: false, showHelpMenu: false, showDeathModal: false,
+      showInventory: false, showHelpMenu: false, showDeathModal: false, deathShopPending: false,
       showLevelUp:   false, showShop:     false,
       showVictory:   false, showPrestigeSelect: false,
       challengeCleared: false,
