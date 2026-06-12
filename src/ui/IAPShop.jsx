@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { initIAP, purchaseProduct, restorePurchases } from '../utils/iap';
 
@@ -98,16 +98,17 @@ function PurchaseConfirmModal({ item, onConfirm, onCancel, loading }) {
         <div style={{
           color: '#d4af37', fontSize: 26, fontWeight: 'bold', marginBottom: 20,
         }}>{item.price}</div>
-        <div style={{ color: '#ffffff44', fontSize: 10, marginBottom: 20 }}>
+        <div style={{ color: '#ffffff44', fontSize: 10, marginBottom: 20, lineHeight: 1.4 }}>
           Payment is processed securely through the App Store.
+          {loading && <><br />If the App Store sheet does not open, this will stop automatically.</>}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button disabled={loading} onClick={onCancel} style={{
+          <button onClick={onCancel} style={{
             flex: 1, padding: '14px', borderRadius: 12,
             background: '#1a1a2e', border: '1px solid #444',
-            color: loading ? '#555' : '#aaa', fontSize: 14,
-            cursor: loading ? 'default' : 'pointer', fontWeight: 'bold',
-          }}>Cancel</button>
+            color: '#aaa', fontSize: 14,
+            cursor: 'pointer', fontWeight: 'bold',
+          }}>{loading ? 'Close' : 'Cancel'}</button>
           <button disabled={loading} onClick={onConfirm} style={{
             flex: 2, padding: '14px', borderRadius: 12,
             background: loading ? '#444' : item.color, border: 'none',
@@ -225,6 +226,7 @@ export default function IAPShop({ onClose }) {
   const [toast, setToast] = useState(null);
   const [flashId, setFlashId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const activePurchaseRef = useRef(0);
 
   useEffect(() => { initIAP(); }, []);
 
@@ -273,17 +275,30 @@ export default function IAPShop({ onClose }) {
   const handleConfirm = async () => {
     if (!confirmItem || loading) return;
     const item = confirmItem;
+    const purchaseToken = Date.now();
+    activePurchaseRef.current = purchaseToken;
     setLoading(true);
 
+    const uiTimeout = new Promise(resolve => {
+      setTimeout(() => resolve({ success: false, reason: 'timeout_ui' }), 18000);
+    });
+
     try {
-      const purchaseResult = await purchaseProduct(item.purchaseKey);
+      const purchaseResult = await Promise.race([
+        purchaseProduct(item.purchaseKey),
+        uiTimeout,
+      ]);
+
+      // User closed the modal or another purchase started. Ignore stale native result.
+      if (activePurchaseRef.current !== purchaseToken) return;
+
       const purchased = purchaseResult === true || purchaseResult?.success === true;
 
       if (!purchased) {
         const reason = purchaseResult?.reason || 'error';
         let message = 'Purchase did not complete.';
         if (reason === 'cancelled') message = 'Purchase canceled.';
-        if (reason === 'timeout') message = 'App Store purchase timed out. Try again.';
+        if (reason === 'timeout' || reason === 'timeout_ui') message = 'App Store purchase did not open. Check RevenueCat/App Store product setup.';
         if (reason === 'no_offering') message = 'Store products are not available yet.';
         if (reason === 'not_in_offering') message = 'This product is not in the current offering.';
         showToast(message, true);
@@ -304,11 +319,14 @@ export default function IAPShop({ onClose }) {
       showToast(message);
       setConfirmItem(null);
     } catch (e) {
+      if (activePurchaseRef.current !== purchaseToken) return;
       console.warn('IAP purchase failed', e);
       showToast('Purchase failed. Try again.', true);
       setConfirmItem(null);
     } finally {
-      setLoading(false);
+      if (activePurchaseRef.current === purchaseToken) {
+        setLoading(false);
+      }
     }
   };
 
@@ -427,7 +445,7 @@ export default function IAPShop({ onClose }) {
         <PurchaseConfirmModal
           item={confirmItem}
           onConfirm={handleConfirm}
-          onCancel={() => !loading && setConfirmItem(null)}
+          onCancel={() => { activePurchaseRef.current += 1; setLoading(false); setConfirmItem(null); }}
           loading={loading}
         />
       )}
