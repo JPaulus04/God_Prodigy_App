@@ -33,11 +33,6 @@ function withTimeout(promise, ms, label = 'IAP request') {
   ]);
 }
 
-function safeCloneForNative(value) {
-  try { return JSON.parse(JSON.stringify(value)); }
-  catch (_) { return value; }
-}
-
 function normalizePurchaseResult(success, reason = null, details = null) {
   return { success: !!success, reason, details };
 }
@@ -107,12 +102,10 @@ export async function purchaseProduct(productId) {
       return normalizePurchaseResult(false, 'not_in_offering');
     }
 
-    // Capacitor bridges can hang when a complex JS object is passed across native.
-    // Send a JSON-safe package copy to the native plugin.
-    const nativePackage = safeCloneForNative(pkg);
+    console.log('[IAP] Starting purchasePackage for', productId);
     const result = await withTimeout(
-      P.purchasePackage({ aPackage: nativePackage }),
-      25000,
+      P.purchasePackage({ aPackage: pkg }),
+      15000,
       'Purchase'
     );
     return normalizePurchaseResult(true, 'purchased', result);
