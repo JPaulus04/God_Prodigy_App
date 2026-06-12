@@ -24,9 +24,22 @@ function withTimeout(promise, ms, label = 'IAP request') {
   return Promise.race([
     promise,
     new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+      setTimeout(() => {
+        const err = new Error(`${label} timed out after ${ms}ms`);
+        err.code = 'TIMEOUT';
+        reject(err);
+      }, ms);
     }),
   ]);
+}
+
+function safeCloneForNative(value) {
+  try { return JSON.parse(JSON.stringify(value)); }
+  catch (_) { return value; }
+}
+
+function normalizePurchaseResult(success, reason = null, details = null) {
+  return { success: !!success, reason, details };
 }
 
 function collectPurchasedIds(customerInfo) {
@@ -72,15 +85,15 @@ export async function purchaseProduct(productId) {
   const P = await getPlugin();
   if (!P) {
     console.warn(`[IAP] Dev mode — simulating purchase of ${productId}`);
-    return true;
+    return normalizePurchaseResult(true, 'dev_mode');
   }
 
   try {
-    const offerings = await withTimeout(P.getOfferings(), 15000, 'Get offerings');
+    const offerings = await withTimeout(P.getOfferings(), 12000, 'Get offerings');
     const current = offerings?.current;
     if (!current) {
       console.error('[IAP] No current offering in RevenueCat');
-      return false;
+      return normalizePurchaseResult(false, 'no_offering');
     }
 
     const availablePackages = current.availablePackages || [];
@@ -91,15 +104,28 @@ export async function purchaseProduct(productId) {
 
     if (!pkg) {
       console.error(`[IAP] Product not in offering: ${productId}`);
-      return false;
+      return normalizePurchaseResult(false, 'not_in_offering');
     }
 
-    await withTimeout(P.purchasePackage({ aPackage: pkg }), 60000, 'Purchase');
-    return true;
+    // Capacitor bridges can hang when a complex JS object is passed across native.
+    // Send a JSON-safe package copy to the native plugin.
+    const nativePackage = safeCloneForNative(pkg);
+    const result = await withTimeout(
+      P.purchasePackage({ aPackage: nativePackage }),
+      25000,
+      'Purchase'
+    );
+    return normalizePurchaseResult(true, 'purchased', result);
   } catch (e) {
-    if (e?.code === 'USER_CANCELLED' || e?.userCancelled) return false;
+    if (e?.code === 'USER_CANCELLED' || e?.userCancelled) {
+      return normalizePurchaseResult(false, 'cancelled');
+    }
+    if (e?.code === 'TIMEOUT') {
+      console.error('[IAP] Purchase timed out', e);
+      return normalizePurchaseResult(false, 'timeout');
+    }
     console.error('[IAP] Purchase error', e);
-    return false;
+    return normalizePurchaseResult(false, 'error', e);
   }
 }
 
