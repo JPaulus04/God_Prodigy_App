@@ -43,7 +43,9 @@ export default function DeathModal() {
 
   const handleShop = () => {
     if (actionLocked) return;
-    useGameStore.setState({ showDeathModal: false });
+    // Hide the death modal while the Shop is open, but remember this purchase came from death.
+    // grantRespawnShield() will auto-consume one purchased shield and revive the player.
+    useGameStore.setState({ showDeathModal: false, deathShopPending: true });
     toggleShop();
   };
 
@@ -143,7 +145,7 @@ export default function DeathModal() {
                       🛡 Get a Death Shield
                     </div>
                     <div style={{ fontSize: 11, color: '#777', marginTop: 2 }}>
-                      Purchased only · stay in realm with no resource loss
+                      Purchase now · revive at full HP with no resource loss
                     </div>
                   </div>
                   <div style={{
@@ -191,12 +193,12 @@ export default function DeathModal() {
             {inRealm ? '🏃 Flee Realm' : '🏰 Home Stronghold'}
           </div>
           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-            {inRealm ? 'Return to Stronghold. Boss progress resets.' : 'Safe spawn — further from your progress'}
+            {inRealm ? 'Return to Stronghold at full HP. Boss progress resets.' : 'Safe spawn — further from your progress'}
           </div>
         </button>
 
         <p style={{ color: '#333', fontSize: 10, marginTop: 14, marginBottom: 0 }}>
-          Retry Boss restarts the boss. Flee Realm sends you to Stronghold.
+          Retry Boss restarts the boss. Flee Realm sends you to Stronghold at full HP.
         </p>
       </div>
     </div>
