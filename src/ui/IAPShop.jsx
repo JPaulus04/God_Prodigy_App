@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
-import { initIAP, purchaseProduct, restorePurchases } from '../utils/iap';
+import { initIAP, purchaseProduct, restorePurchases, getIAPRevision } from '../utils/iap';
+
+const IAP_SHOP_REVISION = 'IAP-R93-STOREKIT-DIAG-REV-002';
 
 // Trimmed App Store catalog.
 // Keep this screen simple until the core economy and restore flow are fully stable.
@@ -54,6 +56,42 @@ const RESTORE_KEYS = new Set(
     .flatMap(i => [i.purchaseKey, ...(i.restoreAliases || [])])
 );
 
+function shortDetail(details) {
+  if (!details) return '';
+  if (typeof details === 'string') return details;
+  return (
+    details.message ||
+    details.underlyingErrorMessage ||
+    details.readableErrorCode ||
+    details.code ||
+    details.stage ||
+    ''
+  );
+}
+
+function purchaseFailureMessage(purchaseResult) {
+  const reason = purchaseResult?.reason || 'error';
+  const details = purchaseResult?.details || {};
+  const detail = shortDetail(details);
+
+  let message = 'Purchase did not complete.';
+
+  if (reason === 'cancelled') message = 'Purchase canceled.';
+  if (reason === 'not_configured') message = 'RevenueCat did not configure. Check SDK key, bundle ID, and iOS capability.';
+  if (reason === 'timeout') message = `Purchase timed out at ${details.stage || 'native StoreKit flow'}.`;
+  if (reason === 'no_offering') message = 'No current RevenueCat offering found.';
+  if (reason === 'not_in_offering') message = 'Product not in current RevenueCat offering.';
+  if (reason === 'missing_product') message = 'RevenueCat package is missing StoreProduct.';
+  if (reason === 'purchase_api_missing') message = 'RevenueCat purchase API missing in native build.';
+  if (reason === 'error') message = detail ? `Purchase failed: ${detail}` : 'Native purchase failed. Check RevenueCat/App Store setup.';
+
+  if (reason !== 'error' && detail && !message.includes(detail)) {
+    message = `${message} ${detail}`;
+  }
+
+  return `${message} [${IAP_SHOP_REVISION}]`;
+}
+
 function PurchaseConfirmModal({ item, onConfirm, onCancel, loading }) {
   return (
     <div
@@ -100,7 +138,7 @@ function PurchaseConfirmModal({ item, onConfirm, onCancel, loading }) {
         }}>{item.price}</div>
         <div style={{ color: '#ffffff44', fontSize: 10, marginBottom: 20, lineHeight: 1.4 }}>
           Payment is processed securely through the App Store.
-          {loading && <><br />If the App Store sheet does not open, this will stop automatically.</>}
+          {loading && <><br />Waiting for the native App Store response.</>}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onCancel} style={{
@@ -232,7 +270,7 @@ export default function IAPShop({ onClose }) {
 
   const showToast = (message, isError = false) => {
     setToast({ message, isError });
-    setTimeout(() => setToast(null), 2800);
+    setTimeout(() => setToast(null), isError ? 7000 : 2800);
   };
 
   const isOwned = (item) => {
@@ -255,13 +293,14 @@ export default function IAPShop({ onClose }) {
       if (restoredPass) {
         const passItem = ITEMS.find(i => i.id === 'god_pass');
         try { passItem.action(store); } catch (e) { console.warn('Restore action failed', e); }
-        showToast('God Pass restored.');
+        showToast(`God Pass restored. [${IAP_SHOP_REVISION}]`);
       } else {
-        showToast('No restorable purchases found.');
+        showToast(`No restorable purchases found. [${IAP_SHOP_REVISION}]`);
       }
     } catch (e) {
       console.warn('Restore failed', e);
-      showToast('Restore failed. Try again.', true);
+      const detail = shortDetail(e?.details) || e?.message || '';
+      showToast(`Restore failed: ${detail || 'native restore error'} [${IAP_SHOP_REVISION}]`, true);
     } finally {
       setLoading(false);
     }
@@ -279,15 +318,8 @@ export default function IAPShop({ onClose }) {
     activePurchaseRef.current = purchaseToken;
     setLoading(true);
 
-    const uiTimeout = new Promise(resolve => {
-      setTimeout(() => resolve({ success: false, reason: 'timeout_ui' }), 18000);
-    });
-
     try {
-      const purchaseResult = await Promise.race([
-        purchaseProduct(item.purchaseKey),
-        uiTimeout,
-      ]);
+      const purchaseResult = await purchaseProduct(item.purchaseKey);
 
       // User closed the modal or another purchase started. Ignore stale native result.
       if (activePurchaseRef.current !== purchaseToken) return;
@@ -295,13 +327,7 @@ export default function IAPShop({ onClose }) {
       const purchased = purchaseResult === true || purchaseResult?.success === true;
 
       if (!purchased) {
-        const reason = purchaseResult?.reason || 'error';
-        let message = 'Purchase did not complete.';
-        if (reason === 'cancelled') message = 'Purchase canceled.';
-        if (reason === 'timeout' || reason === 'timeout_ui') message = 'App Store purchase did not open. Check RevenueCat/App Store product setup.';
-        if (reason === 'no_offering') message = 'Store products are not available yet.';
-        if (reason === 'not_in_offering') message = 'This product is not in the current offering.';
-        showToast(message, true);
+        showToast(purchaseFailureMessage(purchaseResult), true);
         setConfirmItem(null);
         return;
       }
@@ -316,12 +342,13 @@ export default function IAPShop({ onClose }) {
 
       setFlashId(item.id);
       setTimeout(() => setFlashId(null), 1200);
-      showToast(message);
+      showToast(`${message} [${IAP_SHOP_REVISION}]`);
       setConfirmItem(null);
     } catch (e) {
       if (activePurchaseRef.current !== purchaseToken) return;
       console.warn('IAP purchase failed', e);
-      showToast('Purchase failed. Try again.', true);
+      const detail = shortDetail(e?.details) || e?.message || '';
+      showToast(`Purchase failed: ${detail || 'native purchase error'} [${IAP_SHOP_REVISION}]`, true);
       setConfirmItem(null);
     } finally {
       if (activePurchaseRef.current === purchaseToken) {
@@ -353,6 +380,9 @@ export default function IAPShop({ onClose }) {
             </div>
             <div style={{ color: '#ffffff55', fontSize: 12, marginTop: 2 }}>
               Three purchases only. No resource packs. No monthly pass.
+            </div>
+            <div style={{ color: '#ffffff33', fontSize: 9, marginTop: 2, fontFamily: 'monospace' }}>
+              {IAP_SHOP_REVISION} · SDK {getIAPRevision ? getIAPRevision() : 'unknown'}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -492,7 +522,9 @@ export default function IAPShop({ onClose }) {
           pointerEvents: 'none',
           zIndex: 400,
           textAlign: 'center',
-          maxWidth: '80%',
+          maxWidth: '90%',
+          whiteSpace: 'normal',
+          lineHeight: 1.35,
         }}>
           {toast.isError ? '!' : '✓'} {toast.message}
         </div>
