@@ -2,19 +2,24 @@
  * src/utils/iap.js
  * RevenueCat Capacitor IAP wrapper.
  *
- * Test Store diagnostic version:
- * - Uses RevenueCat DEBUG logs when supported.
+ * IAP-R92-APPLE-SDK-REV-001
+ * Created: 2026-06-26 17:37:19 UTC
+ *
+ * Apple Sandbox / TestFlight version:
+ * - Uses the RevenueCat Apple App Store public SDK key.
  * - Confirms offerings/products are loading.
  * - Purchases by StoreProduct first to avoid package-context issues.
  * - Falls back to package purchase if StoreProduct purchase is unavailable.
- * - Returns clearer failure reasons for the shop UI.
+ * - Returns clear failure reasons for the shop UI.
  */
 
 let Purchases = null;
 let RevenueCatLogLevel = null;
 let _initialized = false;
 
-const RC_API_KEY = 'test_wXpVHNqAorjnxBfDqJirLHvPXtD';
+const IAP_REVISION = 'IAP-R92-APPLE-SDK-REV-001';
+
+const RC_API_KEY = 'appl_YlVgOiDIFEPRqWRSoqGfOSKIfZX';
 const IAP_DEBUG = true;
 
 function log(...args) {
@@ -145,6 +150,7 @@ export async function initIAP(userId = null) {
 
     _initialized = true;
     log('RevenueCat initialized', {
+      revision: IAP_REVISION,
       keyPrefix: RC_API_KEY.slice(0, 8),
       userId: userId || 'anonymous',
     });
@@ -184,7 +190,7 @@ export async function purchaseProduct(productId) {
         const canPay = await withTimeout(P.canMakePayments(), 5000, 'canMakePayments');
         log('canMakePayments', canPay);
       } catch (e) {
-        warn('canMakePayments check failed; continuing because Test Store may not require Apple billing sheet.', e);
+        warn('canMakePayments check failed; continuing.', e);
       }
     }
 
