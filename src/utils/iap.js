@@ -227,6 +227,8 @@ export async function purchaseProduct(productId) {
       });
     }
 
+    // Use StoreProduct first. This is simpler for isolating Test Store purchase failures because
+    // it only requires the product identifier. If this API is unavailable, fall back to package.
     if (P.purchaseStoreProduct) {
       log('Starting purchaseStoreProduct', {
         requestedProductId: productId,
