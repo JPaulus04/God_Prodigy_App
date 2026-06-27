@@ -2,8 +2,8 @@
  * src/utils/iap.js
  * RevenueCat Capacitor IAP wrapper.
  *
- * IAP-R93-STOREKIT-DIAG-REV-002
- * Created: 2026-06-26 18:08:00 UTC
+ * IAP-R94-UI-TIMEOUT-REV-003
+ * Created: 2026-06-26 18:24:00 UTC
  *
  * Apple Sandbox / TestFlight diagnostic version:
  * - Uses the RevenueCat Apple App Store public SDK key.
@@ -11,13 +11,14 @@
  * - Does not strip RevenueCat objects through JSON conversion before purchase.
  * - Falls back to StoreProduct only if package purchase is unavailable.
  * - Returns native error details to the shop UI for diagnosis.
+ * - Uses shorter native timeout windows so testing does not hang indefinitely.
  */
 
 let Purchases = null;
 let RevenueCatLogLevel = null;
 let _initialized = false;
 
-const IAP_REVISION = 'IAP-R93-STOREKIT-DIAG-REV-002';
+const IAP_REVISION = 'IAP-R94-UI-TIMEOUT-REV-003';
 const RC_API_KEY = 'appl_YlVgOiDIFEPRqWRSoqGfOSKIfZX';
 const IAP_DEBUG = true;
 
@@ -249,7 +250,7 @@ export async function purchaseProduct(productId) {
 
       const result = await withTimeout(
         P.purchasePackage({ aPackage: pkg }),
-        180000,
+        60000,
         'purchasePackage'
       );
 
@@ -278,7 +279,7 @@ export async function purchaseProduct(productId) {
 
       const result = await withTimeout(
         P.purchaseStoreProduct({ product }),
-        180000,
+        60000,
         'purchaseStoreProduct'
       );
 
