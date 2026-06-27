@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { initIAP, purchaseProduct, restorePurchases, getIAPRevision } from '../utils/iap';
 
-const IAP_SHOP_REVISION = 'IAP-R93-STOREKIT-DIAG-REV-002';
+const IAP_SHOP_REVISION = 'IAP-R94-UI-TIMEOUT-REV-003';
 
 // Trimmed App Store catalog.
 // Keep this screen simple until the core economy and restore flow are fully stable.
@@ -79,6 +79,7 @@ function purchaseFailureMessage(purchaseResult) {
   if (reason === 'cancelled') message = 'Purchase canceled.';
   if (reason === 'not_configured') message = 'RevenueCat did not configure. Check SDK key, bundle ID, and iOS capability.';
   if (reason === 'timeout') message = `Purchase timed out at ${details.stage || 'native StoreKit flow'}.`;
+  if (reason === 'ui_native_timeout') message = detail || 'Native StoreKit purchase did not return in 60 seconds.';
   if (reason === 'no_offering') message = 'No current RevenueCat offering found.';
   if (reason === 'not_in_offering') message = 'Product not in current RevenueCat offering.';
   if (reason === 'missing_product') message = 'RevenueCat package is missing StoreProduct.';
@@ -318,8 +319,23 @@ export default function IAPShop({ onClose }) {
     activePurchaseRef.current = purchaseToken;
     setLoading(true);
 
+    const uiTimeout = new Promise(resolve => {
+      setTimeout(() => resolve({
+        success: false,
+        reason: 'ui_native_timeout',
+        details: {
+          stage: 'IAPShop UI timeout',
+          message: 'Native StoreKit purchase did not return in 60 seconds. The Apple purchase sheet is not opening or RevenueCat is waiting on StoreKit.',
+        },
+        revision: IAP_SHOP_REVISION,
+      }), 60000);
+    });
+
     try {
-      const purchaseResult = await purchaseProduct(item.purchaseKey);
+      const purchaseResult = await Promise.race([
+        purchaseProduct(item.purchaseKey),
+        uiTimeout,
+      ]);
 
       // User closed the modal or another purchase started. Ignore stale native result.
       if (activePurchaseRef.current !== purchaseToken) return;
@@ -327,6 +343,7 @@ export default function IAPShop({ onClose }) {
       const purchased = purchaseResult === true || purchaseResult?.success === true;
 
       if (!purchased) {
+        activePurchaseRef.current += 1;
         showToast(purchaseFailureMessage(purchaseResult), true);
         setConfirmItem(null);
         return;
@@ -352,6 +369,8 @@ export default function IAPShop({ onClose }) {
       setConfirmItem(null);
     } finally {
       if (activePurchaseRef.current === purchaseToken) {
+        setLoading(false);
+      } else {
         setLoading(false);
       }
     }
