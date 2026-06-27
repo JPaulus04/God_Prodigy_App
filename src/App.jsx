@@ -15,6 +15,9 @@ import IAPShop           from './ui/IAPShop';
 import TutorialOverlay   from './ui/TutorialOverlay';
 import AscensionVictory  from './ui/AscensionVictory';
 import PrestigeClassSelect from './ui/PrestigeClassSelect';
+import MainQuestTracker  from './ui/MainQuestTracker';
+
+// V95-POLISH-STORY-REV-001
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -64,12 +67,13 @@ export default function App() {
       {inDun   && <ErrorBoundary><DungeonCanvas /></ErrorBoundary>}
       {inRealm && <ErrorBoundary><RealmCanvas /></ErrorBoundary>}
       {inSH    && <ErrorBoundary><StrongholdMenu /></ErrorBoundary>}
+      {inGame && <MainQuestTracker />}
       {(inWorld || inDun || inRealm) && <ErrorBoundary><HUD /></ErrorBoundary>}
       {inGame && showHelpMenu   && <HelpMenu />}
       {inGame && showInventory  && <InventoryPanel />}
       {inGame && showDeathModal && <DeathModal />}
       {inGame && showLevelUp    && <LevelUpModal />}
-      {inGame && showShop      && <IAPShop onClose={toggleShop} />}
+      {inGame && showShop       && <IAPShop onClose={toggleShop} />}
       {showTutorial && <TutorialOverlay />}
       {showVictory && <AscensionVictory />}
       {showPrestigeSelect && <PrestigeClassSelect />}
