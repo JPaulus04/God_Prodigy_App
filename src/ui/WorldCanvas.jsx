@@ -1,19 +1,88 @@
-// V96-ART-POLISH-REV-002
+// V99-ASSET-RENDERER-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
+import { PIXEL_CRAWLER_ASSETS } from '../game/config/WorldAssetManifest';
 import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxCollect, sfxCheckpoint, sfxLevelUp, sfxPortal, resumeAudio } from '../utils/sfx';
 
-const WORLD_REVISION = 'V96-ART-POLISH-REV-002';
+const WORLD_REVISION = 'V99-ASSET-RENDERER-REV-001';
 const TILE = 32;
 const MAP_W = 120;
 const MAP_H = 120;
 const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
 const BORDER = TILE * 3;
+
+
+// V99 asset renderer foundation: safe image loading + canvas fallbacks.
+// Only low-risk world objects use assets in this pass.
+const V99_ASSET_PATHS = {
+  tree: PIXEL_CRAWLER_ASSETS?.props?.treeGreen || '/assets/world/pixel_crawler/environment__props__static__trees__model_01__size_02.png',
+  rock: PIXEL_CRAWLER_ASSETS?.props?.rocks || '/assets/world/pixel_crawler/environment__props__static__rocks.png',
+  resources: PIXEL_CRAWLER_ASSETS?.props?.resources || '/assets/world/pixel_crawler/environment__props__static__resources.png',
+  vegetation: PIXEL_CRAWLER_ASSETS?.props?.vegetation || '/assets/world/pixel_crawler/environment__props__static__vegetation.png',
+  workbench: PIXEL_CRAWLER_ASSETS?.stations?.workbench || '/assets/world/pixel_crawler/environment__structures__stations__workbench__workbench.png',
+  furnace: PIXEL_CRAWLER_ASSETS?.stations?.furnace || '/assets/world/pixel_crawler/environment__structures__stations__furnace__furnace.png',
+  anvil: PIXEL_CRAWLER_ASSETS?.stations?.anvil || '/assets/world/pixel_crawler/environment__structures__stations__anvil__anvil.png',
+};
+
+const V99_ASSET_SPRITES = {
+  // Source rectangles are intentionally conservative so failed/odd crops fall back cleanly.
+  treeGreen: { src: 'tree', sx: 32, sy: 0, sw: 32, sh: 64, ox: -22, oy: -48, dw: 44, dh: 66 },
+  rockA:     { src: 'rock', sx: 42, sy: 18, sw: 36, sh: 34, ox: -18, oy: -19, dw: 36, dh: 34 },
+  rockB:     { src: 'rock', sx: 80, sy: 18, sw: 36, sh: 34, ox: -18, oy: -19, dw: 36, dh: 34 },
+  oreGlow:   { src: 'rock', sx: 146, sy: 16, sw: 32, sh: 40, ox: -17, oy: -23, dw: 34, dh: 40 },
+  woodLog:   { src: 'resources', sx: 8, sy: 96, sw: 64, sh: 24, ox: -20, oy: -12, dw: 40, dh: 18 },
+  workbench: { src: 'workbench', sx: 0, sy: 0, sw: 96, sh: 72, ox: -40, oy: -6, dw: 80, dh: 54 },
+  furnace:   { src: 'furnace', sx: 0, sy: 0, sw: 64, sh: 96, ox: -22, oy: -24, dw: 44, dh: 66 },
+  anvil:     { src: 'anvil', sx: 0, sy: 0, sw: 84, sh: 58, ox: -34, oy: -7, dw: 68, dh: 48 },
+};
+
+const V99_IMAGE_CACHE = new Map();
+
+function getV99AssetImage(assetKey) {
+  const src = V99_ASSET_PATHS[assetKey];
+  if (!src || typeof Image === 'undefined') return null;
+  let img = V99_IMAGE_CACHE.get(src);
+  if (!img) {
+    img = new Image();
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.src = src;
+    V99_IMAGE_CACHE.set(src, img);
+  }
+  if (!img.complete || !img.naturalWidth || !img.naturalHeight) return null;
+  return img;
+}
+
+function preloadV99WorldAssets() {
+  Object.keys(V99_ASSET_PATHS).forEach(getV99AssetImage);
+}
+
+function drawV99Sprite(ctx, spriteKey, x, y, scale = 1) {
+  const sprite = V99_ASSET_SPRITES[spriteKey];
+  if (!sprite) return false;
+  const img = getV99AssetImage(sprite.src);
+  if (!img) return false;
+
+  ctx.save();
+  const previousSmoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    img,
+    sprite.sx, sprite.sy, sprite.sw, sprite.sh,
+    x + sprite.ox * scale,
+    y + sprite.oy * scale,
+    sprite.dw * scale,
+    sprite.dh * scale
+  );
+  ctx.imageSmoothingEnabled = previousSmoothing;
+  ctx.restore();
+  return true;
+}
 
 const REALM_PORTALS = [
   { realm: 'forest', name: 'Sylvara Gate', icon: '🌿', color: '#27ae60', skulls: 1, x: 25, y: 27 },
@@ -281,6 +350,8 @@ function clampToWorld(x, y) {
 }
 
 function drawTree(ctx, x, y, scale = 1) {
+  if (drawV99Sprite(ctx, 'treeGreen', x, y, scale)) return;
+
   ctx.globalAlpha = 0.2;
   ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(x, y + 16*scale, 16*scale, 6*scale, 0, 0, Math.PI*2); ctx.fill();
@@ -315,6 +386,9 @@ function drawTree(ctx, x, y, scale = 1) {
 }
 
 function drawRock(ctx, x, y, scale = 1) {
+  const variant = tileHash(Math.round(x), Math.round(y)) > 0.55 ? 'rockB' : 'rockA';
+  if (drawV99Sprite(ctx, variant, x, y, scale)) return;
+
   ctx.fillStyle = '#000';
   ctx.globalAlpha = 0.25;
   ctx.beginPath(); ctx.ellipse(x+2, y+10*scale, 16*scale, 6*scale, 0, 0, Math.PI*2); ctx.fill();
@@ -484,7 +558,17 @@ function drawBuilding(ctx, x, y, kind, t) {
     ctx.fillText('MARKET', 0, -40);
   }
 
-  ctx.restore();
+  
+
+  // V99 pixel-asset overlays. These are decorative only; collision/gameplay remains unchanged.
+  if (kind === 'hall') {
+    drawV99Sprite(ctx, 'workbench', 0, 22, 0.62);
+  }
+  if (kind === 'forge') {
+    drawV99Sprite(ctx, 'furnace', -2, 14, 0.58);
+    drawV99Sprite(ctx, 'anvil', 16, 16, 0.35);
+  }
+ctx.restore();
 }
 
 function drawShrine(ctx, x, y, color, label, t) {
@@ -617,6 +701,7 @@ export default function WorldCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    preloadV99WorldAssets();
 
     const resize = () => {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1066,13 +1151,21 @@ export default function WorldCanvas() {
       if (r.type === 'tree') drawTree(ctx, sx, sy);
       if (r.type === 'rock') drawRock(ctx, sx, sy);
       if (r.type === 'ore_node') {
-        drawRock(ctx, sx, sy, 1.05);
-        ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(sx+4, sy-4, 4, 0, Math.PI*2); ctx.fill();
+        if (!drawV99Sprite(ctx, 'oreGlow', sx, sy, 1.05)) {
+          drawRock(ctx, sx, sy, 1.05);
+          ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(sx+4, sy-4, 4, 0, Math.PI*2); ctx.fill();
+        }
       }
       if (r.type === 'fire_shard') {
-        ctx.font = '24px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🔥', sx, sy + 6);
+        if (!drawV99Sprite(ctx, 'oreGlow', sx, sy, 1.0)) {
+          ctx.font = '24px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('🔥', sx, sy + 6);
+        }
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath(); ctx.arc(sx + 7, sy - 7, 3, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
       }
       if (dist(G.player.x, G.player.y, r.x, r.y) < 48) drawLabel(ctx, `[E] ${r.res}`, sx, sy - 24, '#7ed321');
     }
