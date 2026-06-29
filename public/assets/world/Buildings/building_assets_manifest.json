@@ -1,0 +1,12 @@
+{
+  "revision": "V99-REAL-BUILDING-ASSETS-REV-001",
+  "purpose": "Real image-based Stronghold exterior buildings for God Prodigy.",
+  "source_note": "Cropped from user-provided building asset sheets. User confirmed these assets are safe for the project.",
+  "assets": {
+    "forge": "/assets/world/buildings/stronghold_forge.png",
+    "craftingHall": "/assets/world/buildings/stronghold_crafting_hall.png",
+    "market": "/assets/world/buildings/stronghold_market.png",
+    "shrine": "/assets/world/buildings/stronghold_shrine.png",
+    "barracks": "/assets/world/buildings/stronghold_barracks.png"
+  }
+}
