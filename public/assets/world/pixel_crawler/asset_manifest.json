@@ -1,0 +1,1078 @@
+{
+  "revision": "V97-ASSET-INTAKE-SAFE-REV-001",
+  "source": "Pixel Crawler - Free Pack 2.1",
+  "author": "Anokolisa",
+  "license_file": "/assets/licenses/pixel_crawler_terms.txt",
+  "note": "Only PNG runtime assets were copied. Aseprite source files and non-reviewed Zelda/ActionRPG assets were intentionally excluded from this GitHub-ready package.",
+  "asset_count": 178,
+  "assets": [
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Idle/Carry_Idle_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_idle/carry_idle_down_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Idle/Carry_Idle_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_idle/carry_idle_side_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Idle/Carry_Idle_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_idle/carry_idle_up_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Run/Carry_Run_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_run/carry_run_down_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Run/Carry_Run_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_run/carry_run_side_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Run/Carry_Run_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_run/carry_run_up_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Walk/Carry_Walk_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_walk/carry_walk_down_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Walk/Carry_Walk_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_walk/carry_walk_side_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Carry_Walk/Carry_Walk_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/carry_walk/carry_walk_up_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Collect_Base/Collect_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/collect_base/collect_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Collect_Base/Collect_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/collect_base/collect_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Collect_Base/Collect_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/collect_base/collect_up_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Crush_Base/Crush_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/crush_base/crush_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Crush_Base/Crush_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/crush_base/crush_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Crush_Base/Crush_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/crush_base/crush_up_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Death_Base/Death_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/death_base/death_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Death_Base/Death_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/death_base/death_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Death_Base/Death_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/death_base/death_up_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Fishing_Base/Fishing_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/fishing_base/fishing_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Fishing_Base/Fishing_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/fishing_base/fishing_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Fishing_Base/Fishing_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/fishing_base/fishing_up_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Hit_Base/Hit_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/hit_base/hit_down_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Hit_Base/Hit_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/hit_base/hit_side_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Hit_Base/Hit_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/hit_base/hit_up_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Idle_Base/Idle_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/idle_base/idle_down_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Idle_Base/Idle_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/idle_base/idle_side_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Idle_Base/Idle_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/idle_base/idle_up_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Pierce_Base/Pierce_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/pierce_base/pierce_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Pierce_Base/Pierce_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/pierce_base/pierce_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Pierce_Base/Pierce_Top-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/pierce_base/pierce_top_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Run_Base/Run_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/run_base/run_down_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Run_Base/Run_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/run_base/run_side_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Run_Base/Run_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/run_base/run_up_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Slice_Base/Slice_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/slice_base/slice_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Slice_Base/Slice_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/slice_base/slice_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Slice_Base/Slice_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/slice_base/slice_up_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Walk_Base/Walk_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/walk_base/walk_down_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Walk_Base/Walk_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/walk_base/walk_side_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Walk_Base/Walk_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/walk_base/walk_up_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Watering_Base/Watering_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/watering_base/watering_down_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Watering_Base/Watering_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/watering_base/watering_side_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Characters/Body_A/Animations/Watering_Base/Watering_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/characters/body_a/animations/watering_base/watering_up_sheet_png",
+      "width": 512,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc/death/death_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Rogue/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_rogue/death/death_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Rogue/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_rogue/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Rogue/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_rogue/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Shaman/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_shaman/death/death_sheet_png",
+      "width": 448,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Shaman/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_shaman/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Shaman/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_shaman/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Warrior/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_warrior/death/death_sheet_png",
+      "width": 576,
+      "height": 80
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Warrior/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_warrior/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Orc Crew/Orc - Warrior/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/orc_crew/orc_warrior/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Base/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_base/death/death_sheet_png",
+      "width": 768,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Base/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_base/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Base/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_base/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Mage/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_mage/death/death_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Mage/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_mage/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Mage/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_mage/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Rogue/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_rogue/death/death_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Rogue/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_rogue/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Rogue/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_rogue/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Warrior/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_warrior/death/death_sheet_png",
+      "width": 384,
+      "height": 48
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Warrior/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_warrior/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Mobs/Skeleton Crew/Skeleton - Warrior/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/mobs/skeleton_crew/skeleton_warrior/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Citizen_F/Tavern_A/Idle/Idle_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/citizen_f/tavern_a/idle/idle_down_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Citizen_F/Tavern_A/Idle/Idle_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/citizen_f/tavern_a/idle/idle_side_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Citizen_F/Tavern_A/Idle/Idle_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/citizen_f/tavern_a/idle/idle_up_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Citizen_F/Tavern_A/Walk/Walk_Down-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/citizen_f/tavern_a/walk/walk_down_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Citizen_F/Tavern_A/Walk/Walk_Side-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/citizen_f/tavern_a/walk/walk_side_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Citizen_F/Tavern_A/Walk/Walk_Up-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/citizen_f/tavern_a/walk/walk_up_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Knight/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/knight/death/death_sheet_png",
+      "width": 288,
+      "height": 32
+    },
+    {
+      "source": "Entities/Npc's/Knight/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/knight/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Npc's/Knight/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/knight/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Rogue/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/rogue/death/death_sheet_png",
+      "width": 384,
+      "height": 32
+    },
+    {
+      "source": "Entities/Npc's/Rogue/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/rogue/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Npc's/Rogue/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/rogue/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Entities/Npc's/Wizzard/Death/Death-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/wizzard/death/death_sheet_png",
+      "width": 384,
+      "height": 32
+    },
+    {
+      "source": "Entities/Npc's/Wizzard/Idle/Idle-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/wizzard/idle/idle_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Entities/Npc's/Wizzard/Run/Run-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/entities/npcs/wizzard/run/run_sheet_png",
+      "width": 384,
+      "height": 64
+    },
+    {
+      "source": "Environment/Props/Animated/Pan_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/animated/pan_01_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Props/Animated/Pan_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/animated/pan_02_sheet_png",
+      "width": 64,
+      "height": 32
+    },
+    {
+      "source": "Environment/Props/Animated/Pan_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/animated/pan_03_sheet_png",
+      "width": 384,
+      "height": 32
+    },
+    {
+      "source": "Environment/Props/Animated/Pan_04-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/animated/pan_04_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Props/Animated/Pan_05-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/animated/pan_05_sheet_png",
+      "width": 256,
+      "height": 32
+    },
+    {
+      "source": "Environment/Props/Static/Dungeon_Props.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/dungeon_props_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Props/Static/Esoteric.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/esoteric_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Props/Static/Farm.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/farm_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Props/Static/Furniture.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/furniture_png",
+      "width": 800,
+      "height": 864
+    },
+    {
+      "source": "Environment/Props/Static/Meat.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/meat_png",
+      "width": 192,
+      "height": 144
+    },
+    {
+      "source": "Environment/Props/Static/Pan.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/pan_png",
+      "width": 160,
+      "height": 176
+    },
+    {
+      "source": "Environment/Props/Static/Resources.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/resources_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Props/Static/Rocks.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/rocks_png",
+      "width": 208,
+      "height": 304
+    },
+    {
+      "source": "Environment/Props/Static/Shadows.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/shadows_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Props/Static/Tools.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/tools_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_01/Size_02.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_01/size_02_png",
+      "width": 256,
+      "height": 128
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_01/Size_03.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_01/size_03_png",
+      "width": 208,
+      "height": 192
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_01/Size_04.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_01/size_04_png",
+      "width": 368,
+      "height": 256
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_01/Size_05.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_01/size_05_png",
+      "width": 448,
+      "height": 368
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_02/Size_02.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_02/size_02_png",
+      "width": 128,
+      "height": 96
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_02/Size_03.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_02/size_03_png",
+      "width": 144,
+      "height": 160
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_02/Size_04.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_02/size_04_png",
+      "width": 192,
+      "height": 224
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_02/Size_05.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_02/size_05_png",
+      "width": 288,
+      "height": 320
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_02.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_02_png",
+      "width": 128,
+      "height": 160
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_03-export.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_03_export_png",
+      "width": 192,
+      "height": 288
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_03.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_03_png",
+      "width": 192,
+      "height": 288
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_04-export-export.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_04_export_export_png",
+      "width": 288,
+      "height": 416
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_04-export.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_04_export_png",
+      "width": 288,
+      "height": 416
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_04.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_04_png",
+      "width": 400,
+      "height": 416
+    },
+    {
+      "source": "Environment/Props/Static/Trees/Model_03/Size_05.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/trees/model_03/size_05_png",
+      "width": 384,
+      "height": 512
+    },
+    {
+      "source": "Environment/Props/Static/Vegetation.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/props/static/vegetation_png",
+      "width": 400,
+      "height": 432
+    },
+    {
+      "source": "Environment/Structures/Buildings/Interior/Interior_Props_01.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/buildings/interior/interior_props_01_png",
+      "width": 608,
+      "height": 384
+    },
+    {
+      "source": "Environment/Structures/Buildings/Interior/Interior_Walls_01.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/buildings/interior/interior_walls_01_png",
+      "width": 656,
+      "height": 400
+    },
+    {
+      "source": "Environment/Structures/Buildings/Props.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/buildings/props_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Structures/Buildings/Roofs.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/buildings/roofs_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Structures/Buildings/Shadows.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/buildings/shadows_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Structures/Buildings/Walls.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/buildings/walls_png",
+      "width": 672,
+      "height": 800
+    },
+    {
+      "source": "Environment/Structures/Stations/Alchemy/Alchemy_Table_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/alchemy/alchemy_table_01_sheet_png",
+      "width": 192,
+      "height": 704
+    },
+    {
+      "source": "Environment/Structures/Stations/Alchemy/Alchemy_Table_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/alchemy/alchemy_table_02_sheet_png",
+      "width": 528,
+      "height": 320
+    },
+    {
+      "source": "Environment/Structures/Stations/Alchemy/Alchemy_Table_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/alchemy/alchemy_table_03_sheet_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Structures/Stations/Anvil/Anvil.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/anvil/anvil_png",
+      "width": 272,
+      "height": 160
+    },
+    {
+      "source": "Environment/Structures/Stations/Anvil/Anvil_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/anvil/anvil_01_sheet_png",
+      "width": 512,
+      "height": 400
+    },
+    {
+      "source": "Environment/Structures/Stations/Anvil/Anvil_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/anvil/anvil_02_sheet_png",
+      "width": 480,
+      "height": 480
+    },
+    {
+      "source": "Environment/Structures/Stations/Anvil/Anvil_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/anvil/anvil_03_sheet_png",
+      "width": 768,
+      "height": 560
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_png",
+      "width": 64,
+      "height": 384
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_01_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_02_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_03_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_04-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_04_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_05-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_05_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_06-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_06_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_07-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_07_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_08-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_08_sheet_png",
+      "width": 128,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_09-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_09_sheet_png",
+      "width": 320,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Bonfire_10-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/bonfire_10_sheet_png",
+      "width": 192,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Fire_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/fire_01_sheet_png",
+      "width": 128,
+      "height": 48
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Fire_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/fire_02_sheet_png",
+      "width": 128,
+      "height": 48
+    },
+    {
+      "source": "Environment/Structures/Stations/Bonfire/Smoke-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/bonfire/smoke_sheet_png",
+      "width": 128,
+      "height": 48
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Butchery/Butchery_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/butchery/butchery_01_sheet_png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Butchery/Butchery_02.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/butchery/butchery_02_png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Butchery/Butchery_03.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/butchery/butchery_03_png",
+      "width": 80,
+      "height": 80
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Butchery/Butchery_04.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/butchery/butchery_04_png",
+      "width": 80,
+      "height": 80
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Cooker/Cooker_01.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/cooker/cooker_01_png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Cooker/Cooker_02.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/cooker/cooker_02_png",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Cooker/Cooker_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/cooker/cooker_03_sheet_png",
+      "width": 192,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Cooker/Cooker_04-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/cooker/cooker_04_sheet_png",
+      "width": 320,
+      "height": 80
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Cooking Station.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/cooking_station_png",
+      "width": 288,
+      "height": 224
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Estructure.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/estructure_png",
+      "width": 288,
+      "height": 224
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Grill/Grill_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/grill/grill_01_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Grill/Grill_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/grill/grill_02_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Grill/Grill_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/grill/grill_03_sheet_png",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Cooking Station/Grill/Grill_04-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/cooking_station/grill/grill_04_sheet_png",
+      "width": 320,
+      "height": 64
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Bricks_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/bricks_01_sheet_png",
+      "width": 64,
+      "height": 96
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Bricks_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/bricks_02_sheet_png",
+      "width": 96,
+      "height": 128
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Bricks_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/bricks_03_sheet_png",
+      "width": 96,
+      "height": 128
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Furnace.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/furnace_png",
+      "width": 192,
+      "height": 384
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Iron_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/iron_01_sheet_png",
+      "width": 64,
+      "height": 96
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Iron_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/iron_02_sheet_png",
+      "width": 96,
+      "height": 128
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Iron_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/iron_03_sheet_png",
+      "width": 96,
+      "height": 128
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Stone_01-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/stone_01_sheet_png",
+      "width": 64,
+      "height": 96
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Stone_02-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/stone_02_sheet_png",
+      "width": 96,
+      "height": 128
+    },
+    {
+      "source": "Environment/Structures/Stations/Furnace/Stone_03-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/furnace/stone_03_sheet_png",
+      "width": 96,
+      "height": 128
+    },
+    {
+      "source": "Environment/Structures/Stations/Sawmill/Base.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/sawmill/base_png",
+      "width": 256,
+      "height": 144
+    },
+    {
+      "source": "Environment/Structures/Stations/Sawmill/Level_1.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/sawmill/level_1_png",
+      "width": 32,
+      "height": 32
+    },
+    {
+      "source": "Environment/Structures/Stations/Sawmill/Level_2-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/sawmill/level_2_sheet_png",
+      "width": 640,
+      "height": 512
+    },
+    {
+      "source": "Environment/Structures/Stations/Sawmill/Level_3-Sheet.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/sawmill/level_3_sheet_png",
+      "width": 896,
+      "height": 640
+    },
+    {
+      "source": "Environment/Structures/Stations/Workbench/Workbench.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/structures/stations/workbench/workbench_png",
+      "width": 192,
+      "height": 352
+    },
+    {
+      "source": "Environment/Tilesets/Dungeon_Tiles.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/tilesets/dungeon_tiles_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Tilesets/Floors_Tiles.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/tilesets/floors_tiles_png",
+      "width": 400,
+      "height": 416
+    },
+    {
+      "source": "Environment/Tilesets/Wall_Tiles.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/tilesets/wall_tiles_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "Environment/Tilesets/Wall_Variations.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/tilesets/wall_variations_png",
+      "width": 256,
+      "height": 480
+    },
+    {
+      "source": "Environment/Tilesets/Water_tiles.png",
+      "repo_path": "public/assets/world/pixel_crawler/environment/tilesets/water_tiles_png",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "source": "MockUps/Tavern_01.png",
+      "repo_path": "public/assets/world/pixel_crawler/mockups/tavern_01_png",
+      "width": 1280,
+      "height": 1280
+    },
+    {
+      "source": "MockUps/Tavern_02.png",
+      "repo_path": "public/assets/world/pixel_crawler/mockups/tavern_02_png",
+      "width": 1280,
+      "height": 1280
+    },
+    {
+      "source": "Weapons/Bone/Bone.png",
+      "repo_path": "public/assets/world/pixel_crawler/weapons/bone/bone_png",
+      "width": 224,
+      "height": 144
+    },
+    {
+      "source": "Weapons/Hands/Hands.png",
+      "repo_path": "public/assets/world/pixel_crawler/weapons/hands/hands_png",
+      "width": 32,
+      "height": 96
+    },
+    {
+      "source": "Weapons/Wood/Wood.png",
+      "repo_path": "public/assets/world/pixel_crawler/weapons/wood/wood_png",
+      "width": 192,
+      "height": 112
+    }
+  ]
+}
