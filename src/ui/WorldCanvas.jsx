@@ -1,4 +1,4 @@
-// V99-STRONGHOLD-BUILDING-SPLIT-REV-001
+// V99-REAL-BUILDING-ASSETS-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
@@ -8,7 +8,7 @@ import { PIXEL_CRAWLER_ASSETS } from '../game/config/WorldAssetManifest';
 import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxCollect, sfxCheckpoint, sfxLevelUp, sfxPortal, resumeAudio } from '../utils/sfx';
 
-const WORLD_REVISION = 'V99-STRONGHOLD-BUILDING-SPLIT-REV-001';
+const WORLD_REVISION = 'V99-REAL-BUILDING-ASSETS-REV-001';
 const TILE = 32;
 const MAP_W = 120;
 const MAP_H = 120;
@@ -27,6 +27,13 @@ const V99_ASSET_PATHS = {
   workbench: PIXEL_CRAWLER_ASSETS?.stations?.workbench || '/assets/world/pixel_crawler/environment__structures__stations__workbench__workbench.png',
   furnace: PIXEL_CRAWLER_ASSETS?.stations?.furnace || '/assets/world/pixel_crawler/environment__structures__stations__furnace__furnace.png',
   anvil: PIXEL_CRAWLER_ASSETS?.stations?.anvil || '/assets/world/pixel_crawler/environment__structures__stations__anvil__anvil.png',
+
+  // V99.3: real Stronghold exterior building sprites from user-provided assets.
+  strongholdForge: '/assets/world/buildings/stronghold_forge.png',
+  strongholdCrafting: '/assets/world/buildings/stronghold_crafting_hall.png',
+  strongholdMarket: '/assets/world/buildings/stronghold_market.png',
+  strongholdShrine: '/assets/world/buildings/stronghold_shrine.png',
+  strongholdBarracks: '/assets/world/buildings/stronghold_barracks.png',
 };
 
 const V99_ASSET_SPRITES = {
@@ -82,6 +89,48 @@ function drawV99Sprite(ctx, spriteKey, x, y, scale = 1) {
   ctx.imageSmoothingEnabled = previousSmoothing;
   ctx.restore();
   return true;
+}
+
+function drawV99AssetImage(ctx, assetKey, x, y, width, height, options = {}) {
+  const img = getV99AssetImage(assetKey);
+  if (!img) return false;
+
+  const { anchorX = 0.5, anchorY = 1, offsetX = 0, offsetY = 0 } = options;
+  ctx.save();
+  const previousSmoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    img,
+    x - width * anchorX + offsetX,
+    y - height * anchorY + offsetY,
+    width,
+    height
+  );
+  ctx.imageSmoothingEnabled = previousSmoothing;
+  ctx.restore();
+  return true;
+}
+
+function drawHubNameplate(ctx, label, y, color, fontSize = 9.5) {
+  const width = Math.max(58, label.length * fontSize * 0.78);
+  const height = 16;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = '#090706';
+  ctx.fillRect(-width/2, y - height/2, width, height);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-width/2, y - height/2, width, height);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2.5;
+  ctx.strokeText(label, 0, y);
+  ctx.fillText(label, 0, y);
+  ctx.restore();
 }
 
 const REALM_PORTALS = [
@@ -542,10 +591,70 @@ function drawWoodCabin(ctx, roofColor, wallColor, label, labelColor, options = {
   drawSignText(ctx, label, doorY - 8, labelColor, label.length > 8 ? 8.5 : 10);
 }
 
+const STRONGHOLD_BUILDING_ASSETS = {
+  crafting: {
+    asset: 'strongholdCrafting', label: 'CRAFTING', color: '#d4af37',
+    width: 128, height: 86, shadowW: 62, nameY: -42,
+  },
+  forge: {
+    asset: 'strongholdForge', label: 'FORGE', color: '#ff8a1f',
+    width: 126, height: 106, shadowW: 64, nameY: -56,
+  },
+  market: {
+    asset: 'strongholdMarket', label: 'MARKET', color: '#d9a7ff',
+    width: 92, height: 100, shadowW: 48, nameY: -52,
+  },
+  shrine_house: {
+    asset: 'strongholdShrine', label: 'SHRINE', color: '#f1c40f',
+    width: 128, height: 116, shadowW: 70, nameY: -64,
+  },
+  barracks: {
+    asset: 'strongholdBarracks', label: 'BARRACKS', color: '#aed6f1',
+    width: 128, height: 98, shadowW: 62, nameY: -52,
+  },
+};
+
 function drawBuilding(ctx, x, y, kind, t) {
   ctx.save();
   ctx.translate(x, y);
 
+  const spec = STRONGHOLD_BUILDING_ASSETS[kind];
+  if (spec) {
+    // Real asset-based exteriors. If image loading fails, this falls through to the old canvas fallback below.
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(2, 39, spec.shadowW, 13, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    const drewAsset = drawV99AssetImage(ctx, spec.asset, 0, 43, spec.width, spec.height);
+    if (drewAsset) {
+      if (kind === 'forge') {
+        const glow = 0.45 + Math.sin(t * 5) * 0.12;
+        ctx.globalAlpha = glow;
+        ctx.fillStyle = '#ff6b00';
+        ctx.beginPath(); ctx.arc(-26, 28, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath(); ctx.arc(-26, 28, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      if (kind === 'shrine_house') {
+        const pulse = 0.25 + Math.sin(t * 3) * 0.08;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath(); ctx.arc(0, -16, 54, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      drawHubNameplate(ctx, spec.label, spec.nameY, spec.color, spec.label.length > 7 ? 8.5 : 9.5);
+      ctx.restore();
+      return;
+    }
+  }
+
+  // Fallback canvas buildings. These should only display if the real PNG assets fail to load.
   ctx.globalAlpha = 0.28;
   ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(2, 38, 58, 12, 0, 0, Math.PI*2); ctx.fill();
@@ -553,72 +662,22 @@ function drawBuilding(ctx, x, y, kind, t) {
 
   if (kind === 'hall' || kind === 'crafting') {
     drawWoodCabin(ctx, '#7f2a1d', '#594024', 'CRAFTING', '#d4af37', { width: 88, height: 66, roofHeight: 34, doorY: 10 });
-
-    // Clean crafting identity: scroll + material dots above the sign instead of tiny clutter on the ground.
-    ctx.fillStyle = '#ead9a8'; ctx.fillRect(-30, -4, 14, 9);
-    ctx.strokeStyle = '#b7954b'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(-28, -1); ctx.lineTo(-18, -1); ctx.stroke();
-    ctx.fillStyle = '#7ed321'; ctx.beginPath(); ctx.arc(22, -1, 3, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#95a5a6'; ctx.beginPath(); ctx.arc(30, -1, 3, 0, Math.PI*2); ctx.fill();
   }
 
   if (kind === 'forge') {
-    ctx.fillStyle = '#423d38'; ctx.fillRect(-30, -22, 60, 50);
-    ctx.fillStyle = '#302d29'; ctx.fillRect(-22, -22, 44, 50);
-    ctx.strokeStyle = '#1e1b19'; ctx.lineWidth = 2; ctx.strokeRect(-30, -22, 60, 50);
-
-    ctx.fillStyle = '#251711';
-    ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(-40, -22); ctx.lineTo(40, -22); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#262422'; ctx.fillRect(12, -52, 11, 28);
-    ctx.globalAlpha = 0.35 + Math.sin(t * 2) * 0.08;
-    ctx.fillStyle = '#777';
-    ctx.beginPath(); ctx.arc(18, -63, 8 + Math.sin(t*5)*3, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 1;
-
-    drawDoor(ctx, 0, 4, 18, 24, '#111');
-    const glow = 0.65 + Math.sin(t*6)*0.25;
-    ctx.globalAlpha = glow;
-    ctx.fillStyle = '#ff6b00'; ctx.beginPath(); ctx.arc(0, 16, 8, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.arc(0, 16, 4, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 1;
-    drawSignText(ctx, 'FORGE', -30, '#e67e22', 10);
+    drawWoodCabin(ctx, '#7f2a1d', '#302d29', 'FORGE', '#e67e22', { width: 84, height: 60, roofHeight: 34, doorY: 8 });
   }
 
   if (kind === 'market') {
-    ctx.fillStyle = '#5c4028'; ctx.fillRect(-32, -14, 64, 24);
-    ctx.fillStyle = '#8e44ad'; ctx.fillRect(-36, -34, 72, 18);
-    ctx.fillStyle = '#f1c40f';
-    for(let i=-30; i<=30; i+=14) ctx.fillRect(i, -34, 7, 18);
-    ctx.fillStyle = '#3d2a15'; ctx.fillRect(-26, 10, 52, 12);
-    ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(-16, -8, 4, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#3498db'; ctx.fillRect(-4, -11, 7, 7);
-    ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(12, -8, 4, 0, Math.PI*2); ctx.fill();
-    drawSignText(ctx, 'MARKET', -44, '#d9a7ff', 10);
+    drawWoodCabin(ctx, '#8e44ad', '#5c4028', 'MARKET', '#d9a7ff', { width: 78, height: 50, roofHeight: 26, doorY: 6 });
   }
 
   if (kind === 'shrine_house') {
-    ctx.fillStyle = '#6b5a2b'; ctx.fillRect(-20, -10, 40, 36);
-    ctx.fillStyle = '#3a2f1a'; ctx.fillRect(-24, 22, 48, 8);
-    ctx.fillStyle = '#f1c40f';
-    ctx.globalAlpha = 0.22 + Math.sin(t * 3) * 0.08;
-    ctx.beginPath(); ctx.arc(0, -12, 31, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = '#f9e79f';
-    ctx.beginPath(); ctx.moveTo(0, -46); ctx.lineTo(-16, -8); ctx.lineTo(16, -8); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -22, 5 + Math.sin(t*4)*1.5, 0, Math.PI*2); ctx.fill();
-    drawSignText(ctx, 'SHRINE', -54, '#f1c40f', 10);
+    drawWoodCabin(ctx, '#f1c40f', '#6b5a2b', 'SHRINE', '#f1c40f', { width: 80, height: 54, roofHeight: 30, doorY: 7 });
   }
 
   if (kind === 'barracks') {
-    ctx.fillStyle = '#34495e'; ctx.fillRect(-30, -14, 60, 40);
-    ctx.fillStyle = '#5dade2';
-    ctx.beginPath(); ctx.moveTo(0, -46); ctx.lineTo(-38, -14); ctx.lineTo(38, -14); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#1f2d3a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, -46); ctx.lineTo(0, 26); ctx.stroke();
-    ctx.strokeStyle = '#d6eaf8'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-18, 10); ctx.lineTo(-4, -8); ctx.moveTo(18, 10); ctx.lineTo(4, -8); ctx.stroke();
-    drawDoor(ctx, 0, 2, 18, 24, '#18212a');
-    drawSignText(ctx, 'BARRACKS', -54, '#aed6f1', 8.5);
+    drawWoodCabin(ctx, '#5dade2', '#34495e', 'BARRACKS', '#aed6f1', { width: 84, height: 54, roofHeight: 28, doorY: 8 });
   }
 
   ctx.restore();
