@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 
 // V95-QUEST-BANNER-REV-002
+// V100-STRONGHOLD-VILLAGE-REV-001: compact quest banner to keep the Stronghold visible.
 const STORY_REVISION = 'V95-QUEST-BANNER-REV-002';
 
 const THRONES = [
@@ -319,52 +320,43 @@ function QuestBanner({ quest, defeatedCount, onOpen }) {
       onClick={onOpen}
       style={{
         position: 'absolute',
-        top: 'calc(env(safe-area-inset-top) + 168px)',
-        left: 14,
-        width: 'min(260px, calc(100% - 164px))',
+        top: 'calc(env(safe-area-inset-top) + 154px)',
+        left: 12,
+        width: 'min(188px, calc(100% - 210px))',
         zIndex: 84,
         pointerEvents: 'all',
-        background: 'linear-gradient(135deg, rgba(8,8,18,0.83), rgba(20,18,31,0.80))',
-        border: '1px solid rgba(212,175,55,0.46)',
-        borderRadius: 12,
-        padding: '7px 10px 8px',
-        boxShadow: '0 6px 18px rgba(0,0,0,0.55), inset 0 0 16px rgba(212,175,55,0.06)',
+        background: 'linear-gradient(135deg, rgba(8,8,18,0.76), rgba(20,18,31,0.70))',
+        border: '1px solid rgba(212,175,55,0.42)',
+        borderRadius: 999,
+        padding: '6px 10px 7px',
+        boxShadow: '0 5px 14px rgba(0,0,0,0.42), inset 0 0 14px rgba(212,175,55,0.04)',
         textAlign: 'left',
         cursor: 'pointer',
         color: '#fff',
         backdropFilter: 'blur(2px)',
+        minHeight: 42,
       }}
       aria-label="Open main quest"
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
-        <span style={{ color: '#d4af37', fontSize: 9, fontWeight: 900, letterSpacing: 1.4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+        <span style={{ color: '#d4af37', fontSize: 8.5, fontWeight: 900, letterSpacing: 1.2, whiteSpace: 'nowrap' }}>
           MAIN QUEST
         </span>
-        <span style={{ color: '#ffffff55', fontSize: 9, fontWeight: 900, whiteSpace: 'nowrap' }}>
+        <span style={{ color: '#ffffff66', fontSize: 8.5, fontWeight: 900, whiteSpace: 'nowrap' }}>
           {defeatedCount}/10
         </span>
       </div>
       <div style={{
         color: '#fff',
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: 900,
-        lineHeight: 1.2,
+        lineHeight: 1.15,
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        marginBottom: 2,
+        marginTop: 2,
       }}>
         {quest.shortTitle || quest.title}
-      </div>
-      <div style={{
-        color: '#ffffff8a',
-        fontSize: 10.5,
-        lineHeight: 1.25,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}>
-        {quest.objective}
       </div>
     </button>
   );
