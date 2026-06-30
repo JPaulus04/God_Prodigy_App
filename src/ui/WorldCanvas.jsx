@@ -1,145 +1,128 @@
-// V106-SPRITE-GRAPHICS-REV-001
+// V107-SPRITE-FIX
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
-// ── Sprite cache (module-level, loaded once) ─────────────────────────────────
-const SC = {};
-function loadImg(key, path) {
-  if (SC[key]) return SC[key];
-  const img = new Image();
-  img.src = path;
-  SC[key] = img;
-  return img;
-}
-// Pixel Crawler base path
-const PC = '/assets/world/pixel_crawler/';
-// Building base path
-const BD = '/assets/world/Buildings/';
-// Player sprite sheets (body_a, 64×64 frames)
-const PLAYER_SHEETS = {
-  idle_down:   PC + 'entities__characters__body_a__animations__idle_base__idle_down_sheet.png',
-  idle_side:   PC + 'entities__characters__body_a__animations__idle_base__idle_side_sheet.png',
-  walk_down:   PC + 'entities__characters__body_a__animations__walk_base__walk_down_sheet.png',
-  walk_side:   PC + 'entities__characters__body_a__animations__walk_base__walk_side_sheet.png',
-  walk_up:     PC + 'entities__characters__body_a__animations__walk_base__walk_up_sheet.png',
-  run_down:    PC + 'entities__characters__body_a__animations__run_base__run_down_sheet.png',
-  run_side:    PC + 'entities__characters__body_a__animations__run_base__run_side_sheet.png',
-  run_up:      PC + 'entities__characters__body_a__animations__run_base__run_up_sheet.png',
-  slice_down:  PC + 'entities__characters__body_a__animations__slice_base__slice_down_sheet.png',
-  slice_side:  PC + 'entities__characters__body_a__animations__slice_base__slice_side_sheet.png',
-  hit_down:    PC + 'entities__characters__body_a__animations__hit_base__hit_down_sheet.png',
-  death_down:  PC + 'entities__characters__body_a__animations__death_base__death_down_sheet.png',
-};
-// Pre-load all player sheets
-Object.entries(PLAYER_SHEETS).forEach(([k, v]) => loadImg('player_' + k, v));
-// NPC sprite sheets (NPC id → sprite key)
-const NPC_IDLE = {
-  keeper:   PC + 'entities__npcs__wizzard__idle__idle_sheet.png',   // wizzard = The Keeper
-  smith:    PC + 'entities__npcs__knight__idle__idle_sheet.png',     // knight = Aldric the smith
-  merchant: PC + 'entities__npcs__rogue__idle__idle_sheet.png',      // rogue = Mira the merchant
-};
-Object.entries(NPC_IDLE).forEach(([k, v]) => loadImg('npc_' + k, v));
-// Building PNGs
-const BUILDING_IMGS = {
-  hall:     BD + 'stronghold_crafting_hall.png',
-  forge:    BD + 'stronghold_forge.png',
-  market:   BD + 'stronghold_market.png',
-  barracks: BD + 'stronghold_barracks.png',
-  shrine:   BD + 'stronghold_shrine.png',
-};
-Object.entries(BUILDING_IMGS).forEach(([k, v]) => loadImg('bld_' + k, v));
-// Tree sprite (use model_01 size_03)
-loadImg('tree', PC + 'environment__props__static__trees__model_01__size_03.png');
-// Bonfire animated (frames 1-5 for idle loop)
-[1,2,3,4,5,6,7,8].forEach(i => loadImg('bonfire_' + i, PC + `environment__structures__stations__bonfire__bonfire_0${i}_sheet.png`));
+// ── Sprite system ─────────────────────────────────────────────────────────────
+// All sheets confirmed from asset_manifest.json:
+//   Mob idle:    128×32 → 4 frames @ 32×32
+//   Mob run:     384×64 → 6 frames @ 64×64
+//   NPC idle:    128×32 → 4 frames @ 32×32  (Knight/Rogue/Wizzard)
+//   NPC run:     384×64 → 6 frames @ 64×64
+//   Citizen idle:256×64 → 4 frames @ 64×64
+//   Trees: static PNGs (various sizes, draw as-is)
+//   Buildings: static PNGs from Buildings/ folder
+//
+// Player = Knight NPC sprite (fully armored, 32×32 idle / 64×64 run)
+// Draw size for player: 96px (3× sprite pixel size)
+// Draw size for enemies: proportional to their game radius
 
-// ── Sprite draw helpers ──────────────────────────────────────────────────────
-// Draw one frame from a horizontal sprite sheet
-function drawSpriteFrame(ctx, imgKey, frame, totalFrames, frameW, frameH, dx, dy, drawW, drawH, flipX=false) {
-  const img = SC[imgKey];
+const _SC = {};
+function _img(key, path) {
+  if (_SC[key]) return _SC[key];
+  const img = new Image(); img.src = path; _SC[key] = img; return img;
+}
+const PC = '/assets/world/pixel_crawler/';
+const BD = '/assets/world/Buildings/';
+
+// ── Player: Knight NPC (fully armored)
+// Idle: 128×32 (4 frames @ 32×32)  Run: 384×64 (6 frames @ 64×64)
+_img('p_idle_side', PC + 'entities__npcs__knight__idle__idle_sheet.png');
+_img('p_idle_down', PC + 'entities__npcs__knight__idle__idle_sheet.png');
+_img('p_run_side',  PC + 'entities__npcs__knight__run__run_sheet.png');
+_img('p_run_down',  PC + 'entities__npcs__knight__run__run_sheet.png');
+_img('p_run_up',    PC + 'entities__npcs__knight__run__run_sheet.png');
+_img('p_death',     PC + 'entities__npcs__knight__death__death_sheet.png');
+
+// ── World NPCs
+// Keeper (Wizzard): idle 128×32 / run 384×64
+_img('npc_keeper_idle', PC + 'entities__npcs__wizzard__idle__idle_sheet.png');
+_img('npc_keeper_run',  PC + 'entities__npcs__wizzard__run__run_sheet.png');
+// Smith (Knight): idle 128×32 / run 384×64
+_img('npc_smith_idle', PC + 'entities__npcs__knight__idle__idle_sheet.png');
+_img('npc_smith_run',  PC + 'entities__npcs__knight__run__run_sheet.png');
+// Merchant (Rogue): idle 128×32 / run 384×64
+_img('npc_merchant_idle', PC + 'entities__npcs__rogue__idle__idle_sheet.png');
+_img('npc_merchant_run',  PC + 'entities__npcs__rogue__run__run_sheet.png');
+// Citizen (Tavern): idle 256×64 (4 frames @ 64×64)
+_img('npc_citizen_idle', PC + 'entities__npcs__citizen_f__tavern_a__idle__idle_down_sheet.png');
+
+// ── Trees (static PNGs)
+_img('tree2', PC + 'environment__props__static__trees__model_01__size_02.png');
+_img('tree3', PC + 'environment__props__static__trees__model_01__size_03.png');
+_img('tree4', PC + 'environment__props__static__trees__model_01__size_04.png');
+
+// ── Buildings (static PNGs)
+_img('bld_hall',     BD + 'stronghold_crafting_hall.png');
+_img('bld_forge',    BD + 'stronghold_forge.png');
+_img('bld_market',   BD + 'stronghold_market.png');
+_img('bld_barracks', BD + 'stronghold_barracks.png');
+_img('bld_shrine',   BD + 'stronghold_shrine.png');
+
+// ── Sprite draw helpers ───────────────────────────────────────────────────────
+// Draw one frame from a horizontal sheet.
+// Returns true if image was loaded and drawn.
+function drawFrame(ctx, key, frame, srcW, srcH, dx, dy, dW, dH, flipX = false) {
+  const img = _SC[key];
   if (!img || !img.complete || img.naturalWidth === 0) return false;
   ctx.save();
-  if (flipX) {
-    ctx.scale(-1, 1);
-    dx = -dx - drawW;
-  }
-  ctx.drawImage(img, frame * frameW, 0, frameW, frameH, dx, dy, drawW, drawH);
+  if (flipX) { ctx.scale(-1, 1); dx = -dx - dW; }
+  ctx.drawImage(img, frame * srcW, 0, srcW, srcH, dx, dy, dW, dH);
   ctx.restore();
   return true;
 }
 
-// Draw player sprite (body_a). Returns true if sprite drawn, false=fallback
-function drawPlayerSprite(ctx, px, py, t, moving, direction, attacking) {
-  const FRAME_SIZE = 64; // 64×64 source frame
-  const DRAW_SIZE  = 48; // render 48px on screen
-  const FPS_WALK   = 8;  // walk animation speed
-  const FPS_RUN    = 10;
-  const FPS_IDLE   = 4;
+// Draw player (Knight sprite). Draw size = 96px.
+// dir: 'down' | 'up' | 'side_right' | 'side_left'
+function drawPlayerSprite(ctx, cx, cy, t, moving, dir) {
+  const DS = 96;          // draw size on screen
+  const HALF = DS / 2;
+  const flipX = dir === 'side_left';
 
-  let sheet, totalFrames, fps, flipX = false;
-
-  if (attacking) {
-    // slice animation
-    const key = direction === 'up' ? 'slice_side' : direction === 'side_left' ? 'slice_side' : 'slice_down';
-    sheet = 'player_' + key;
-    totalFrames = 8; fps = 12;
-    flipX = direction === 'side_left';
-  } else if (moving) {
-    const speed = 1; // world canvas always walk
-    if (direction === 'up') {
-      sheet = speed ? 'player_walk_up' : 'player_walk_up'; totalFrames = 6; fps = FPS_WALK;
-    } else if (direction === 'side_right') {
-      sheet = 'player_walk_side'; totalFrames = 6; fps = FPS_WALK;
-    } else if (direction === 'side_left') {
-      sheet = 'player_walk_side'; totalFrames = 6; fps = FPS_WALK; flipX = true;
-    } else {
-      sheet = 'player_walk_down'; totalFrames = 6; fps = FPS_WALK;
-    }
+  if (moving) {
+    // run sheet: 384×64 → 6 frames @ 64×64
+    const frame = Math.floor(t * 8) % 6;
+    const key = 'p_run_side'; // Knight only has one side sheet; flip for left
+    return drawFrame(ctx, key, frame, 64, 64, cx - HALF, cy - DS * 0.7, DS, DS, flipX);
   } else {
-    const key = direction === 'up' ? 'idle_side' : direction === 'side_left' ? 'idle_side' : 'idle_down';
-    sheet = 'player_' + key;
-    totalFrames = 4; fps = FPS_IDLE;
-    flipX = direction === 'side_left';
+    // idle sheet: 128×32 → 4 frames @ 32×32
+    const frame = Math.floor(t * 4) % 4;
+    return drawFrame(ctx, 'p_idle_side', frame, 32, 32, cx - HALF, cy - DS * 0.7, DS, DS, flipX);
   }
-
-  const frame = Math.floor(t * fps) % totalFrames;
-  const drawn = drawSpriteFrame(ctx, sheet, frame, totalFrames, FRAME_SIZE, FRAME_SIZE,
-    px - DRAW_SIZE/2, py - DRAW_SIZE*0.65, DRAW_SIZE, DRAW_SIZE, flipX);
-  return drawn;
 }
 
-// Draw NPC sprite (idle sheet, 4 frames @ 32×32)
-function drawNPCSprite(ctx, npcId, px, py, t) {
-  const key = 'npc_' + npcId;
-  const img = SC[key];
-  if (!img || !img.complete || img.naturalWidth === 0) return false;
-  // NPC idle sheets are 128×32 (4 frames @ 32×32)
+// Draw NPC sprite. Draw size = 72px.
+// npcId: 'keeper' | 'smith' | 'merchant'
+function drawNPCSprite(ctx, npcId, cx, cy, t) {
+  const DS = 72;
+  // idle: 128×32 → 4 frames @ 32×32
+  const key = 'npc_' + npcId + '_idle';
   const frame = Math.floor(t * 4) % 4;
-  const DRAW_SIZE = 40;
-  ctx.drawImage(img, frame * 32, 0, 32, 32, px - DRAW_SIZE/2, py - DRAW_SIZE*0.8, DRAW_SIZE, DRAW_SIZE);
-  return true;
+  return drawFrame(ctx, key, frame, 32, 32, cx - DS / 2, cy - DS * 0.75, DS, DS);
 }
 
-// Draw building PNG centered on (x,y) at target height
+// Draw building PNG centered at (x,y)
 function drawBuildingSprite(ctx, kind, x, y) {
-  const img = SC['bld_' + kind];
+  const img = _SC['bld_' + kind];
   if (!img || !img.complete || img.naturalWidth === 0) return false;
-  const targetH = kind === 'hall' ? 140 : kind === 'barracks' ? 130 : 100;
-  const aspect = img.naturalWidth / img.naturalHeight;
-  const targetW = targetH * aspect;
-  ctx.drawImage(img, x - targetW/2, y - targetH * 0.72, targetW, targetH);
+  // Target heights by building type
+  const H = kind === 'hall' ? 150 : kind === 'barracks' ? 140 : 110;
+  const W = H * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, x - W / 2, y - H * 0.75, W, H);
   return true;
 }
 
-// Draw tree sprite
-function drawTreeSprite(ctx, x, y, scale=1) {
-  const img = SC['tree'];
+// Draw tree PNG centered at (x,y)
+function drawTreeSprite(ctx, x, y, scale = 1) {
+  // Pick size based on scale
+  const key = scale > 1.3 ? 'tree4' : scale > 0.9 ? 'tree3' : 'tree2';
+  const img = _SC[key];
   if (!img || !img.complete || img.naturalWidth === 0) return false;
-  const w = img.naturalWidth * scale * 0.9;
-  const h = img.naturalHeight * scale * 0.9;
-  ctx.drawImage(img, x - w/2, y - h*0.8, w, h);
+  const W = img.naturalWidth * 0.55 * scale;
+  const H = img.naturalHeight * 0.55 * scale;
+  ctx.drawImage(img, x - W / 2, y - H * 0.82, W, H);
   return true;
 }
+
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
@@ -1722,7 +1705,7 @@ export default function WorldCanvas() {
   }
 
   // Try sprite. If not loaded yet fall back to primitives.
-  const spriteOk = drawPlayerSprite(ctx, sx, sy, G.spriteT, G.playerMoving, G.playerDir, G.playerAttacking);
+  const spriteOk = drawPlayerSprite(ctx, sx, sy, G.spriteT, G.playerMoving, G.playerDir);
   if (spriteOk) return;
 
   // ── Primitive fallback ──
