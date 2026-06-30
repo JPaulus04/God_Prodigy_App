@@ -1,4 +1,4 @@
-// V100-STRONGHOLD-VILLAGE-REV-001
+// V104-STRONGHOLD-TILE-VILLAGE-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
@@ -8,7 +8,7 @@ import { PIXEL_CRAWLER_ASSETS } from '../game/config/WorldAssetManifest';
 import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxCollect, sfxCheckpoint, sfxLevelUp, sfxPortal, resumeAudio } from '../utils/sfx';
 
-const WORLD_REVISION = 'V100-STRONGHOLD-VILLAGE-REV-001';
+const WORLD_REVISION = 'V104-STRONGHOLD-TILE-VILLAGE-REV-001';
 const TILE = 32;
 const MAP_W = 120;
 const MAP_H = 120;
@@ -17,7 +17,7 @@ const WORLD_H = MAP_H * TILE;
 const BORDER = TILE * 3;
 
 
-// V100 Stronghold village rebuild: safe image loading + canvas fallbacks.
+// V104 Stronghold tile-village rebuild: Four Seasons tileset composition + safe canvas fallbacks.
 // Only low-risk world objects use assets in this pass.
 const V99_ASSET_PATHS = {
   tree: PIXEL_CRAWLER_ASSETS?.props?.treeGreen || '/assets/world/pixel_crawler/environment__props__static__trees__model_01__size_02.png',
@@ -35,7 +35,7 @@ const V99_ASSET_PATHS = {
   strongholdShrine: '/assets/world/buildings/stronghold_shrine.png',
   strongholdBarracks: '/assets/world/buildings/stronghold_barracks.png',
 
-  // V100: stronger Stronghold village sprites cropped from the user-provided asset sheets.
+  // V100 legacy Stronghold village sprites retained as fallback paths.
   v100StrongholdForge: '/assets/world/buildings/v100_stronghold_forge.png',
   v100StrongholdCrafting: '/assets/world/buildings/v100_stronghold_crafting_hall.png',
   v100StrongholdMarket: '/assets/world/buildings/v100_stronghold_market.png',
@@ -45,6 +45,21 @@ const V99_ASSET_PATHS = {
   v100StrongholdGarden: '/assets/world/buildings/v100_stronghold_garden_props.png',
   v100StrongholdFountain: '/assets/world/buildings/v100_stronghold_fountain_single.png',
   v100StrongholdTraining: '/assets/world/buildings/v100_stronghold_training_props.png',
+
+  // V104: Four Seasons tileset village pass.
+  v104StrongholdPlaza: '/assets/world/v104_stronghold/v104_stronghold_plaza_base.png',
+  v104CraftingHall: '/assets/world/v104_stronghold/v104_stronghold_crafting_hall.png',
+  v104Forge: '/assets/world/v104_stronghold/v104_stronghold_forge.png',
+  v104MarketHouse: '/assets/world/v104_stronghold/v104_stronghold_market_house.png',
+  v104MarketStall: '/assets/world/v104_stronghold/v104_stronghold_market_stall.png',
+  v104Barracks: '/assets/world/v104_stronghold/v104_stronghold_barracks.png',
+  v104ShrineAltar: '/assets/world/v104_stronghold/v104_stronghold_shrine_altar.png',
+  v104MarketTables: '/assets/world/v104_stronghold/v104_market_tables.png',
+  v104FenceGate: '/assets/world/v104_stronghold/v104_fence_gate.png',
+  v104GardenBushes: '/assets/world/v104_stronghold/v104_garden_bushes.png',
+  v104FlowerBed: '/assets/world/v104_stronghold/v104_flower_bed.png',
+  v104ForgeProps: '/assets/world/v104_stronghold/v104_forge_props.png',
+  v104TrainingProps: '/assets/world/v104_stronghold/v104_training_yard_props.png',
 };
 
 const V99_ASSET_SPRITES = {
@@ -245,12 +260,12 @@ const NPCS = [
 ];
 
 const STRONGHOLD_BUILDINGS = [
-  // V100: tighter hub layout, centered away from the right-side action buttons.
-  { id:'crafting', kind:'crafting', label:'Crafting Hall', shortLabel:'CRAFTING', prompt:'Enter Crafting Hall', color:'#53d4ff', x:23.6*TILE, y:42.35*TILE, radius:62 },
-  { id:'market', kind:'market', label:'Market', shortLabel:'MARKET', prompt:'Enter Market', color:'#f6c46b', x:19.2*TILE, y:46.25*TILE, radius:62 },
-  { id:'forge', kind:'forge', label:'Forge', shortLabel:'FORGE', prompt:'Enter Forge', color:'#ff8a1f', x:27.8*TILE, y:46.25*TILE, radius:64 },
-  { id:'barracks', kind:'barracks', label:'Barracks', shortLabel:'BARRACKS', prompt:'Enter Barracks', color:'#78d8ff', x:20.6*TILE, y:50.55*TILE, radius:64 },
-  { id:'shrine', kind:'shrine_house', label:'Ascension Shrine', shortLabel:'SHRINE', prompt:'Enter Shrine', color:'#f1c40f', x:25.7*TILE, y:50.65*TILE, radius:66 },
+  // V104: Stronghold rebuilt as readable districts, not a row of generic huts.
+  { id:'crafting', kind:'crafting', label:'Crafting Hall', shortLabel:'CRAFTING', prompt:'Enter Crafting Hall', color:'#53d4ff', x:23.7*TILE, y:42.35*TILE, radius:62 },
+  { id:'market', kind:'market', label:'Market', shortLabel:'MARKET', prompt:'Enter Market', color:'#f6c46b', x:18.55*TILE, y:46.75*TILE, radius:64 },
+  { id:'forge', kind:'forge', label:'Forge', shortLabel:'FORGE', prompt:'Enter Forge', color:'#ff8a1f', x:27.35*TILE, y:46.65*TILE, radius:66 },
+  { id:'barracks', kind:'barracks', label:'Barracks', shortLabel:'BARRACKS', prompt:'Enter Barracks', color:'#78d8ff', x:20.45*TILE, y:50.85*TILE, radius:64 },
+  { id:'shrine', kind:'shrine_altar', label:'Ascension Shrine', shortLabel:'SHRINE', prompt:'Enter Shrine', color:'#f1c40f', x:25.05*TILE, y:50.85*TILE, radius:66 },
 ];
 
 function getStrongholdBuildingNear(worldX, worldY, extraRadius = 0) {
@@ -283,8 +298,8 @@ function inRect(tx, ty, x1, y1, x2, y2) {
 function isRoad(tx, ty) {
   // Main village crossroad + guided adventure routes.
   if (tx >= 22 && tx <= 28 && ty >= 26 && ty <= 70) return true;     // vertical north/south road
-  if (ty >= 44 && ty <= 48 && tx >= 17 && tx <= 30) return true;     // V100 Stronghold main plaza road
-  if (ty >= 49 && ty <= 52 && tx >= 19 && tx <= 27) return true;     // V100 lower village loop
+  if (ty >= 43 && ty <= 48 && tx >= 16 && tx <= 31) return true;     // V104 Stronghold main plaza road
+  if (ty >= 49 && ty <= 53 && tx >= 18 && tx <= 28) return true;     // V104 lower village loop
   if (ty >= 37 && ty <= 41 && tx >= 14 && tx <= 48) return true;     // bridge road across river
   if (ty >= 30 && ty <= 34 && tx >= 25 && tx <= 44) return true;     // ruins/wind route
   if (tx >= 42 && tx <= 46 && ty >= 24 && ty <= 43) return true;     // east bend
@@ -337,8 +352,8 @@ function isLava(tx, ty) {
 
 function isVillageFloor(tx, ty) {
   return (
-    inRect(tx, ty, 17, 39, 30, 53) ||
-    inRect(tx, ty, 19, 53, 27, 55)
+    inRect(tx, ty, 16, 38, 31, 54) ||
+    inRect(tx, ty, 19, 54, 28, 56)
   );
 }
 
@@ -364,18 +379,18 @@ function isObstacleCluster(tx, ty) {
 }
 
 function isBuildingBlocked(tx, ty) {
-  // V100 Stronghold village buildings. Door/front approach tiles remain open.
-  if (inRect(tx, ty, 22.9, 42.9, 24.4, 44.0)) return false; // Crafting Hall door
-  if (inRect(tx, ty, 18.4, 46.7, 19.9, 47.9)) return false; // Market door
-  if (inRect(tx, ty, 27.0, 46.8, 28.7, 48.0)) return false; // Forge door
-  if (inRect(tx, ty, 20.0, 51.0, 21.4, 52.2)) return false; // Barracks door
-  if (inRect(tx, ty, 24.9, 51.1, 26.5, 52.4)) return false; // Shrine steps
+  // V104 Stronghold tile-village buildings. Door/front approach tiles remain open.
+  if (inRect(tx, ty, 22.9, 42.9, 24.4, 44.1)) return false; // Crafting Hall door
+  if (inRect(tx, ty, 17.7, 47.0, 19.4, 48.3)) return false; // Market counter/front
+  if (inRect(tx, ty, 26.5, 47.0, 28.2, 48.4)) return false; // Forge door
+  if (inRect(tx, ty, 19.7, 51.2, 21.3, 52.5)) return false; // Barracks door
+  if (inRect(tx, ty, 24.1, 51.1, 26.0, 52.6)) return false; // Shrine steps
 
-  if (inRect(tx, ty, 21.4, 40.0, 25.7, 43.2)) return true;  // Crafting Hall
-  if (inRect(tx, ty, 17.5, 44.4, 20.9, 47.1)) return true;  // Market
-  if (inRect(tx, ty, 26.1, 44.1, 29.8, 47.2)) return true;  // Forge
-  if (inRect(tx, ty, 18.9, 48.8, 22.3, 51.5)) return true;  // Barracks
-  if (inRect(tx, ty, 23.7, 48.3, 27.9, 51.3)) return true;  // Ascension Shrine
+  if (inRect(tx, ty, 21.2, 39.7, 26.1, 43.3)) return true;  // Crafting Hall
+  if (inRect(tx, ty, 16.4, 44.8, 20.6, 47.3)) return true;  // Market stall/shop
+  if (inRect(tx, ty, 25.4, 44.2, 29.5, 47.5)) return true;  // Forge
+  if (inRect(tx, ty, 18.8, 48.5, 22.3, 51.7)) return true;  // Barracks
+  if (inRect(tx, ty, 23.5, 48.3, 26.8, 51.2)) return true;  // Ascension Shrine altar
   return false;
 }
 
@@ -610,24 +625,24 @@ function drawWoodCabin(ctx, roofColor, wallColor, label, labelColor, options = {
 
 const STRONGHOLD_BUILDING_ASSETS = {
   crafting: {
-    asset: 'v100StrongholdCrafting', label: 'CRAFTING', color: '#73e4ff',
-    width: 118, height: 93, shadowW: 58, nameY: -58, promptY: 55,
+    asset: 'v104CraftingHall', label: 'CRAFTING', color: '#73e4ff',
+    width: 142, height: 132, shadowW: 76, nameY: -70, promptY: 62,
   },
   forge: {
-    asset: 'v100StrongholdForge', label: 'FORGE', color: '#ff9a2e',
-    width: 122, height: 106, shadowW: 62, nameY: -64, promptY: 58,
+    asset: 'v104Forge', label: 'FORGE', color: '#ff9a2e',
+    width: 136, height: 130, shadowW: 72, nameY: -70, promptY: 62,
   },
   market: {
-    asset: 'v100StrongholdMarket', label: 'MARKET', color: '#ffd071',
-    width: 116, height: 82, shadowW: 58, nameY: -52, promptY: 52,
+    asset: 'v104MarketStall', label: 'MARKET', color: '#ffd071',
+    width: 132, height: 108, shadowW: 70, nameY: -60, promptY: 58,
   },
-  shrine_house: {
-    asset: 'v100StrongholdShrine', label: 'SHRINE', color: '#f1c40f',
-    width: 126, height: 102, shadowW: 68, nameY: -64, promptY: 58,
+  shrine_altar: {
+    asset: 'v104ShrineAltar', label: 'SHRINE', color: '#f1c40f',
+    width: 128, height: 120, shadowW: 70, nameY: -74, promptY: 60,
   },
   barracks: {
-    asset: 'v100StrongholdBarracks', label: 'BARRACKS', color: '#8ee6ff',
-    width: 120, height: 87, shadowW: 60, nameY: -56, promptY: 54,
+    asset: 'v104Barracks', label: 'BARRACKS', color: '#8ee6ff',
+    width: 136, height: 130, shadowW: 72, nameY: -70, promptY: 62,
   },
 };
 
@@ -666,7 +681,7 @@ function drawBuilding(ctx, x, y, kind, t) {
 
   const spec = STRONGHOLD_BUILDING_ASSETS[kind];
   if (spec) {
-    // V100: real asset-based exteriors with stronger shadows and lighter labels.
+    // V104: asset-based district exteriors with stronger shadows and lighter labels.
     ctx.globalAlpha = 0.30;
     ctx.fillStyle = '#000';
     ctx.beginPath();
@@ -674,7 +689,7 @@ function drawBuilding(ctx, x, y, kind, t) {
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    const bob = kind === 'shrine_house' ? Math.sin(t * 2) * 1.5 : 0;
+    const bob = kind === 'shrine_altar' ? Math.sin(t * 2) * 1.2 : 0;
     const drewAsset = drawV99AssetImage(ctx, spec.asset, 0, 42 + bob, spec.width, spec.height);
     if (drewAsset) {
       if (kind === 'forge') {
@@ -687,7 +702,7 @@ function drawBuilding(ctx, x, y, kind, t) {
         ctx.globalAlpha = 1;
       }
 
-      if (kind === 'shrine_house') {
+      if (kind === 'shrine_altar') {
         const pulse = 0.18 + Math.sin(t * 3) * 0.06;
         ctx.globalAlpha = pulse;
         ctx.strokeStyle = '#f1c40f';
@@ -721,7 +736,7 @@ function drawBuilding(ctx, x, y, kind, t) {
     drawWoodCabin(ctx, '#c76126', '#5c4028', 'MARKET', '#ffd071', { width: 78, height: 50, roofHeight: 26, doorY: 6 });
   }
 
-  if (kind === 'shrine_house') {
+  if (kind === 'shrine_altar' || kind === 'shrine_house') {
     drawWoodCabin(ctx, '#e6e6df', '#545a65', 'SHRINE', '#f1c40f', { width: 84, height: 58, roofHeight: 30, doorY: 7 });
   }
 
@@ -1463,87 +1478,53 @@ export default function WorldCanvas() {
     ];
     decorRocks.forEach(([tx,ty]) => drawRock(ctx, wx(tx*TILE), wy(ty*TILE), 0.9));
 
-    // V100 Stronghold Village Visual Rebuild: plaza, fences, props, and clearer districts.
-    const fillWorldRect = (x1, y1, x2, y2, color, alpha = 1) => {
+    // V104 Stronghold Tile Village Rebuild: one coherent village scene built from the Four Seasons pack.
+    // This replaces isolated hut placement with a composed plaza, districts, and functional silhouettes.
+    drawV99AssetImage(ctx, 'v104StrongholdPlaza', wx(16*TILE), wy(38*TILE), 512, 512, { anchorX: 0, anchorY: 0 });
+
+    // Soft edge dressing so the plaza sits inside the surrounding world instead of floating on top of it.
+    const drawTownShadow = (x, y, w, h, a = 0.12) => {
       ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = color;
-      ctx.fillRect(wx(x1*TILE), wy(y1*TILE), (x2-x1)*TILE, (y2-y1)*TILE);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(wx(x*TILE), wy(y*TILE), w, h, 0, 0, Math.PI*2);
+      ctx.fill();
       ctx.restore();
     };
 
-    // Soft village plaza overlays on top of tile terrain.
-    fillWorldRect(17.0, 39.0, 30.5, 53.4, '#6f5a40', 0.18);
-    fillWorldRect(21.6, 39.0, 26.8, 53.6, '#b99566', 0.20);
-    fillWorldRect(17.4, 44.0, 30.2, 48.4, '#b99566', 0.22);
-    fillWorldRect(19.2, 49.0, 27.4, 52.6, '#a77f55', 0.18);
+    // Environmental dressing by district, before buildings for layering.
+    drawV99AssetImage(ctx, 'v104FlowerBed', wx(17.8*TILE), wy(43.8*TILE), 76, 78, { anchorX: 0.5, anchorY: 1 });
+    drawV99AssetImage(ctx, 'v104GardenBushes', wx(29.0*TILE), wy(42.7*TILE), 92, 76, { anchorX: 0.5, anchorY: 1 });
+    drawV99AssetImage(ctx, 'v104MarketTables', wx(18.35*TILE), wy(48.25*TILE), 108, 32, { anchorX: 0.5, anchorY: 1 });
+    drawV99AssetImage(ctx, 'v104ForgeProps', wx(28.9*TILE), wy(48.55*TILE), 112, 78, { anchorX: 0.5, anchorY: 1 });
+    drawV99AssetImage(ctx, 'v104TrainingProps', wx(21.9*TILE), wy(52.45*TILE), 112, 78, { anchorX: 0.5, anchorY: 1 });
 
-    // Cobblestone flecks / worn path detail.
-    for (let ty=40; ty<=53; ty++) {
-      for (let tx=17; tx<=30; tx++) {
-        const h = tileHash(tx, ty);
-        if (h < 0.52) continue;
-        ctx.save();
-        ctx.globalAlpha = 0.12 + (h * 0.08);
-        ctx.fillStyle = h > 0.82 ? '#ead6b5' : '#493828';
-        ctx.fillRect(wx(tx*TILE + 8 + (h*7)%9), wy(ty*TILE + 10 + (h*11)%11), 9 + (h*5)%10, 2);
-        ctx.restore();
-      }
-    }
+    // Shrine aura underneath the altar.
+    const shrineGlowX = wx(25.05*TILE);
+    const shrineGlowY = wy(50.85*TILE);
+    ctx.save();
+    const shrinePulse = 0.20 + Math.sin(t * 2.6) * 0.06;
+    ctx.globalAlpha = shrinePulse;
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(shrineGlowX, shrineGlowY - 28, 64, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(shrineGlowX, shrineGlowY - 28, 42, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
 
-    // Fence line with clear road openings.
-    const drawFenceSegment = (x1, y1, x2, y2) => {
-      const sx = wx(x1*TILE), sy = wy(y1*TILE);
-      const ex = wx(x2*TILE), ey = wy(y2*TILE);
-      ctx.save();
-      ctx.strokeStyle = '#422611';
-      ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-      ctx.strokeStyle = '#7b4d22';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(sx, sy-1); ctx.lineTo(ex, ey-1); ctx.stroke();
-      const steps = Math.max(1, Math.floor(dist(sx, sy, ex, ey) / 32));
-      for (let i=0; i<=steps; i++) {
-        const px = sx + (ex-sx) * (i/steps);
-        const py = sy + (ey-sy) * (i/steps);
-        ctx.fillStyle = '#2b1708';
-        ctx.fillRect(px-2, py-10, 4, 18);
-        ctx.fillStyle = '#8a5a2a';
-        ctx.fillRect(px-1, py-10, 2, 16);
-      }
-      ctx.restore();
-    };
-
-    drawFenceSegment(17.2, 39.0, 21.0, 39.0);
-    drawFenceSegment(27.8, 39.0, 30.4, 39.0);
-    drawFenceSegment(17.2, 53.2, 19.0, 53.2);
-    drawFenceSegment(27.5, 53.2, 30.4, 53.2);
-    drawFenceSegment(17.2, 39.0, 17.2, 44.0);
-    drawFenceSegment(17.2, 48.8, 17.2, 53.2);
-    drawFenceSegment(30.4, 39.0, 30.4, 44.2);
-    drawFenceSegment(30.4, 48.5, 30.4, 53.2);
-
-    // Environmental dressing by district.
-    drawV99AssetImage(ctx, 'v100StrongholdGarden', wx(18.0*TILE), wy(43.9*TILE), 72, 60, { anchorX: 0.5, anchorY: 1 });
-    drawV99AssetImage(ctx, 'v100StrongholdCrates', wx(18.3*TILE), wy(48.2*TILE), 58, 24, { anchorX: 0.5, anchorY: 1 });
-    drawV99Sprite(ctx, 'anvil', wx(29.4*TILE), wy(48.2*TILE), 0.60);
-    drawV99Sprite(ctx, 'furnace', wx(29.0*TILE), wy(47.6*TILE), 0.52);
-    drawV99AssetImage(ctx, 'v100StrongholdTraining', wx(22.2*TILE), wy(52.15*TILE), 24, 48, { anchorX: 0.5, anchorY: 1 });
-    drawV99AssetImage(ctx, 'v100StrongholdFountain', wx(24.7*TILE), wy(47.0*TILE), 42, 54, { anchorX: 0.5, anchorY: 1 });
-
-    // Signposts give identity without oversized labels on the buildings.
-    drawSmallSignpost(ctx, wx(23.0*TILE), wy(43.6*TILE), 'CRAFT', '#73e4ff');
-    drawSmallSignpost(ctx, wx(18.6*TILE), wy(47.7*TILE), 'SHOP', '#ffd071');
-    drawSmallSignpost(ctx, wx(28.9*TILE), wy(48.1*TILE), 'FORGE', '#ff9a2e');
-    drawSmallSignpost(ctx, wx(21.9*TILE), wy(52.0*TILE), 'TRAIN', '#8ee6ff');
-    drawSmallSignpost(ctx, wx(26.9*TILE), wy(52.1*TILE), 'ASCEND', '#f1c40f');
-
-    // Draw buildings in y-order so the village feels like a layered scene.
+    // Draw district buildings in y-order so player/NPC overlap feels natural.
     [...STRONGHOLD_BUILDINGS]
       .sort((a, b) => a.y - b.y)
       .forEach((building) => {
         drawBuilding(ctx, wx(building.x), wy(building.y), building.kind, t);
       });
+
+    // Smaller signs explain function without oversized labels taking over the art.
+    drawSmallSignpost(ctx, wx(23.0*TILE), wy(43.7*TILE), 'CRAFT', '#73e4ff');
+    drawSmallSignpost(ctx, wx(18.0*TILE), wy(48.25*TILE), 'SHOP', '#ffd071');
+    drawSmallSignpost(ctx, wx(28.55*TILE), wy(48.25*TILE), 'FORGE', '#ff9a2e');
+    drawSmallSignpost(ctx, wx(21.8*TILE), wy(52.35*TILE), 'TRAIN', '#8ee6ff');
+    drawSmallSignpost(ctx, wx(26.35*TILE), wy(52.3*TILE), 'ASCEND', '#f1c40f');
 
     // Realm shrines and landmarks.
     drawShrine(ctx, wx(25*TILE), wy(27*TILE), '#27ae60', 'SYLVARA', t);
