@@ -1,4 +1,4 @@
-// V107-SPRITE-FIX
+// V105-STRONGHOLD-SCALE-POLISH-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -73,31 +73,44 @@ function drawFrame(ctx, key, frame, srcW, srcH, dx, dy, dW, dH, flipX = false) {
 
 // Draw player (Knight sprite). Draw size = 96px.
 // dir: 'down' | 'up' | 'side_right' | 'side_left'
+// ── Player draw constants (single source of truth) ──────────────────────────
+// All player states MUST use these exact destination dimensions.
+// Source aspect is always square (32×32 idle, 64×64 run) but the character
+// art only fills the inner portion of the frame, so we draw non-square to
+// get proper human proportions and consistent visual height.
+const PLAYER_DRAW_W = 42;   // destination width  (px on screen)
+const PLAYER_DRAW_H = 54;   // destination height (px on screen)
+const PLAYER_AX = 0.5;      // anchor X: 0 = left edge, 0.5 = center
+const PLAYER_AY = 1.0;      // anchor Y: 1 = bottom edge (feet on ground)
+
 function drawPlayerSprite(ctx, cx, cy, t, moving, dir) {
-  const DS = 96;          // draw size on screen
-  const HALF = DS / 2;
-  const flipX = dir === 'side_left';
+  const W = PLAYER_DRAW_W;
+  const H = PLAYER_DRAW_H;
+  const flipX = (dir === 'side_left');
+  // Destination rect — bottom-center anchored
+  const dx = cx - W * PLAYER_AX;
+  const dy = cy - H * PLAYER_AY;
 
   if (moving) {
-    // run sheet: 384×64 → 6 frames @ 64×64
+    // Knight run sheet: 384×64 → 6 frames @ 64×64
     const frame = Math.floor(t * 8) % 6;
-    const key = 'p_run_side'; // Knight only has one side sheet; flip for left
-    return drawFrame(ctx, key, frame, 64, 64, cx - HALF, cy - DS * 0.7, DS, DS, flipX);
+    return drawFrame(ctx, 'p_run_side', frame, 64, 64, dx, dy, W, H, flipX);
   } else {
-    // idle sheet: 128×32 → 4 frames @ 32×32
+    // Knight idle sheet: 128×32 → 4 frames @ 32×32
     const frame = Math.floor(t * 4) % 4;
-    return drawFrame(ctx, 'p_idle_side', frame, 32, 32, cx - HALF, cy - DS * 0.7, DS, DS, flipX);
+    return drawFrame(ctx, 'p_idle_side', frame, 32, 32, dx, dy, W, H, flipX);
   }
 }
 
 // Draw NPC sprite. Draw size = 72px.
 // npcId: 'keeper' | 'smith' | 'merchant'
 function drawNPCSprite(ctx, npcId, cx, cy, t) {
-  const DS = 72;
-  // idle: 128×32 → 4 frames @ 32×32
+  // NPC idle: 128×32 → 4 frames @ 32×32
+  // Draw at 38×48 — slightly smaller than player, bottom-center anchored
+  const W = 38, H = 48;
   const key = 'npc_' + npcId + '_idle';
   const frame = Math.floor(t * 4) % 4;
-  return drawFrame(ctx, key, frame, 32, 32, cx - DS / 2, cy - DS * 0.75, DS, DS);
+  return drawFrame(ctx, key, frame, 32, 32, cx - W / 2, cy - H, W, H);
 }
 
 // Draw building PNG centered at (x,y)
@@ -1691,9 +1704,10 @@ export default function WorldCanvas() {
   const sy = wy(p.y);
 
   // Ground shadow
-  ctx.globalAlpha = 0.3;
+  // Ground shadow — drawn at feet (sy), small ellipse
+  ctx.globalAlpha = 0.25;
   ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.ellipse(sx, sy + 18, 16, 6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(sx, sy + 3, 14, 5, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
   // Invincible shield flash
