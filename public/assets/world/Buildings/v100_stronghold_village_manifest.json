@@ -1,0 +1,16 @@
+{
+  "revision": "V100-STRONGHOLD-VILLAGE-REV-001",
+  "purpose": "Stronghold Village visual rebuild using stronger image-based building assets and environmental dressing.",
+  "gameplay_change": "None intended. Building interaction still opens the current Stronghold menu.",
+  "assets": {
+    "v100_stronghold_forge": "/assets/world/buildings/v100_stronghold_forge.png",
+    "v100_stronghold_crafting_hall": "/assets/world/buildings/v100_stronghold_crafting_hall.png",
+    "v100_stronghold_market": "/assets/world/buildings/v100_stronghold_market.png",
+    "v100_stronghold_barracks": "/assets/world/buildings/v100_stronghold_barracks.png",
+    "v100_stronghold_shrine": "/assets/world/buildings/v100_stronghold_shrine.png",
+    "v100_stronghold_crates_props": "/assets/world/buildings/v100_stronghold_crates_props.png",
+    "v100_stronghold_garden_props": "/assets/world/buildings/v100_stronghold_garden_props.png",
+    "v100_stronghold_fountain_single": "/assets/world/buildings/v100_stronghold_fountain_single.png",
+    "v100_stronghold_training_props": "/assets/world/buildings/v100_stronghold_training_props.png"
+  }
+}
