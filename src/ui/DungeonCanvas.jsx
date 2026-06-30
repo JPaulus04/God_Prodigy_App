@@ -1,4 +1,4 @@
-// V106-SPRITE-GRAPHICS-REV-001
+// V107-SPRITE-FIX
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
@@ -8,88 +8,76 @@ import { sfxAttack, sfxHit, sfxCollect, resumeAudio } from '../utils/sfx';
 import { hapticAttack, hapticHit, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { FRAGMENT_TYPES, FRAGMENT_DROP_CHANCE, CHALLENGE_TYPES } from '../game/config/FragmentConfig';
 
-// ── Sprite cache (module-level) ─────────────────────────────────────────
+// ── Sprite system (Dungeon) ───────────────────────────────────────────────────
+// Mob idle: 128×32 → 4 frames @ 32×32
+// Mob run:  384×64 → 6 frames @ 64×64
+// Player (Knight): same dims
+// Dungeon enemies use skeleton family (fits dark aesthetic)
+
 const _DSC = {};
-function _dLoad(key, path) {
+function _dImg(key, path) {
   if (_DSC[key]) return _DSC[key];
   const img = new Image(); img.src = path; _DSC[key] = img; return img;
 }
 const _DPC = '/assets/world/pixel_crawler/';
-// Player sheets (body_a, 64×64 frames)
-const _D_PLAYER_KEYS = {
-  idle_down:  _DPC+'entities__characters__body_a__animations__idle_base__idle_down_sheet.png',
-  idle_side:  _DPC+'entities__characters__body_a__animations__idle_base__idle_side_sheet.png',
-  run_down:   _DPC+'entities__characters__body_a__animations__run_base__run_down_sheet.png',
-  run_side:   _DPC+'entities__characters__body_a__animations__run_base__run_side_sheet.png',
-  run_up:     _DPC+'entities__characters__body_a__animations__run_base__run_up_sheet.png',
-  slice_down: _DPC+'entities__characters__body_a__animations__slice_base__slice_down_sheet.png',
-  slice_side: _DPC+'entities__characters__body_a__animations__slice_base__slice_side_sheet.png',
-  hit_down:   _DPC+'entities__characters__body_a__animations__hit_base__hit_down_sheet.png',
-};
-Object.entries(_D_PLAYER_KEYS).forEach(([k,v])=>_dLoad('dp_'+k,v));
-// Dungeon enemy sheets — use skeleton family (fits dark dungeon aesthetic)
-_dLoad('sk_idle', _DPC+'entities__mobs__skeleton_crew__skeleton_base__idle__idle_sheet.png');
-_dLoad('sk_run',  _DPC+'entities__mobs__skeleton_crew__skeleton_base__run__run_sheet.png');
-_dLoad('sk_mage_idle', _DPC+'entities__mobs__skeleton_crew__skeleton_mage__idle__idle_sheet.png');
-_dLoad('sk_mage_run',  _DPC+'entities__mobs__skeleton_crew__skeleton_mage__run__run_sheet.png');
-_dLoad('sk_war_idle',  _DPC+'entities__mobs__skeleton_crew__skeleton_warrior__idle__idle_sheet.png');
-_dLoad('sk_war_run',   _DPC+'entities__mobs__skeleton_crew__skeleton_warrior__run__run_sheet.png');
-_dLoad('sk_rog_idle',  _DPC+'entities__mobs__skeleton_crew__skeleton_rogue__idle__idle_sheet.png');
-_dLoad('sk_rog_run',   _DPC+'entities__mobs__skeleton_crew__skeleton_rogue__run__run_sheet.png');
-_dLoad('orc_idle',     _DPC+'entities__mobs__orc_crew__orc_warrior__idle__idle_sheet.png');
-_dLoad('orc_run',      _DPC+'entities__mobs__orc_crew__orc_warrior__run__run_sheet.png');
 
-function _dDrawFrame(ctx, key, frame, fW, fH, dx, dy, dW, dH, flipX=false) {
+// Player: Knight NPC
+_dImg('p_idle', _DPC + 'entities__npcs__knight__idle__idle_sheet.png');
+_dImg('p_run',  _DPC + 'entities__npcs__knight__run__run_sheet.png');
+
+// Dungeon enemies — skeleton family
+_dImg('sk_idle',     _DPC + 'entities__mobs__skeleton_crew__skeleton_base__idle__idle_sheet.png');
+_dImg('sk_run',      _DPC + 'entities__mobs__skeleton_crew__skeleton_base__run__run_sheet.png');
+_dImg('sk_mage_idle',_DPC + 'entities__mobs__skeleton_crew__skeleton_mage__idle__idle_sheet.png');
+_dImg('sk_mage_run', _DPC + 'entities__mobs__skeleton_crew__skeleton_mage__run__run_sheet.png');
+_dImg('sk_war_idle', _DPC + 'entities__mobs__skeleton_crew__skeleton_warrior__idle__idle_sheet.png');
+_dImg('sk_war_run',  _DPC + 'entities__mobs__skeleton_crew__skeleton_warrior__run__run_sheet.png');
+_dImg('orc_idle',    _DPC + 'entities__mobs__orc_crew__orc__idle__idle_sheet.png');
+_dImg('orc_run',     _DPC + 'entities__mobs__orc_crew__orc__run__run_sheet.png');
+
+// Dungeon enemy type → sprite family
+function _dFam(type) {
+  if (type === 'stone_guardian') return 'orc';
+  if (type === 'shadow_knight_boss') return 'sk_war';
+  return 'sk'; // default: skeleton base
+}
+
+// Core draw helper
+function _dFrame(ctx, key, frame, srcW, srcH, dx, dy, dW, dH, flipX = false) {
   const img = _DSC[key];
-  if (!img||!img.complete||img.naturalWidth===0) return false;
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
   ctx.save();
-  if (flipX){ctx.scale(-1,1);dx=-dx-dW;}
-  ctx.drawImage(img,frame*fW,0,fW,fH,dx,dy,dW,dH);
+  if (flipX) { ctx.scale(-1, 1); dx = -dx - dW; }
+  ctx.drawImage(img, frame * srcW, 0, srcW, srcH, dx, dy, dW, dH);
   ctx.restore();
   return true;
 }
 
-// Map dungeon enemy types to skeleton sprite families
-const _D_ENEMY_SPRITE = {
-  shadow_stalker: 'sk_war',
-  stone_guardian: 'orc',
-  shadow_knight_boss: 'sk_war',
-};
-function _dGetEnemyKey(type) {
-  if (type==='stone_guardian') return 'orc';
-  return 'sk'; // default skeleton for most dungeon mobs
+// Draw enemy sprite. Returns true if drawn.
+function _dDrawEnemy(ctx, ex, ey, r, type, state, t) {
+  const fam    = _dFam(type);
+  const moving = state === 'chase' || state === 'patrol';
+  const key    = moving ? fam + '_run'  : fam + '_idle';
+  const srcW   = moving ? 64 : 32;
+  const srcH   = moving ? 64 : 32;
+  const nF     = moving ? 6  : 4;
+  const fps    = moving ? 8  : 4;
+  const frame  = Math.floor(t * fps) % nF;
+  const DS     = r * 3.4;
+  return _dFrame(ctx, key, frame, srcW, srcH, ex - DS / 2, ey - DS * 0.85, DS, DS);
 }
 
-// Draw dungeon enemy with sprite (returns true if drawn)
-function _dDrawEnemy(ctx, ex, ey, r, isBoss, type, state, t) {
-  const fam = _dGetEnemyKey(type);
-  const moving = state==='chase'||state==='patrol';
-  const key = fam+(moving?'_run':'_idle');
-  const [fW,fH,nF] = moving?[64,64,6]:[32,32,4];
-  const fps = moving?8:4;
-  const frame=Math.floor(t*fps)%nF;
-  const dS=r*3.2;
-  return _dDrawFrame(ctx, key, frame, fW, fH, ex-dS/2, ey-dS*0.9, dS, dS);
-}
-
-// Draw dungeon player with sprite (returns true if drawn)
-function _dDrawPlayer(ctx, ppx, ppy, t, moving, dir, attacking) {
-  const FS=64,DS=48;
-  let key,nF,fps,flipX=false;
-  if(attacking){
-    key=dir==='side_left'?'dp_slice_side':'dp_slice_down';
-    nF=8;fps=14;flipX=dir==='side_left';
-  } else if(moving){
-    if(dir==='up'){key='dp_run_up';nF=6;fps=10;}
-    else if(dir==='side_right'){key='dp_run_side';nF=6;fps=10;}
-    else if(dir==='side_left'){key='dp_run_side';nF=6;fps=10;flipX=true;}
-    else{key='dp_run_down';nF=6;fps=10;}
+// Draw player (Knight). Idle: 128×32→4f@32×32. Run: 384×64→6f@64×64.
+function _dDrawPlayer(ctx, cx, cy, t, moving, dir) {
+  const DS    = 96;
+  const flipX = dir === 'side_left';
+  if (moving) {
+    const frame = Math.floor(t * 8) % 6;
+    return _dFrame(ctx, 'p_run', frame, 64, 64, cx - DS / 2, cy - DS * 0.7, DS, DS, flipX);
   } else {
-    key=dir==='side_left'?'dp_idle_side':'dp_idle_down';
-    nF=4;fps=4;flipX=dir==='side_left';
+    const frame = Math.floor(t * 4) % 4;
+    return _dFrame(ctx, 'p_idle', frame, 32, 32, cx - DS / 2, cy - DS * 0.7, DS, DS, flipX);
   }
-  const frame=Math.floor(t*fps)%nF;
-  return _dDrawFrame(ctx,key,frame,FS,FS,ppx-DS/2,ppy-DS*0.65,DS,DS,flipX);
 }
 
 const TILE     = 32;
@@ -842,7 +830,7 @@ export default function DungeonCanvas() {
 
       // Try Pixel Crawler sprite (pass monotonic t for animation)
       const _dT = (Date.now()/1000);
-      const spriteDrawn = _dDrawEnemy(ctx, ex, ey, r, isBoss, e.type, e.state||'idle', _dT);
+      const spriteDrawn = _dDrawEnemy(ctx, ex, ey, r, e.type, e.state||'idle', _dT);
       if (!spriteDrawn) {
         let fillColor =
           stunned          ? '#FCD34D' :
@@ -930,8 +918,7 @@ export default function DungeonCanvas() {
       else G.dunDir='down';
     }
     const _dT2 = Date.now()/1000;
-    const dunAttacking = G.dunAtkTimer > 0;
-    const dunSpriteOk = _dDrawPlayer(ctx, ppx, ppy, _dT2, dunMoving, G.dunDir, dunAttacking);
+    const dunSpriteOk = _dDrawPlayer(ctx, ppx, ppy, _dT2, dunMoving, G.dunDir);
 
     if (!dunSpriteOk) {
       // ── Primitive fallback ──
