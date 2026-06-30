@@ -1,4 +1,4 @@
-// V106-SPRITE-GRAPHICS-REV-001
+// V107-SPRITE-FIX
 import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { InputState }   from '../game/systems/InputState';
@@ -6,116 +6,97 @@ import { AbilityConfig } from '../game/config/AbilityConfig';
 import { hapticAttack, hapticHit, hapticBossDeath, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxBossDeath, sfxLevelUp, resumeAudio } from '../utils/sfx';
 
-// ── Sprite cache (module-level) ─────────────────────────────────────────
- const _RSC = {};
-function _rLoadImg(key, path) {
+// ── Sprite system (Realm Arena) ───────────────────────────────────────────────
+// Confirmed dimensions (asset_manifest.json):
+//   Mob idle:  128×32 → 4 frames @ 32×32
+//   Mob run:   384×64 → 6 frames @ 64×64
+//   Player (Knight NPC): same dims
+
+const _RSC = {};
+function _rImg(key, path) {
   if (_RSC[key]) return _RSC[key];
   const img = new Image(); img.src = path; _RSC[key] = img; return img;
 }
 const _RPC = '/assets/world/pixel_crawler/';
 
-// Player walk/run/idle/slice sheets (body_a, 64×64 frames)
-const _R_PLAYER_SHEETS = {
-  idle_down: _RPC + 'entities__characters__body_a__animations__idle_base__idle_down_sheet.png',
-  idle_side: _RPC + 'entities__characters__body_a__animations__idle_base__idle_side_sheet.png',
-  walk_down: _RPC + 'entities__characters__body_a__animations__walk_base__walk_down_sheet.png',
-  walk_side: _RPC + 'entities__characters__body_a__animations__walk_base__walk_side_sheet.png',
-  walk_up:   _RPC + 'entities__characters__body_a__animations__walk_base__walk_up_sheet.png',
-  run_down:  _RPC + 'entities__characters__body_a__animations__run_base__run_down_sheet.png',
-  run_side:  _RPC + 'entities__characters__body_a__animations__run_base__run_side_sheet.png',
-  run_up:    _RPC + 'entities__characters__body_a__animations__run_base__run_up_sheet.png',
-  slice_down:_RPC + 'entities__characters__body_a__animations__slice_base__slice_down_sheet.png',
-  slice_side:_RPC + 'entities__characters__body_a__animations__slice_base__slice_side_sheet.png',
-  hit_down:  _RPC + 'entities__characters__body_a__animations__hit_base__hit_down_sheet.png',
-  death_down:_RPC + 'entities__characters__body_a__animations__death_base__death_down_sheet.png',
-};
-Object.entries(_R_PLAYER_SHEETS).forEach(([k,v]) => _rLoadImg('player_'+k, v));
+// ── Player: Knight NPC
+_rImg('p_idle', _RPC + 'entities__npcs__knight__idle__idle_sheet.png');
+_rImg('p_run',  _RPC + 'entities__npcs__knight__run__run_sheet.png');
 
-// Enemy sprite sheets
-// Mob idle: 128×32 (4 frames @ 32×32); mob run: 384×64 (6 frames @ 64×64)
-const _R_MOB_SHEETS = {
-  // Physical / orc family
-  orc_warrior_idle:     _RPC + 'entities__mobs__orc_crew__orc_warrior__idle__idle_sheet.png',
-  orc_warrior_run:      _RPC + 'entities__mobs__orc_crew__orc_warrior__run__run_sheet.png',
-  orc_warrior_death:    _RPC + 'entities__mobs__orc_crew__orc_warrior__death__death_sheet.png',
-  orc_rogue_idle:       _RPC + 'entities__mobs__orc_crew__orc_rogue__idle__idle_sheet.png',
-  orc_rogue_run:        _RPC + 'entities__mobs__orc_crew__orc_rogue__run__run_sheet.png',
-  orc_shaman_idle:      _RPC + 'entities__mobs__orc_crew__orc_shaman__idle__idle_sheet.png',
-  orc_shaman_run:       _RPC + 'entities__mobs__orc_crew__orc_shaman__run__run_sheet.png',
-  skeleton_idle:        _RPC + 'entities__mobs__skeleton_crew__skeleton_base__idle__idle_sheet.png',
-  skeleton_run:         _RPC + 'entities__mobs__skeleton_crew__skeleton_base__run__run_sheet.png',
-  skeleton_mage_idle:   _RPC + 'entities__mobs__skeleton_crew__skeleton_mage__idle__idle_sheet.png',
-  skeleton_mage_run:    _RPC + 'entities__mobs__skeleton_crew__skeleton_mage__run__run_sheet.png',
-  skeleton_rogue_idle:  _RPC + 'entities__mobs__skeleton_crew__skeleton_rogue__idle__idle_sheet.png',
-  skeleton_rogue_run:   _RPC + 'entities__mobs__skeleton_crew__skeleton_rogue__run__run_sheet.png',
-  skeleton_warrior_idle:_RPC + 'entities__mobs__skeleton_crew__skeleton_warrior__idle__idle_sheet.png',
-  skeleton_warrior_run: _RPC + 'entities__mobs__skeleton_crew__skeleton_warrior__run__run_sheet.png',
-};
-Object.entries(_R_MOB_SHEETS).forEach(([k,v]) => _rLoadImg(k, v));
+// ── Enemy mob sheets
+// Orc family
+_rImg('orc_idle',        _RPC + 'entities__mobs__orc_crew__orc__idle__idle_sheet.png');
+_rImg('orc_run',         _RPC + 'entities__mobs__orc_crew__orc__run__run_sheet.png');
+_rImg('orc_rogue_idle',  _RPC + 'entities__mobs__orc_crew__orc_rogue__idle__idle_sheet.png');
+_rImg('orc_rogue_run',   _RPC + 'entities__mobs__orc_crew__orc_rogue__run__run_sheet.png');
+_rImg('orc_shaman_idle', _RPC + 'entities__mobs__orc_crew__orc_shaman__idle__idle_sheet.png');
+_rImg('orc_shaman_run',  _RPC + 'entities__mobs__orc_crew__orc_shaman__run__run_sheet.png');
+// Skeleton family
+_rImg('sk_idle',      _RPC + 'entities__mobs__skeleton_crew__skeleton_base__idle__idle_sheet.png');
+_rImg('sk_run',       _RPC + 'entities__mobs__skeleton_crew__skeleton_base__run__run_sheet.png');
+_rImg('sk_mage_idle', _RPC + 'entities__mobs__skeleton_crew__skeleton_mage__idle__idle_sheet.png');
+_rImg('sk_mage_run',  _RPC + 'entities__mobs__skeleton_crew__skeleton_mage__run__run_sheet.png');
+_rImg('sk_rog_idle',  _RPC + 'entities__mobs__skeleton_crew__skeleton_rogue__idle__idle_sheet.png');
+_rImg('sk_rog_run',   _RPC + 'entities__mobs__skeleton_crew__skeleton_rogue__run__run_sheet.png');
+_rImg('sk_war_idle',  _RPC + 'entities__mobs__skeleton_crew__skeleton_warrior__idle__idle_sheet.png');
+_rImg('sk_war_run',   _RPC + 'entities__mobs__skeleton_crew__skeleton_warrior__run__run_sheet.png');
 
-// Map game enemy type → sprite family + color tint
-const _R_TYPE_SPRITE = {
-  thornling:      { family: 'orc_warrior',     tint: '#27ae60' },
-  stone_golem:    { family: 'orc_warrior',     tint: '#7f8c8d' },
-  shadow_stalker: { family: 'orc_warrior',     tint: '#6c3483' },
-  forest_wraith:  { family: 'skeleton_mage',   tint: '#27ae60' },
-  wind_sprite:    { family: 'skeleton_mage',   tint: '#87ceeb' },
-  storm_wisp:     { family: 'skeleton_mage',   tint: '#9b59b6' },
-  sea_sprite:     { family: 'skeleton_mage',   tint: '#1abc9c' },
-  void_wraith:    { family: 'skeleton_mage',   tint: '#f1c40f' },
-  ember_imp:      { family: 'orc_rogue',       tint: '#e74c3c' },
-  lava_crawler:   { family: 'orc_rogue',       tint: '#c0392b' },
-  frost_shard:    { family: 'skeleton_rogue',  tint: '#85c1e9' },
-  ice_witch:      { family: 'skeleton_warrior',tint: '#2980b9' },
-  shade:          { family: 'skeleton',        tint: '#2c3e50' },
+// ── Enemy type → sprite family map
+const _R_TYPE_MAP = {
+  thornling:      'orc',
+  stone_golem:    'orc',
+  shadow_stalker: 'sk_war',
+  forest_wraith:  'sk_mage',
+  wind_sprite:    'sk_mage',
+  storm_wisp:     'sk_mage',
+  sea_sprite:     'sk_mage',
+  void_wraith:    'sk_mage',
+  ember_imp:      'orc_rogue',
+  lava_crawler:   'orc_rogue',
+  frost_shard:    'sk_rog',
+  ice_witch:      'sk_war',
+  shade:          'sk',
 };
 
-function _rDrawFrame(ctx, key, frame, fW, fH, dx, dy, dW, dH, flipX=false) {
+// ── Core draw helper
+function _rFrame(ctx, key, frame, srcW, srcH, dx, dy, dW, dH, flipX = false) {
   const img = _RSC[key];
   if (!img || !img.complete || img.naturalWidth === 0) return false;
   ctx.save();
-  if (flipX) { ctx.scale(-1,1); dx=-dx-dW; }
-  ctx.drawImage(img, frame*fW, 0, fW, fH, dx, dy, dW, dH);
+  if (flipX) { ctx.scale(-1, 1); dx = -dx - dW; }
+  ctx.drawImage(img, frame * srcW, 0, srcW, srcH, dx, dy, dW, dH);
   ctx.restore();
   return true;
 }
 
 // Draw enemy sprite. Returns true if drawn.
-function _rDrawEnemySprite(ctx, e, ex, ey, t) {
-  const tmap = _R_TYPE_SPRITE[e.type];
-  if (!tmap) return false;
-  const { family } = tmap;
-  const s = e.size;
+// Idle: 128×32 → 32×32 per frame (4 frames). Run: 384×64 → 64×64 per frame (6 frames).
+function _rDrawEnemy(ctx, e, ex, ey, t) {
+  const fam = _R_TYPE_MAP[e.type] || 'orc';
   const moving = e.state === 'chase' || e.state === 'patrol';
-  const suffix = moving ? 'run' : 'idle';
-  const key = family + '_' + suffix;
-  // Mob idle: 128×32 => 4 frames @ 32×32; mob run: 384×64 => 6 frames @ 64×64
-  const [fW, fH, nF] = suffix === 'run' ? [64,64,6] : [32,32,4];
-  const fps = suffix === 'run' ? 8 : 4;
+  const key   = moving ? fam + '_run'  : fam + '_idle';
+  const srcW  = moving ? 64 : 32;
+  const srcH  = moving ? 64 : 32;
+  const nF    = moving ? 6  : 4;
+  const fps   = moving ? 8  : 4;
   const frame = Math.floor(t * fps) % nF;
-  const dS = s * 2.4; // draw size proportional to enemy size
+  // Draw size proportional to enemy radius; enemies have r ≈ 12–22
+  const DS  = e.size * 3.2;
   const flipX = (e.vx || 0) < 0;
-  return _rDrawFrame(ctx, key, frame, fW, fH, ex-dS/2, ey-dS*0.9, dS, dS, flipX);
+  return _rFrame(ctx, key, frame, srcW, srcH, ex - DS / 2, ey - DS * 0.85, DS, DS, flipX);
 }
 
-// Draw player sprite for RealmArena
-function _rDrawPlayerSprite(ctx, px, py, t, moving, dir, attacking) {
-  const FS = 64, DS = 48;
-  let sheet, nF, fps, flipX=false;
-  if (attacking) {
-    sheet = dir==='side_left'?'player_slice_side':'player_slice_down';
-    nF=8; fps=14; flipX=dir==='side_left';
-  } else if (moving) {
-    if (dir==='up')           { sheet='player_run_up';   nF=6; fps=10; }
-    else if (dir==='side_right'){ sheet='player_run_side'; nF=6; fps=10; }
-    else if (dir==='side_left') { sheet='player_run_side'; nF=6; fps=10; flipX=true; }
-    else                        { sheet='player_run_down'; nF=6; fps=10; }
+// Draw player (Knight). Idle: 128×32→4f@32×32. Run: 384×64→6f@64×64.
+function _rDrawPlayer(ctx, cx, cy, t, moving, dir) {
+  const DS   = 96;
+  const flipX = dir === 'side_left';
+  if (moving) {
+    const frame = Math.floor(t * 8) % 6;
+    return _rFrame(ctx, 'p_run', frame, 64, 64, cx - DS / 2, cy - DS * 0.7, DS, DS, flipX);
   } else {
-    if (dir==='side_left') { sheet='player_idle_side'; nF=4; fps=4; flipX=true; }
-    else                   { sheet='player_idle_down'; nF=4; fps=4; }
+    const frame = Math.floor(t * 4) % 4;
+    return _rFrame(ctx, 'p_idle', frame, 32, 32, cx - DS / 2, cy - DS * 0.7, DS, DS, flipX);
   }
-  const frame = Math.floor(t*fps) % nF;
-  return _rDrawFrame(ctx, sheet, frame, FS, FS, px-DS/2, py-DS*0.65, DS, DS, flipX);
 }
 
 const TILE    = 32;
@@ -627,7 +608,7 @@ function drawEnemySprite(ctx, e, ex, ey, t) {
   ctx.globalAlpha = 1;
 
   // Try Pixel Crawler sprite
-  if (_rDrawEnemySprite(ctx, e, ex, ey, t)) {
+  if (_rDrawEnemy(ctx, e, ex, ey, t)) {
     ctx.restore();
     return;
   }
@@ -2171,8 +2152,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       sprDir=dir.x>0?'side_right':'side_left';
     } else if(dir.y<0) sprDir='up';
 
-    const attacking=G.playerAtkTimer>0;
-    const spriteOk=_rDrawPlayerSprite(ctx,ppx,ppy,t,moving,sprDir,attacking);
+    const spriteOk=_rDrawPlayer(ctx,ppx,ppy,t,moving,sprDir);
 
     if(!spriteOk){
       // ── Primitive fallback (identical to original) ──
