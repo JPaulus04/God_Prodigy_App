@@ -1,3 +1,4 @@
+// V106-SPRITE-GRAPHICS-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
@@ -6,6 +7,90 @@ import { AbilityConfig } from '../game/config/AbilityConfig';
 import { sfxAttack, sfxHit, sfxCollect, resumeAudio } from '../utils/sfx';
 import { hapticAttack, hapticHit, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { FRAGMENT_TYPES, FRAGMENT_DROP_CHANCE, CHALLENGE_TYPES } from '../game/config/FragmentConfig';
+
+// ── Sprite cache (module-level) ─────────────────────────────────────────
+const _DSC = {};
+function _dLoad(key, path) {
+  if (_DSC[key]) return _DSC[key];
+  const img = new Image(); img.src = path; _DSC[key] = img; return img;
+}
+const _DPC = '/assets/world/pixel_crawler/';
+// Player sheets (body_a, 64×64 frames)
+const _D_PLAYER_KEYS = {
+  idle_down:  _DPC+'entities__characters__body_a__animations__idle_base__idle_down_sheet.png',
+  idle_side:  _DPC+'entities__characters__body_a__animations__idle_base__idle_side_sheet.png',
+  run_down:   _DPC+'entities__characters__body_a__animations__run_base__run_down_sheet.png',
+  run_side:   _DPC+'entities__characters__body_a__animations__run_base__run_side_sheet.png',
+  run_up:     _DPC+'entities__characters__body_a__animations__run_base__run_up_sheet.png',
+  slice_down: _DPC+'entities__characters__body_a__animations__slice_base__slice_down_sheet.png',
+  slice_side: _DPC+'entities__characters__body_a__animations__slice_base__slice_side_sheet.png',
+  hit_down:   _DPC+'entities__characters__body_a__animations__hit_base__hit_down_sheet.png',
+};
+Object.entries(_D_PLAYER_KEYS).forEach(([k,v])=>_dLoad('dp_'+k,v));
+// Dungeon enemy sheets — use skeleton family (fits dark dungeon aesthetic)
+_dLoad('sk_idle', _DPC+'entities__mobs__skeleton_crew__skeleton_base__idle__idle_sheet.png');
+_dLoad('sk_run',  _DPC+'entities__mobs__skeleton_crew__skeleton_base__run__run_sheet.png');
+_dLoad('sk_mage_idle', _DPC+'entities__mobs__skeleton_crew__skeleton_mage__idle__idle_sheet.png');
+_dLoad('sk_mage_run',  _DPC+'entities__mobs__skeleton_crew__skeleton_mage__run__run_sheet.png');
+_dLoad('sk_war_idle',  _DPC+'entities__mobs__skeleton_crew__skeleton_warrior__idle__idle_sheet.png');
+_dLoad('sk_war_run',   _DPC+'entities__mobs__skeleton_crew__skeleton_warrior__run__run_sheet.png');
+_dLoad('sk_rog_idle',  _DPC+'entities__mobs__skeleton_crew__skeleton_rogue__idle__idle_sheet.png');
+_dLoad('sk_rog_run',   _DPC+'entities__mobs__skeleton_crew__skeleton_rogue__run__run_sheet.png');
+_dLoad('orc_idle',     _DPC+'entities__mobs__orc_crew__orc_warrior__idle__idle_sheet.png');
+_dLoad('orc_run',      _DPC+'entities__mobs__orc_crew__orc_warrior__run__run_sheet.png');
+
+function _dDrawFrame(ctx, key, frame, fW, fH, dx, dy, dW, dH, flipX=false) {
+  const img = _DSC[key];
+  if (!img||!img.complete||img.naturalWidth===0) return false;
+  ctx.save();
+  if (flipX){ctx.scale(-1,1);dx=-dx-dW;}
+  ctx.drawImage(img,frame*fW,0,fW,fH,dx,dy,dW,dH);
+  ctx.restore();
+  return true;
+}
+
+// Map dungeon enemy types to skeleton sprite families
+const _D_ENEMY_SPRITE = {
+  shadow_stalker: 'sk_war',
+  stone_guardian: 'orc',
+  shadow_knight_boss: 'sk_war',
+};
+function _dGetEnemyKey(type) {
+  if (type==='stone_guardian') return 'orc';
+  return 'sk'; // default skeleton for most dungeon mobs
+}
+
+// Draw dungeon enemy with sprite (returns true if drawn)
+function _dDrawEnemy(ctx, ex, ey, r, isBoss, type, state, t) {
+  const fam = _dGetEnemyKey(type);
+  const moving = state==='chase'||state==='patrol';
+  const key = fam+(moving?'_run':'_idle');
+  const [fW,fH,nF] = moving?[64,64,6]:[32,32,4];
+  const fps = moving?8:4;
+  const frame=Math.floor(t*fps)%nF;
+  const dS=r*3.2;
+  return _dDrawFrame(ctx, key, frame, fW, fH, ex-dS/2, ey-dS*0.9, dS, dS);
+}
+
+// Draw dungeon player with sprite (returns true if drawn)
+function _dDrawPlayer(ctx, ppx, ppy, t, moving, dir, attacking) {
+  const FS=64,DS=48;
+  let key,nF,fps,flipX=false;
+  if(attacking){
+    key=dir==='side_left'?'dp_slice_side':'dp_slice_down';
+    nF=8;fps=14;flipX=dir==='side_left';
+  } else if(moving){
+    if(dir==='up'){key='dp_run_up';nF=6;fps=10;}
+    else if(dir==='side_right'){key='dp_run_side';nF=6;fps=10;}
+    else if(dir==='side_left'){key='dp_run_side';nF=6;fps=10;flipX=true;}
+    else{key='dp_run_down';nF=6;fps=10;}
+  } else {
+    key=dir==='side_left'?'dp_idle_side':'dp_idle_down';
+    nF=4;fps=4;flipX=dir==='side_left';
+  }
+  const frame=Math.floor(t*fps)%nF;
+  return _dDrawFrame(ctx,key,frame,FS,FS,ppx-DS/2,ppy-DS*0.65,DS,DS,flipX);
+}
 
 const TILE     = 32;
 const DUNGEON_W = 40;
@@ -314,7 +399,12 @@ export default function DungeonCanvas() {
     G.prevSpace = spaceNow;
     if (window.__gameAttack) window.__gameAttack = false;
 
+    // Attack timer for sprite animation
+    if (!G.dunAtkTimer) G.dunAtkTimer=0;
+    if (G.dunAtkTimer > 0) G.dunAtkTimer -= dt;
+
     if (spaceJust && p.attackCooldown <= 0) {
+      G.dunAtkTimer = 0.45;
       p.attackCooldown = wAtk.cooldown;
       sfxAttack(); hapticAttack();
       if (wAtk.ranged) {
@@ -749,15 +839,21 @@ export default function DungeonCanvas() {
       }
 
       ctx.globalAlpha = stunned ? (Math.sin(Date.now()/80)>0 ? 0.4:1) : 1;
-      let fillColor =
-        stunned          ? '#FCD34D' :
-        isBoss           ? (e.phase2 ? '#c0392b' : '#8b0000') :
-        e.type==='stone_guardian' ? '#5d3a7a' :
-                           '#6c3483'; // shadow stalker purple
-      ctx.fillStyle = fillColor;
-      ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = isBoss ? '#ff6666' : '#c39bd3';
-      ctx.lineWidth = isBoss ? 2.5 : 1.5; ctx.stroke();
+
+      // Try Pixel Crawler sprite (pass monotonic t for animation)
+      const _dT = (Date.now()/1000);
+      const spriteDrawn = _dDrawEnemy(ctx, ex, ey, r, isBoss, e.type, e.state||'idle', _dT);
+      if (!spriteDrawn) {
+        let fillColor =
+          stunned          ? '#FCD34D' :
+          isBoss           ? (e.phase2 ? '#c0392b' : '#8b0000') :
+          e.type==='stone_guardian' ? '#5d3a7a' :
+                             '#6c3483';
+        ctx.fillStyle = fillColor;
+        ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = isBoss ? '#ff6666' : '#c39bd3';
+        ctx.lineWidth = isBoss ? 2.5 : 1.5; ctx.stroke();
+      }
       ctx.globalAlpha = 1;
 
       if (stunned) {
@@ -798,22 +894,15 @@ export default function DungeonCanvas() {
       );
     }
 
-    // Player — full skinned hero
+    // Player — Pixel Crawler sprite with primitive fallback
     const ppx = wx(p.x), ppy = wy(p.y);
     const blinkOn = !p.invincible || Math.sin(Date.now()/80) > 0;
     ctx.globalAlpha = blinkOn ? 1 : 0.2;
 
     const { activeSkin: _dSkin, activeTrail: _dTrail } = useGameStore.getState();
-    const DUN_SKINS = {
-      shadow_knight: { cape:'#1a1a2e', tunic1:'#2c003e', tunic2:'#4b0082', belt:'#6a0dad', helmet:'#1a0030', helmetFace:'#4b0082', helmetVisor:'#9b59b6', shield1:'#2c003e', shield2:'#6a0dad', boot:'#0d0010' },
-      gods_chosen:   { cape:'#7d6008', tunic1:'#b8860b', tunic2:'#d4af37', belt:'#f1c40f', helmet:'#7d6008', helmetFace:'#d4af37', helmetVisor:'#fffde7', shield1:'#b8860b', shield2:'#f1c40f', boot:'#5a4500' },
-      frost_warden:  { cape:'#c8eeff', tunic1:'#e8f8ff', tunic2:'#ffffff', belt:'#80d8ff', helmet:'#b0e0ff', helmetFace:'#e8f8ff', helmetVisor:'#ffffff', shield1:'#7ecfff', shield2:'#b3ecff', boot:'#6abcdf' },
-    };
-    const DSK = DUN_SKINS[_dSkin] || { cape:'#1a4a7a', tunic1:'#2980b9', tunic2:'#3498db', belt:'#1a5276', helmet:'#1a5276', helmetFace:'#2980b9', helmetVisor:'#85c1e9', shield1:'#2471a3', shield2:'#c0392b', boot:'#6b4226' };
     const dunMoving = !!(G.keys['ArrowLeft']||G.keys['ArrowRight']||G.keys['ArrowUp']||G.keys['ArrowDown']||G.keys['KeyA']||G.keys['KeyD']||G.keys['KeyW']||G.keys['KeyS']||G._joyX||G._joyY);
-    const dunLeg = dunMoving ? Math.sin(Date.now()/120) * 4 : 0;
 
-    // Trail
+    // Trail particles (kept from original)
     if (!G.dunTrail) G.dunTrail = [];
     if (_dTrail && dunMoving) {
       for (let i=0;i<2;i++) G.dunTrail.push({ x:p.x+(Math.random()-0.5)*5, y:p.y+(Math.random()-0.5)*5, r:3+Math.random()*3, a:0.85, life:1.0, type:_dTrail });
@@ -824,38 +913,62 @@ export default function DungeonCanvas() {
       ctx.fillStyle=tc; ctx.beginPath(); ctx.arc(wx(tp.x),wy(tp.y),tp.r,0,Math.PI*2); ctx.fill();
     });
 
-    // Cape
-    ctx.fillStyle=DSK.cape;
-    ctx.beginPath(); ctx.moveTo(ppx-7,ppy+1); ctx.bezierCurveTo(ppx-12,ppy+10,ppx-9,ppy+20,ppx-3,ppy+18); ctx.lineTo(ppx+3,ppy+18); ctx.bezierCurveTo(ppx+9,ppy+20,ppx+12,ppy+10,ppx+7,ppy+1); ctx.closePath(); ctx.fill();
-    // Boots
-    ctx.fillStyle=DSK.boot;
-    ctx.beginPath(); ctx.ellipse(ppx-4+dunLeg,ppy+16,4,3.5,0,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(ppx+4-dunLeg,ppy+16,4,3.5,0,0,Math.PI*2); ctx.fill();
-    // Tunic
-    ctx.fillStyle=DSK.tunic1;
-    ctx.beginPath(); ctx.moveTo(ppx-9,ppy+3); ctx.lineTo(ppx-7,ppy-5); ctx.quadraticCurveTo(ppx,ppy-8,ppx+7,ppy-5); ctx.lineTo(ppx+9,ppy+3); ctx.quadraticCurveTo(ppx,ppy+8,ppx-9,ppy+3); ctx.closePath(); ctx.fill();
-    ctx.fillStyle=DSK.tunic2;
-    ctx.beginPath(); ctx.moveTo(ppx-5,ppy+1); ctx.lineTo(ppx-4,ppy-4); ctx.quadraticCurveTo(ppx,ppy-7,ppx+4,ppy-4); ctx.lineTo(ppx+5,ppy+1); ctx.quadraticCurveTo(ppx,ppy+5,ppx-5,ppy+1); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle=DSK.belt; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(ppx-8,ppy+2); ctx.lineTo(ppx+8,ppy+2); ctx.stroke();
-    ctx.fillStyle='#f1c40f'; ctx.fillRect(ppx-2,ppy+1,4,3);
-    // Shield
-    const dLSway=dunMoving?Math.sin(Date.now()/111+Math.PI)*3:0;
-    ctx.fillStyle=DSK.shield1; ctx.fillRect(ppx-14,ppy-3+dLSway,4,8);
-    ctx.fillStyle=DSK.shield2;
-    ctx.beginPath(); ctx.moveTo(ppx-18,ppy-4+dLSway); ctx.lineTo(ppx-11,ppy-4+dLSway); ctx.lineTo(ppx-11,ppy+3+dLSway); ctx.quadraticCurveTo(ppx-14,ppy+7+dLSway,ppx-18,ppy+3+dLSway); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#f1c40f'; ctx.beginPath(); ctx.arc(ppx-14,ppy+dLSway,2,0,Math.PI*2); ctx.fill();
-    // Sword
-    const dRSway=dunMoving?Math.sin(Date.now()/111)*3:0;
-    ctx.fillStyle=DSK.shield1; ctx.fillRect(ppx+10,ppy-3+dRSway,4,8);
-    ctx.strokeStyle='#d5d8dc'; ctx.lineWidth=2; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(ppx+15,ppy-1+dRSway); ctx.lineTo(ppx+15,ppy-18+dRSway); ctx.stroke();
-    ctx.strokeStyle='#f1c40f'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(ppx+11,ppy-3+dRSway); ctx.lineTo(ppx+19,ppy-3+dRSway); ctx.stroke();
-    ctx.lineCap='butt';
-    // Helmet
-    ctx.fillStyle=DSK.helmet; ctx.beginPath(); ctx.arc(ppx,ppy-9,9,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=DSK.helmetFace; ctx.beginPath(); ctx.arc(ppx,ppy-8,7,Math.PI*0.1,Math.PI*0.9); ctx.fill();
-    ctx.fillStyle=DSK.helmetVisor;
-    ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(ppx-5,ppy-11,10,3,1); else ctx.rect(ppx-5,ppy-11,10,3); ctx.fill();
+    // Ground shadow
+    ctx.fillStyle='#00000030';
+    ctx.beginPath(); ctx.ellipse(ppx,ppy+14,10,4,0,0,Math.PI*2); ctx.fill();
+
+    // Determine direction for sprite
+    if(!G.dunDir) G.dunDir='down';
+    if(!G.dunAtkTimer) G.dunAtkTimer=0;
+    if(dunMoving){
+      const kL=G.keys['ArrowLeft']||G.keys['KeyA']||(G._joyX<-0.3);
+      const kR=G.keys['ArrowRight']||G.keys['KeyD']||(G._joyX>0.3);
+      const kU=G.keys['ArrowUp']||G.keys['KeyW']||(G._joyY<-0.3);
+      if(kL) G.dunDir='side_left';
+      else if(kR) G.dunDir='side_right';
+      else if(kU) G.dunDir='up';
+      else G.dunDir='down';
+    }
+    const _dT2 = Date.now()/1000;
+    const dunAttacking = G.dunAtkTimer > 0;
+    const dunSpriteOk = _dDrawPlayer(ctx, ppx, ppy, _dT2, dunMoving, G.dunDir, dunAttacking);
+
+    if (!dunSpriteOk) {
+      // ── Primitive fallback ──
+      const DUN_SKINS = {
+        shadow_knight: { cape:'#1a1a2e', tunic1:'#2c003e', tunic2:'#4b0082', belt:'#6a0dad', helmet:'#1a0030', helmetFace:'#4b0082', helmetVisor:'#9b59b6', shield1:'#2c003e', shield2:'#6a0dad', boot:'#0d0010' },
+        gods_chosen:   { cape:'#7d6008', tunic1:'#b8860b', tunic2:'#d4af37', belt:'#f1c40f', helmet:'#7d6008', helmetFace:'#d4af37', helmetVisor:'#fffde7', shield1:'#b8860b', shield2:'#f1c40f', boot:'#5a4500' },
+        frost_warden:  { cape:'#c8eeff', tunic1:'#e8f8ff', tunic2:'#ffffff', belt:'#80d8ff', helmet:'#b0e0ff', helmetFace:'#e8f8ff', helmetVisor:'#ffffff', shield1:'#7ecfff', shield2:'#b3ecff', boot:'#6abcdf' },
+      };
+      const DSK = DUN_SKINS[_dSkin] || { cape:'#1a4a7a', tunic1:'#2980b9', tunic2:'#3498db', belt:'#1a5276', helmet:'#1a5276', helmetFace:'#2980b9', helmetVisor:'#85c1e9', shield1:'#2471a3', shield2:'#c0392b', boot:'#6b4226' };
+      const dunLeg = dunMoving ? Math.sin(Date.now()/120) * 4 : 0;
+      ctx.fillStyle=DSK.cape;
+      ctx.beginPath(); ctx.moveTo(ppx-7,ppy+1); ctx.bezierCurveTo(ppx-12,ppy+10,ppx-9,ppy+20,ppx-3,ppy+18); ctx.lineTo(ppx+3,ppy+18); ctx.bezierCurveTo(ppx+9,ppy+20,ppx+12,ppy+10,ppx+7,ppy+1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=DSK.boot;
+      ctx.beginPath(); ctx.ellipse(ppx-4+dunLeg,ppy+16,4,3.5,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(ppx+4-dunLeg,ppy+16,4,3.5,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=DSK.tunic1;
+      ctx.beginPath(); ctx.moveTo(ppx-9,ppy+3); ctx.lineTo(ppx-7,ppy-5); ctx.quadraticCurveTo(ppx,ppy-8,ppx+7,ppy-5); ctx.lineTo(ppx+9,ppy+3); ctx.quadraticCurveTo(ppx,ppy+8,ppx-9,ppy+3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=DSK.tunic2;
+      ctx.beginPath(); ctx.moveTo(ppx-5,ppy+1); ctx.lineTo(ppx-4,ppy-4); ctx.quadraticCurveTo(ppx,ppy-7,ppx+4,ppy-4); ctx.lineTo(ppx+5,ppy+1); ctx.quadraticCurveTo(ppx,ppy+5,ppx-5,ppy+1); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle=DSK.belt; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(ppx-8,ppy+2); ctx.lineTo(ppx+8,ppy+2); ctx.stroke();
+      ctx.fillStyle='#f1c40f'; ctx.fillRect(ppx-2,ppy+1,4,3);
+      const dLSway=dunMoving?Math.sin(Date.now()/111+Math.PI)*3:0;
+      ctx.fillStyle=DSK.shield1; ctx.fillRect(ppx-14,ppy-3+dLSway,4,8);
+      ctx.fillStyle=DSK.shield2;
+      ctx.beginPath(); ctx.moveTo(ppx-18,ppy-4+dLSway); ctx.lineTo(ppx-11,ppy-4+dLSway); ctx.lineTo(ppx-11,ppy+3+dLSway); ctx.quadraticCurveTo(ppx-14,ppy+7+dLSway,ppx-18,ppy+3+dLSway); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#f1c40f'; ctx.beginPath(); ctx.arc(ppx-14,ppy+dLSway,2,0,Math.PI*2); ctx.fill();
+      const dRSway=dunMoving?Math.sin(Date.now()/111)*3:0;
+      ctx.fillStyle=DSK.shield1; ctx.fillRect(ppx+10,ppy-3+dRSway,4,8);
+      ctx.strokeStyle='#d5d8dc'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(ppx+15,ppy-1+dRSway); ctx.lineTo(ppx+15,ppy-18+dRSway); ctx.stroke();
+      ctx.strokeStyle='#f1c40f'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(ppx+11,ppy-3+dRSway); ctx.lineTo(ppx+19,ppy-3+dRSway); ctx.stroke();
+      ctx.lineCap='butt';
+      ctx.fillStyle=DSK.helmet; ctx.beginPath(); ctx.arc(ppx,ppy-9,9,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=DSK.helmetFace; ctx.beginPath(); ctx.arc(ppx,ppy-8,7,Math.PI*0.1,Math.PI*0.9); ctx.fill();
+      ctx.fillStyle=DSK.helmetVisor;
+      ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(ppx-5,ppy-11,10,3,1); else ctx.rect(ppx-5,ppy-11,10,3); ctx.fill();
+    }
 
     ctx.globalAlpha = 1;
 
