@@ -1,0 +1,21 @@
+{
+  "revision": "V104-STRONGHOLD-TILE-VILLAGE-REV-001",
+  "source": "El Espriteador Four Seasons Tilesets + composed/cropped Stronghold assets",
+  "purpose": "Rebuild Stronghold as a composed tile village instead of isolated huts.",
+  "gameplay_change": "None intended.",
+  "assets": {
+    "v104_stronghold_plaza_base": "/assets/world/v104_stronghold/v104_stronghold_plaza_base.png",
+    "v104_stronghold_crafting_hall": "/assets/world/v104_stronghold/v104_stronghold_crafting_hall.png",
+    "v104_stronghold_forge": "/assets/world/v104_stronghold/v104_stronghold_forge.png",
+    "v104_stronghold_market_house": "/assets/world/v104_stronghold/v104_stronghold_market_house.png",
+    "v104_stronghold_market_stall": "/assets/world/v104_stronghold/v104_stronghold_market_stall.png",
+    "v104_stronghold_barracks": "/assets/world/v104_stronghold/v104_stronghold_barracks.png",
+    "v104_stronghold_shrine_altar": "/assets/world/v104_stronghold/v104_stronghold_shrine_altar.png",
+    "v104_market_tables": "/assets/world/v104_stronghold/v104_market_tables.png",
+    "v104_fence_gate": "/assets/world/v104_stronghold/v104_fence_gate.png",
+    "v104_garden_bushes": "/assets/world/v104_stronghold/v104_garden_bushes.png",
+    "v104_flower_bed": "/assets/world/v104_stronghold/v104_flower_bed.png",
+    "v104_forge_props": "/assets/world/v104_stronghold/v104_forge_props.png",
+    "v104_training_yard_props": "/assets/world/v104_stronghold/v104_training_yard_props.png"
+  }
+}
