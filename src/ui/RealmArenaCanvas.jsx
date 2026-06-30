@@ -1,9 +1,122 @@
+// V106-SPRITE-GRAPHICS-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { InputState }   from '../game/systems/InputState';
 import { AbilityConfig } from '../game/config/AbilityConfig';
 import { hapticAttack, hapticHit, hapticBossDeath, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxBossDeath, sfxLevelUp, resumeAudio } from '../utils/sfx';
+
+// ── Sprite cache (module-level) ─────────────────────────────────────────
+ const _RSC = {};
+function _rLoadImg(key, path) {
+  if (_RSC[key]) return _RSC[key];
+  const img = new Image(); img.src = path; _RSC[key] = img; return img;
+}
+const _RPC = '/assets/world/pixel_crawler/';
+
+// Player walk/run/idle/slice sheets (body_a, 64×64 frames)
+const _R_PLAYER_SHEETS = {
+  idle_down: _RPC + 'entities__characters__body_a__animations__idle_base__idle_down_sheet.png',
+  idle_side: _RPC + 'entities__characters__body_a__animations__idle_base__idle_side_sheet.png',
+  walk_down: _RPC + 'entities__characters__body_a__animations__walk_base__walk_down_sheet.png',
+  walk_side: _RPC + 'entities__characters__body_a__animations__walk_base__walk_side_sheet.png',
+  walk_up:   _RPC + 'entities__characters__body_a__animations__walk_base__walk_up_sheet.png',
+  run_down:  _RPC + 'entities__characters__body_a__animations__run_base__run_down_sheet.png',
+  run_side:  _RPC + 'entities__characters__body_a__animations__run_base__run_side_sheet.png',
+  run_up:    _RPC + 'entities__characters__body_a__animations__run_base__run_up_sheet.png',
+  slice_down:_RPC + 'entities__characters__body_a__animations__slice_base__slice_down_sheet.png',
+  slice_side:_RPC + 'entities__characters__body_a__animations__slice_base__slice_side_sheet.png',
+  hit_down:  _RPC + 'entities__characters__body_a__animations__hit_base__hit_down_sheet.png',
+  death_down:_RPC + 'entities__characters__body_a__animations__death_base__death_down_sheet.png',
+};
+Object.entries(_R_PLAYER_SHEETS).forEach(([k,v]) => _rLoadImg('player_'+k, v));
+
+// Enemy sprite sheets
+// Mob idle: 128×32 (4 frames @ 32×32); mob run: 384×64 (6 frames @ 64×64)
+const _R_MOB_SHEETS = {
+  // Physical / orc family
+  orc_warrior_idle:     _RPC + 'entities__mobs__orc_crew__orc_warrior__idle__idle_sheet.png',
+  orc_warrior_run:      _RPC + 'entities__mobs__orc_crew__orc_warrior__run__run_sheet.png',
+  orc_warrior_death:    _RPC + 'entities__mobs__orc_crew__orc_warrior__death__death_sheet.png',
+  orc_rogue_idle:       _RPC + 'entities__mobs__orc_crew__orc_rogue__idle__idle_sheet.png',
+  orc_rogue_run:        _RPC + 'entities__mobs__orc_crew__orc_rogue__run__run_sheet.png',
+  orc_shaman_idle:      _RPC + 'entities__mobs__orc_crew__orc_shaman__idle__idle_sheet.png',
+  orc_shaman_run:       _RPC + 'entities__mobs__orc_crew__orc_shaman__run__run_sheet.png',
+  skeleton_idle:        _RPC + 'entities__mobs__skeleton_crew__skeleton_base__idle__idle_sheet.png',
+  skeleton_run:         _RPC + 'entities__mobs__skeleton_crew__skeleton_base__run__run_sheet.png',
+  skeleton_mage_idle:   _RPC + 'entities__mobs__skeleton_crew__skeleton_mage__idle__idle_sheet.png',
+  skeleton_mage_run:    _RPC + 'entities__mobs__skeleton_crew__skeleton_mage__run__run_sheet.png',
+  skeleton_rogue_idle:  _RPC + 'entities__mobs__skeleton_crew__skeleton_rogue__idle__idle_sheet.png',
+  skeleton_rogue_run:   _RPC + 'entities__mobs__skeleton_crew__skeleton_rogue__run__run_sheet.png',
+  skeleton_warrior_idle:_RPC + 'entities__mobs__skeleton_crew__skeleton_warrior__idle__idle_sheet.png',
+  skeleton_warrior_run: _RPC + 'entities__mobs__skeleton_crew__skeleton_warrior__run__run_sheet.png',
+};
+Object.entries(_R_MOB_SHEETS).forEach(([k,v]) => _rLoadImg(k, v));
+
+// Map game enemy type → sprite family + color tint
+const _R_TYPE_SPRITE = {
+  thornling:      { family: 'orc_warrior',     tint: '#27ae60' },
+  stone_golem:    { family: 'orc_warrior',     tint: '#7f8c8d' },
+  shadow_stalker: { family: 'orc_warrior',     tint: '#6c3483' },
+  forest_wraith:  { family: 'skeleton_mage',   tint: '#27ae60' },
+  wind_sprite:    { family: 'skeleton_mage',   tint: '#87ceeb' },
+  storm_wisp:     { family: 'skeleton_mage',   tint: '#9b59b6' },
+  sea_sprite:     { family: 'skeleton_mage',   tint: '#1abc9c' },
+  void_wraith:    { family: 'skeleton_mage',   tint: '#f1c40f' },
+  ember_imp:      { family: 'orc_rogue',       tint: '#e74c3c' },
+  lava_crawler:   { family: 'orc_rogue',       tint: '#c0392b' },
+  frost_shard:    { family: 'skeleton_rogue',  tint: '#85c1e9' },
+  ice_witch:      { family: 'skeleton_warrior',tint: '#2980b9' },
+  shade:          { family: 'skeleton',        tint: '#2c3e50' },
+};
+
+function _rDrawFrame(ctx, key, frame, fW, fH, dx, dy, dW, dH, flipX=false) {
+  const img = _RSC[key];
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  ctx.save();
+  if (flipX) { ctx.scale(-1,1); dx=-dx-dW; }
+  ctx.drawImage(img, frame*fW, 0, fW, fH, dx, dy, dW, dH);
+  ctx.restore();
+  return true;
+}
+
+// Draw enemy sprite. Returns true if drawn.
+function _rDrawEnemySprite(ctx, e, ex, ey, t) {
+  const tmap = _R_TYPE_SPRITE[e.type];
+  if (!tmap) return false;
+  const { family } = tmap;
+  const s = e.size;
+  const moving = e.state === 'chase' || e.state === 'patrol';
+  const suffix = moving ? 'run' : 'idle';
+  const key = family + '_' + suffix;
+  // Mob idle: 128×32 => 4 frames @ 32×32; mob run: 384×64 => 6 frames @ 64×64
+  const [fW, fH, nF] = suffix === 'run' ? [64,64,6] : [32,32,4];
+  const fps = suffix === 'run' ? 8 : 4;
+  const frame = Math.floor(t * fps) % nF;
+  const dS = s * 2.4; // draw size proportional to enemy size
+  const flipX = (e.vx || 0) < 0;
+  return _rDrawFrame(ctx, key, frame, fW, fH, ex-dS/2, ey-dS*0.9, dS, dS, flipX);
+}
+
+// Draw player sprite for RealmArena
+function _rDrawPlayerSprite(ctx, px, py, t, moving, dir, attacking) {
+  const FS = 64, DS = 48;
+  let sheet, nF, fps, flipX=false;
+  if (attacking) {
+    sheet = dir==='side_left'?'player_slice_side':'player_slice_down';
+    nF=8; fps=14; flipX=dir==='side_left';
+  } else if (moving) {
+    if (dir==='up')           { sheet='player_run_up';   nF=6; fps=10; }
+    else if (dir==='side_right'){ sheet='player_run_side'; nF=6; fps=10; }
+    else if (dir==='side_left') { sheet='player_run_side'; nF=6; fps=10; flipX=true; }
+    else                        { sheet='player_run_down'; nF=6; fps=10; }
+  } else {
+    if (dir==='side_left') { sheet='player_idle_side'; nF=4; fps=4; flipX=true; }
+    else                   { sheet='player_idle_down'; nF=4; fps=4; }
+  }
+  const frame = Math.floor(t*fps) % nF;
+  return _rDrawFrame(ctx, sheet, frame, FS, FS, px-DS/2, py-DS*0.65, DS, DS, flipX);
+}
 
 const TILE    = 32;
 const ARENA_W = 30;
@@ -505,13 +618,19 @@ function drawArenaTree(ctx, sx, sy, cfg) {
 }
 
 // ── Enemy body art ───────────────────────────────────────────────────────────
-function drawEnemySprite(ctx, e, ex, ey) {
+function drawEnemySprite(ctx, e, ex, ey, t) {
   ctx.save();
   const s = e.size;
   // Shadow
   ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(ex, ey + s + 2, s * 0.9, s * 0.35, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
+
+  // Try Pixel Crawler sprite
+  if (_rDrawEnemySprite(ctx, e, ex, ey, t)) {
+    ctx.restore();
+    return;
+  }
 
   const type = e.type || 'thornling';
   if (type === 'thornling') {
@@ -1418,7 +1537,12 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     const spaceNow=G.keys['Space']||window.__gameAttack;
     const spaceJust=spaceNow&&!G.prevSpace; G.prevSpace=spaceNow;
     if(window.__gameAttack)window.__gameAttack=false;
+    // Track attack timer for sprite animation
+    if(!G.playerAtkTimer) G.playerAtkTimer=0;
+    if(G.playerAtkTimer>0) G.playerAtkTimer-=dt;
+
     if(spaceJust&&p.attackCooldown<=0){
+      G.playerAtkTimer=0.45;
       hapticAttack(); sfxAttack();
       const _aid=store.equippedAbilityId||'whirlwind';
       const wType=_aid==='power_shot'?'bow':_aid==='ground_slam'?'hammer':_aid==='flurry'?'dagger':_aid==='arcane_burst'?'staff':'sword';
@@ -1893,7 +2017,7 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
     // Enemies
     G.enemies.filter(e=>e.alive).forEach(e=>{
       const ex=wxf(e.x),ey=wyf(e.y); if(!onScreen(ex,ey)) return;
-      drawEnemySprite(ctx,e,ex,ey);
+      drawEnemySprite(ctx,e,ex,ey,t);
       // HP bar
       const bw=e.size*2+8;
       ctx.fillStyle='#222';ctx.fillRect(ex-bw/2,ey-e.size-12,bw,5);
@@ -2022,135 +2146,85 @@ export default function RealmArenaCanvas({ realmId, onFlee }) {
       ctx.globalAlpha=1;
     }
 
-    // Player — top-down Zelda-style
+    // Player — Pixel Crawler sprite with primitive fallback
     const ppx=wxf(p.x),ppy=wyf(p.y);
     const blinkOn=!p.invincible||Math.sin(Date.now()/80)>0;
     ctx.globalAlpha=blinkOn?1:0.2;
     ctx.save();
 
-    // Walk cycle
-    const walkCycle=Math.sin(G.t*9);
     const dir=G.lastMoveDir;
     const moving=(dir.x!==0||dir.y!==0);
-    const legSwing=moving?walkCycle*3:0;
 
     // Ground shadow
     ctx.fillStyle='#00000033';
     ctx.beginPath();ctx.ellipse(ppx,ppy+16,12,4,0,0,Math.PI*2);ctx.fill();
 
-    // ── Skin palette ─────────────────────────────────────────────────────────
-    const { activeSkin: _rSkin } = useGameStore.getState();
-    const REALM_SKINS = {
-      shadow_knight: { cape:'#1a1a2e', tunic1:'#2c003e', tunic2:'#4b0082', belt:'#6a0dad', helmet:'#1a0030', helmetFace:'#4b0082', helmetVisor:'#9b59b6', shield1:'#2c003e', shield2:'#6a0dad', boot:'#0d0010' },
-      gods_chosen:   { cape:'#7d6008', tunic1:'#b8860b', tunic2:'#d4af37', belt:'#f1c40f', helmet:'#7d6008', helmetFace:'#d4af37', helmetVisor:'#fffde7', shield1:'#b8860b', shield2:'#f1c40f', boot:'#5a4500' },
-      frost_warden:  { cape:'#c8eeff', tunic1:'#e8f8ff', tunic2:'#ffffff', belt:'#80d8ff', helmet:'#b0e0ff', helmetFace:'#e8f8ff', helmetVisor:'#ffffff', shield1:'#7ecfff', shield2:'#b3ecff', boot:'#6abcdf' },
-    };
-    const RSK = REALM_SKINS[_rSkin] || { cape:'#1a4a7a', tunic1:'#2980b9', tunic2:'#3498db', belt:'#1a5276', helmet:'#1a5276', helmetFace:'#2980b9', helmetVisor:'#85c1e9', shield1:'#2471a3', shield2:'#e74c3c', boot:'#6b4226' };
-
-    // Cloak / cape (behind body)
-    ctx.fillStyle=RSK.cape;
-    ctx.beginPath();
-    ctx.moveTo(ppx-8,ppy+2);
-    ctx.bezierCurveTo(ppx-14,ppy+12,ppx-10,ppy+24,ppx-4,ppy+22);
-    ctx.lineTo(ppx+4,ppy+22);
-    ctx.bezierCurveTo(ppx+10,ppy+24,ppx+14,ppy+12,ppx+8,ppy+2);
-    ctx.closePath();ctx.fill();
-
-    // Boots
-    ctx.fillStyle=RSK.boot;
-    const lbx=ppx-5+legSwing, rbx=ppx+5-legSwing;
-    ctx.beginPath();ctx.ellipse(lbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(rbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=RSK.boot+'cc';
-    ctx.beginPath();ctx.ellipse(lbx-1,ppy+18,3,2,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(rbx-1,ppy+18,3,2,0,0,Math.PI*2);ctx.fill();
-
-    // Tunic body
-    ctx.fillStyle=RSK.tunic1;
-    ctx.beginPath();
-    ctx.moveTo(ppx-11,ppy+4);
-    ctx.lineTo(ppx-9,ppy-6);
-    ctx.quadraticCurveTo(ppx,ppy-10,ppx+9,ppy-6);
-    ctx.lineTo(ppx+11,ppy+4);
-    ctx.quadraticCurveTo(ppx,ppy+10,ppx-11,ppy+4);
-    ctx.closePath();ctx.fill();
-    ctx.fillStyle=RSK.tunic2;
-    ctx.beginPath();
-    ctx.moveTo(ppx-6,ppy+2);
-    ctx.lineTo(ppx-5,ppy-5);
-    ctx.quadraticCurveTo(ppx,ppy-8,ppx+5,ppy-5);
-    ctx.lineTo(ppx+6,ppy+2);
-    ctx.quadraticCurveTo(ppx,ppy+7,ppx-6,ppy+2);
-    ctx.closePath();ctx.fill();
-    ctx.strokeStyle=RSK.belt;ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(ppx-10,ppy+3);ctx.lineTo(ppx+10,ppy+3);ctx.stroke();
-    ctx.fillStyle='#f1c40f'; ctx.fillRect(ppx-3,ppy+1,6,4);
-
-    // Left arm + shield
-    const lArmSway=moving?Math.sin(G.t*9+Math.PI)*4:0;
-    ctx.fillStyle=RSK.shield1;
-    ctx.fillRect(ppx-17,ppy-4+lArmSway,5,10);
-    ctx.fillStyle=RSK.shield2;
-    ctx.beginPath();
-    ctx.moveTo(ppx-22,ppy-5+lArmSway);
-    ctx.lineTo(ppx-14,ppy-5+lArmSway);
-    ctx.lineTo(ppx-14,ppy+4+lArmSway);
-    ctx.quadraticCurveTo(ppx-18,ppy+9+lArmSway,ppx-22,ppy+4+lArmSway);
-    ctx.closePath();ctx.fill();
-    ctx.strokeStyle='#922b21';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(ppx-18,ppy-4+lArmSway);ctx.lineTo(ppx-18,ppy+4+lArmSway);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(ppx-22,ppy+lArmSway);ctx.lineTo(ppx-15,ppy+lArmSway);ctx.stroke();
-    ctx.fillStyle='#f39c12';
-    ctx.beginPath();ctx.arc(ppx-18,ppy+lArmSway,2.5,0,Math.PI*2);ctx.fill();
-
-    // Right arm + sword
-    const rArmSway=moving?Math.sin(G.t*9)*4:0;
-    ctx.fillStyle=RSK.shield1;
-    ctx.fillRect(ppx+12,ppy-4+rArmSway,5,10);
-    ctx.strokeStyle='#d5d8dc';ctx.lineWidth=2.5;ctx.lineCap='round';
-    ctx.beginPath();
-    ctx.moveTo(ppx+18,ppy-2+rArmSway);
-    ctx.lineTo(ppx+18,ppy-22+rArmSway);
-    ctx.stroke();
-    ctx.strokeStyle='#f1c40f';ctx.lineWidth=3;
-    ctx.beginPath();ctx.moveTo(ppx+14,ppy-4+rArmSway);ctx.lineTo(ppx+22,ppy-4+rArmSway);ctx.stroke();
-    // Handle
-    ctx.strokeStyle='#6b4226';ctx.lineWidth=3;
-    ctx.beginPath();ctx.moveTo(ppx+18,ppy+2+rArmSway);ctx.lineTo(ppx+18,ppy+7+rArmSway);ctx.stroke();
-    ctx.lineCap='butt';
-
-    // Head — hero helmet
-    ctx.fillStyle=RSK.helmet;
-    ctx.beginPath();ctx.arc(ppx,ppy-12,11,0,Math.PI*2);ctx.fill();
-    // Helmet faceplate
-    ctx.fillStyle=RSK.helmetFace;
-    ctx.beginPath();ctx.arc(ppx,ppy-11,9,Math.PI*0.1,Math.PI*0.9);ctx.fill();
-    // Visor slit
-    ctx.fillStyle=RSK.helmetVisor;
-    ctx.beginPath();ctx.roundRect(ppx-6,ppy-13,12,4,2);ctx.fill();
-    // Visor shine
-    ctx.fillStyle='#aed6f1';ctx.globalAlpha=blinkOn?0.7:0.1;
-    ctx.beginPath();ctx.roundRect(ppx-4,ppy-13,5,2,1);ctx.fill();
-    ctx.globalAlpha=blinkOn?1:0.2;
-    // Helmet plume / feather
-    ctx.fillStyle='#f1c40f';
-    ctx.beginPath();
-    ctx.moveTo(ppx-2,ppy-22);
-    ctx.bezierCurveTo(ppx+4,ppy-30,ppx+10,ppy-28,ppx+8,ppy-22);
-    ctx.bezierCurveTo(ppx+6,ppy-20,ppx+2,ppy-21,ppx-2,ppy-22);
-    ctx.closePath();ctx.fill();
-    ctx.fillStyle='#f39c12';
-    ctx.beginPath();
-    ctx.moveTo(ppx,ppy-22);
-    ctx.bezierCurveTo(ppx+3,ppy-27,ppx+7,ppy-25,ppx+6,ppy-22);
-    ctx.bezierCurveTo(ppx+4,ppy-20,ppx+2,ppy-21,ppx,ppy-22);
-    ctx.closePath();ctx.fill();
-
-    // Invincible outline flash
+    // Invincible flash ring (always show even with sprite)
     if(p.invincible){
-      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.globalAlpha=0.9;
-      ctx.beginPath();ctx.arc(ppx,ppy-2,20,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(ppx,ppy-2,22,0,Math.PI*2);ctx.stroke();
     }
+
+    // Determine direction string for sprite
+    let sprDir='down';
+    if(Math.abs(dir.x)>Math.abs(dir.y)){
+      sprDir=dir.x>0?'side_right':'side_left';
+    } else if(dir.y<0) sprDir='up';
+
+    const attacking=G.playerAtkTimer>0;
+    const spriteOk=_rDrawPlayerSprite(ctx,ppx,ppy,t,moving,sprDir,attacking);
+
+    if(!spriteOk){
+      // ── Primitive fallback (identical to original) ──
+      const walkCycle=Math.sin(G.t*9);
+      const legSwing=moving?walkCycle*3:0;
+      const { activeSkin: _rSkin } = useGameStore.getState();
+      const REALM_SKINS = {
+        shadow_knight: { cape:'#1a1a2e', tunic1:'#2c003e', tunic2:'#4b0082', belt:'#6a0dad', helmet:'#1a0030', helmetFace:'#4b0082', helmetVisor:'#9b59b6', shield1:'#2c003e', shield2:'#6a0dad', boot:'#0d0010' },
+        gods_chosen:   { cape:'#7d6008', tunic1:'#b8860b', tunic2:'#d4af37', belt:'#f1c40f', helmet:'#7d6008', helmetFace:'#d4af37', helmetVisor:'#fffde7', shield1:'#b8860b', shield2:'#f1c40f', boot:'#5a4500' },
+        frost_warden:  { cape:'#c8eeff', tunic1:'#e8f8ff', tunic2:'#ffffff', belt:'#80d8ff', helmet:'#b0e0ff', helmetFace:'#e8f8ff', helmetVisor:'#ffffff', shield1:'#7ecfff', shield2:'#b3ecff', boot:'#6abcdf' },
+      };
+      const RSK = REALM_SKINS[_rSkin] || { cape:'#1a4a7a', tunic1:'#2980b9', tunic2:'#3498db', belt:'#1a5276', helmet:'#1a5276', helmetFace:'#2980b9', helmetVisor:'#85c1e9', shield1:'#2471a3', shield2:'#e74c3c', boot:'#6b4226' };
+      ctx.fillStyle=RSK.cape;
+      ctx.beginPath();
+      ctx.moveTo(ppx-8,ppy+2);ctx.bezierCurveTo(ppx-14,ppy+12,ppx-10,ppy+24,ppx-4,ppy+22);
+      ctx.lineTo(ppx+4,ppy+22);ctx.bezierCurveTo(ppx+10,ppy+24,ppx+14,ppy+12,ppx+8,ppy+2);
+      ctx.closePath();ctx.fill();
+      ctx.fillStyle=RSK.boot;
+      const lbx=ppx-5+legSwing,rbx=ppx+5-legSwing;
+      ctx.beginPath();ctx.ellipse(lbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(rbx,ppy+20,5,4,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=RSK.tunic1;
+      ctx.beginPath();ctx.moveTo(ppx-11,ppy+4);ctx.lineTo(ppx-9,ppy-6);ctx.quadraticCurveTo(ppx,ppy-10,ppx+9,ppy-6);ctx.lineTo(ppx+11,ppy+4);ctx.quadraticCurveTo(ppx,ppy+10,ppx-11,ppy+4);ctx.closePath();ctx.fill();
+      ctx.fillStyle=RSK.tunic2;
+      ctx.beginPath();ctx.moveTo(ppx-6,ppy+2);ctx.lineTo(ppx-5,ppy-5);ctx.quadraticCurveTo(ppx,ppy-8,ppx+5,ppy-5);ctx.lineTo(ppx+6,ppy+2);ctx.quadraticCurveTo(ppx,ppy+7,ppx-6,ppy+2);ctx.closePath();ctx.fill();
+      ctx.strokeStyle=RSK.belt;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ppx-10,ppy+3);ctx.lineTo(ppx+10,ppy+3);ctx.stroke();
+      ctx.fillStyle='#f1c40f';ctx.fillRect(ppx-3,ppy+1,6,4);
+      const lArmSway=moving?Math.sin(G.t*9+Math.PI)*4:0;
+      ctx.fillStyle=RSK.shield1;ctx.fillRect(ppx-17,ppy-4+lArmSway,5,10);
+      ctx.fillStyle=RSK.shield2;
+      ctx.beginPath();ctx.moveTo(ppx-22,ppy-5+lArmSway);ctx.lineTo(ppx-14,ppy-5+lArmSway);ctx.lineTo(ppx-14,ppy+4+lArmSway);ctx.quadraticCurveTo(ppx-18,ppy+9+lArmSway,ppx-22,ppy+4+lArmSway);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#922b21';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(ppx-18,ppy-4+lArmSway);ctx.lineTo(ppx-18,ppy+4+lArmSway);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(ppx-22,ppy+lArmSway);ctx.lineTo(ppx-15,ppy+lArmSway);ctx.stroke();
+      ctx.fillStyle='#f39c12';ctx.beginPath();ctx.arc(ppx-18,ppy+lArmSway,2.5,0,Math.PI*2);ctx.fill();
+      const rArmSway=moving?Math.sin(G.t*9)*4:0;
+      ctx.fillStyle=RSK.shield1;ctx.fillRect(ppx+12,ppy-4+rArmSway,5,10);
+      ctx.strokeStyle='#d5d8dc';ctx.lineWidth=2.5;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(ppx+18,ppy-2+rArmSway);ctx.lineTo(ppx+18,ppy-22+rArmSway);ctx.stroke();
+      ctx.strokeStyle='#f1c40f';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(ppx+14,ppy-4+rArmSway);ctx.lineTo(ppx+22,ppy-4+rArmSway);ctx.stroke();
+      ctx.strokeStyle='#6b4226';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(ppx+18,ppy+2+rArmSway);ctx.lineTo(ppx+18,ppy+7+rArmSway);ctx.stroke();
+      ctx.lineCap='butt';
+      ctx.fillStyle=RSK.helmet;ctx.beginPath();ctx.arc(ppx,ppy-12,11,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=RSK.helmetFace;ctx.beginPath();ctx.arc(ppx,ppy-11,9,Math.PI*0.1,Math.PI*0.9);ctx.fill();
+      ctx.fillStyle=RSK.helmetVisor;
+      ctx.beginPath();if(ctx.roundRect)ctx.roundRect(ppx-6,ppy-13,12,4,2);else ctx.rect(ppx-6,ppy-13,12,4);ctx.fill();
+      ctx.fillStyle='#f1c40f';
+      ctx.beginPath();ctx.moveTo(ppx-2,ppy-22);ctx.bezierCurveTo(ppx+4,ppy-30,ppx+10,ppy-28,ppx+8,ppy-22);ctx.bezierCurveTo(ppx+6,ppy-20,ppx+2,ppy-21,ppx-2,ppy-22);ctx.closePath();ctx.fill();
+    }
+
     ctx.globalAlpha=1;
     ctx.restore();
 
