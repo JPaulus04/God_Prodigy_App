@@ -1,163 +1,19 @@
-// V104-STRONGHOLD-TILE-VILLAGE-REV-001
+// V105-STRONGHOLD-TOWN-POLISH-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
-import { PIXEL_CRAWLER_ASSETS } from '../game/config/WorldAssetManifest';
 import { hapticAttack, hapticHit, hapticCheckpoint, hapticCollect, hapticLevelUp } from '../utils/haptics';
 import { sfxAttack, sfxHit, sfxCollect, sfxCheckpoint, sfxLevelUp, sfxPortal, resumeAudio } from '../utils/sfx';
 
-const WORLD_REVISION = 'V104-STRONGHOLD-TILE-VILLAGE-REV-001';
+const WORLD_REVISION = 'V105-STRONGHOLD-TOWN-POLISH-REV-001';
 const TILE = 32;
 const MAP_W = 120;
 const MAP_H = 120;
 const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
 const BORDER = TILE * 3;
-
-
-// V104 Stronghold tile-village rebuild: Four Seasons tileset composition + safe canvas fallbacks.
-// Only low-risk world objects use assets in this pass.
-const V99_ASSET_PATHS = {
-  tree: PIXEL_CRAWLER_ASSETS?.props?.treeGreen || '/assets/world/pixel_crawler/environment__props__static__trees__model_01__size_02.png',
-  rock: PIXEL_CRAWLER_ASSETS?.props?.rocks || '/assets/world/pixel_crawler/environment__props__static__rocks.png',
-  resources: PIXEL_CRAWLER_ASSETS?.props?.resources || '/assets/world/pixel_crawler/environment__props__static__resources.png',
-  vegetation: PIXEL_CRAWLER_ASSETS?.props?.vegetation || '/assets/world/pixel_crawler/environment__props__static__vegetation.png',
-  workbench: PIXEL_CRAWLER_ASSETS?.stations?.workbench || '/assets/world/pixel_crawler/environment__structures__stations__workbench__workbench.png',
-  furnace: PIXEL_CRAWLER_ASSETS?.stations?.furnace || '/assets/world/pixel_crawler/environment__structures__stations__furnace__furnace.png',
-  anvil: PIXEL_CRAWLER_ASSETS?.stations?.anvil || '/assets/world/pixel_crawler/environment__structures__stations__anvil__anvil.png',
-
-  // V99.3: real Stronghold exterior building sprites from user-provided assets.
-  strongholdForge: '/assets/world/buildings/stronghold_forge.png',
-  strongholdCrafting: '/assets/world/buildings/stronghold_crafting_hall.png',
-  strongholdMarket: '/assets/world/buildings/stronghold_market.png',
-  strongholdShrine: '/assets/world/buildings/stronghold_shrine.png',
-  strongholdBarracks: '/assets/world/buildings/stronghold_barracks.png',
-
-  // V100 legacy Stronghold village sprites retained as fallback paths.
-  v100StrongholdForge: '/assets/world/buildings/v100_stronghold_forge.png',
-  v100StrongholdCrafting: '/assets/world/buildings/v100_stronghold_crafting_hall.png',
-  v100StrongholdMarket: '/assets/world/buildings/v100_stronghold_market.png',
-  v100StrongholdShrine: '/assets/world/buildings/v100_stronghold_shrine.png',
-  v100StrongholdBarracks: '/assets/world/buildings/v100_stronghold_barracks.png',
-  v100StrongholdCrates: '/assets/world/buildings/v100_stronghold_crates_props.png',
-  v100StrongholdGarden: '/assets/world/buildings/v100_stronghold_garden_props.png',
-  v100StrongholdFountain: '/assets/world/buildings/v100_stronghold_fountain_single.png',
-  v100StrongholdTraining: '/assets/world/buildings/v100_stronghold_training_props.png',
-
-  // V104: Four Seasons tileset village pass.
-  v104StrongholdPlaza: '/assets/world/v104_stronghold/v104_stronghold_plaza_base.png',
-  v104CraftingHall: '/assets/world/v104_stronghold/v104_stronghold_crafting_hall.png',
-  v104Forge: '/assets/world/v104_stronghold/v104_stronghold_forge.png',
-  v104MarketHouse: '/assets/world/v104_stronghold/v104_stronghold_market_house.png',
-  v104MarketStall: '/assets/world/v104_stronghold/v104_stronghold_market_stall.png',
-  v104Barracks: '/assets/world/v104_stronghold/v104_stronghold_barracks.png',
-  v104ShrineAltar: '/assets/world/v104_stronghold/v104_stronghold_shrine_altar.png',
-  v104MarketTables: '/assets/world/v104_stronghold/v104_market_tables.png',
-  v104FenceGate: '/assets/world/v104_stronghold/v104_fence_gate.png',
-  v104GardenBushes: '/assets/world/v104_stronghold/v104_garden_bushes.png',
-  v104FlowerBed: '/assets/world/v104_stronghold/v104_flower_bed.png',
-  v104ForgeProps: '/assets/world/v104_stronghold/v104_forge_props.png',
-  v104TrainingProps: '/assets/world/v104_stronghold/v104_training_yard_props.png',
-};
-
-const V99_ASSET_SPRITES = {
-  // Source rectangles are intentionally conservative so failed/odd crops fall back cleanly.
-  treeGreen: { src: 'tree', sx: 32, sy: 0, sw: 32, sh: 64, ox: -22, oy: -48, dw: 44, dh: 66 },
-  rockA:     { src: 'rock', sx: 42, sy: 18, sw: 36, sh: 34, ox: -18, oy: -19, dw: 36, dh: 34 },
-  rockB:     { src: 'rock', sx: 80, sy: 18, sw: 36, sh: 34, ox: -18, oy: -19, dw: 36, dh: 34 },
-  oreGlow:   { src: 'rock', sx: 146, sy: 16, sw: 32, sh: 40, ox: -17, oy: -23, dw: 34, dh: 40 },
-  woodLog:   { src: 'resources', sx: 8, sy: 96, sw: 64, sh: 24, ox: -20, oy: -12, dw: 40, dh: 18 },
-  workbench: { src: 'workbench', sx: 0, sy: 0, sw: 96, sh: 72, ox: -40, oy: -6, dw: 80, dh: 54 },
-  furnace:   { src: 'furnace', sx: 0, sy: 0, sw: 64, sh: 96, ox: -22, oy: -24, dw: 44, dh: 66 },
-  anvil:     { src: 'anvil', sx: 0, sy: 0, sw: 84, sh: 58, ox: -34, oy: -7, dw: 68, dh: 48 },
-};
-
-const V99_IMAGE_CACHE = new Map();
-
-function getV99AssetImage(assetKey) {
-  const src = V99_ASSET_PATHS[assetKey];
-  if (!src || typeof Image === 'undefined') return null;
-  let img = V99_IMAGE_CACHE.get(src);
-  if (!img) {
-    img = new Image();
-    img.decoding = 'async';
-    img.loading = 'eager';
-    img.src = src;
-    V99_IMAGE_CACHE.set(src, img);
-  }
-  if (!img.complete || !img.naturalWidth || !img.naturalHeight) return null;
-  return img;
-}
-
-function preloadV99WorldAssets() {
-  Object.keys(V99_ASSET_PATHS).forEach(getV99AssetImage);
-}
-
-function drawV99Sprite(ctx, spriteKey, x, y, scale = 1) {
-  const sprite = V99_ASSET_SPRITES[spriteKey];
-  if (!sprite) return false;
-  const img = getV99AssetImage(sprite.src);
-  if (!img) return false;
-
-  ctx.save();
-  const previousSmoothing = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(
-    img,
-    sprite.sx, sprite.sy, sprite.sw, sprite.sh,
-    x + sprite.ox * scale,
-    y + sprite.oy * scale,
-    sprite.dw * scale,
-    sprite.dh * scale
-  );
-  ctx.imageSmoothingEnabled = previousSmoothing;
-  ctx.restore();
-  return true;
-}
-
-function drawV99AssetImage(ctx, assetKey, x, y, width, height, options = {}) {
-  const img = getV99AssetImage(assetKey);
-  if (!img) return false;
-
-  const { anchorX = 0.5, anchorY = 1, offsetX = 0, offsetY = 0 } = options;
-  ctx.save();
-  const previousSmoothing = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(
-    img,
-    x - width * anchorX + offsetX,
-    y - height * anchorY + offsetY,
-    width,
-    height
-  );
-  ctx.imageSmoothingEnabled = previousSmoothing;
-  ctx.restore();
-  return true;
-}
-
-function drawHubNameplate(ctx, label, y, color, fontSize = 9.5) {
-  const width = Math.max(58, label.length * fontSize * 0.78);
-  const height = 16;
-  ctx.save();
-  ctx.globalAlpha = 0.92;
-  ctx.fillStyle = '#090706';
-  ctx.fillRect(-width/2, y - height/2, width, height);
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(-width/2, y - height/2, width, height);
-  ctx.font = `bold ${fontSize}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = color;
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2.5;
-  ctx.strokeText(label, 0, y);
-  ctx.fillText(label, 0, y);
-  ctx.restore();
-}
 
 const REALM_PORTALS = [
   { realm: 'forest', name: 'Sylvara Gate', icon: '🌿', color: '#27ae60', skulls: 1, x: 25, y: 27 },
@@ -247,39 +103,17 @@ const ENEMY_DEFS = [
 ];
 
 const NPCS = [
-  { id:'keeper', x:25.0*TILE, y:44.6*TILE, color:'#1abc9c', name:'The Keeper',
+  { id:'keeper', x:25*TILE, y:43*TILE, color:'#1abc9c', name:'The Keeper',
     lines: [
       'Many have killed a god. None have survived all ten.',
-      'The Stronghold is your sanctuary. Each building prepares you for a different part of the climb.',
-      'Use the village, then follow the old roads north toward the first throne.',
+      'The forest shrine north of the village leads to Sylvara, the first throne.',
+      'Use bridges and roads. The old world was built to guide challengers between realms.',
     ] },
-  { id:'smith', x:28.7*TILE, y:47.3*TILE, color:'#e67e22', name:'Aldric',
-    lines: ['The Forge is where gear becomes god-killing steel. Bring ore and I will make it bite.'] },
-  { id:'merchant', x:18.2*TILE, y:47.4*TILE, color:'#9b59b6', name:'Mira',
-    lines: ['The Market keeps challengers supplied. Crates, coin, and luck — that is my business.'] },
+  { id:'smith', x:29*TILE, y:46*TILE, color:'#e67e22', name:'Aldric',
+    lines: ['Bring ore to the Forge. Better gear turns impossible fights into survivable ones.'] },
+  { id:'merchant', x:21*TILE, y:46*TILE, color:'#9b59b6', name:'Mira',
+    lines: ['The river splits the safe road from the wild road. Cross only when you are ready.'] },
 ];
-
-const STRONGHOLD_BUILDINGS = [
-  // V104: Stronghold rebuilt as readable districts, not a row of generic huts.
-  { id:'crafting', kind:'crafting', label:'Crafting Hall', shortLabel:'CRAFTING', prompt:'Enter Crafting Hall', color:'#53d4ff', x:23.7*TILE, y:42.35*TILE, radius:62 },
-  { id:'market', kind:'market', label:'Market', shortLabel:'MARKET', prompt:'Enter Market', color:'#f6c46b', x:18.55*TILE, y:46.75*TILE, radius:64 },
-  { id:'forge', kind:'forge', label:'Forge', shortLabel:'FORGE', prompt:'Enter Forge', color:'#ff8a1f', x:27.35*TILE, y:46.65*TILE, radius:66 },
-  { id:'barracks', kind:'barracks', label:'Barracks', shortLabel:'BARRACKS', prompt:'Enter Barracks', color:'#78d8ff', x:20.45*TILE, y:50.85*TILE, radius:64 },
-  { id:'shrine', kind:'shrine_altar', label:'Ascension Shrine', shortLabel:'SHRINE', prompt:'Enter Shrine', color:'#f1c40f', x:25.05*TILE, y:50.85*TILE, radius:66 },
-];
-
-function getStrongholdBuildingNear(worldX, worldY, extraRadius = 0) {
-  let best = null;
-  let bestDist = Infinity;
-  for (const building of STRONGHOLD_BUILDINGS) {
-    const d = dist(worldX, worldY, building.x, building.y);
-    if (d <= building.radius + extraRadius && d < bestDist) {
-      best = building;
-      bestDist = d;
-    }
-  }
-  return best;
-}
 
 function tileHash(tx, ty) {
   let h = (tx * 2654435761 ^ ty * 2246822519) >>> 0;
@@ -296,19 +130,27 @@ function inRect(tx, ty, x1, y1, x2, y2) {
 }
 
 function isRoad(tx, ty) {
-  // Main village crossroad + guided adventure routes.
-  if (tx >= 22 && tx <= 28 && ty >= 26 && ty <= 70) return true;     // vertical north/south road
-  if (ty >= 43 && ty <= 48 && tx >= 16 && tx <= 31) return true;     // V104 Stronghold main plaza road
-  if (ty >= 49 && ty <= 53 && tx >= 18 && tx <= 28) return true;     // V104 lower village loop
-  if (ty >= 37 && ty <= 41 && tx >= 14 && tx <= 48) return true;     // bridge road across river
-  if (ty >= 30 && ty <= 34 && tx >= 25 && tx <= 44) return true;     // ruins/wind route
-  if (tx >= 42 && tx <= 46 && ty >= 24 && ty <= 43) return true;     // east bend
-  if (tx >= 13 && tx <= 25 && ty >= 60 && ty <= 64) return true;     // lake route
-  if (tx >= 25 && tx <= 59 && ty >= 83 && ty <= 87) return true;     // southern badlands road
-  if (tx >= 55 && tx <= 59 && ty >= 64 && ty <= 90) return true;     // lava route
-  if (ty >= 43 && ty <= 47 && tx >= 58 && tx <= 78) return true;     // east highland route
-  if (tx >= 76 && tx <= 80 && ty >= 43 && ty <= 78) return true;     // void approach road
-  if (ty >= 76 && ty <= 80 && tx >= 76 && tx <= 102) return true;    // void road
+  // === OVERWORLD ROUTES ===
+  if (tx >= 22 && tx <= 28 && ty >= 26 && ty <= 38) return true;   // N village approach
+  if (tx >= 22 && tx <= 28 && ty >= 56 && ty <= 70) return true;   // S village exit
+  if (ty >= 37 && ty <= 41 && tx >= 14 && tx <= 48) return true;   // bridge road across river
+  if (ty >= 30 && ty <= 34 && tx >= 25 && tx <= 44) return true;   // ruins-wind route
+  if (tx >= 42 && tx <= 46 && ty >= 24 && ty <= 43) return true;   // east bend
+  if (tx >= 13 && tx <= 25 && ty >= 60 && ty <= 64) return true;   // lake route
+  if (tx >= 25 && tx <= 59 && ty >= 83 && ty <= 87) return true;   // southern badlands road
+  if (tx >= 55 && tx <= 59 && ty >= 64 && ty <= 90) return true;   // lava route
+  if (ty >= 43 && ty <= 47 && tx >= 58 && tx <= 78) return true;   // east highland route
+  if (tx >= 76 && tx <= 80 && ty >= 43 && ty <= 78) return true;   // void approach road
+  if (ty >= 76 && ty <= 80 && tx >= 76 && tx <= 102) return true;  // void road
+
+  // === STRONGHOLD VILLAGE INTERNAL PATHS ===
+  if (tx >= 24 && tx <= 28 && ty >= 38 && ty <= 57) return true;   // main N-S spine / plaza
+  if (ty >= 44 && ty <= 46 && tx >= 14 && tx <= 36) return true;   // E-W plaza cross
+  if (tx >= 14 && tx <= 24 && ty >= 42 && ty <= 48) return true;   // market district path
+  if (tx >= 26 && tx <= 36 && ty >= 43 && ty <= 49) return true;   // forge district path
+  if (tx >= 14 && tx <= 24 && ty >= 48 && ty <= 52) return true;   // barracks path
+  if (tx >= 24 && tx <= 30 && ty >= 50 && ty <= 58) return true;   // shrine sacred path
+
   return false;
 }
 
@@ -351,10 +193,11 @@ function isLava(tx, ty) {
 }
 
 function isVillageFloor(tx, ty) {
-  return (
-    inRect(tx, ty, 16, 38, 31, 54) ||
-    inRect(tx, ty, 19, 54, 28, 56)
-  );
+  // Central plaza + all district lots
+  if (inRect(tx, ty, 18, 40, 32, 56)) return true;  // main village area
+  if (inRect(tx, ty, 14, 42, 20, 56)) return true;  // market/barracks west wing
+  if (inRect(tx, ty, 28, 43, 36, 54)) return true;  // forge east wing
+  return false;
 }
 
 function isObstacleCluster(tx, ty) {
@@ -379,18 +222,12 @@ function isObstacleCluster(tx, ty) {
 }
 
 function isBuildingBlocked(tx, ty) {
-  // V104 Stronghold tile-village buildings. Door/front approach tiles remain open.
-  if (inRect(tx, ty, 22.9, 42.9, 24.4, 44.1)) return false; // Crafting Hall door
-  if (inRect(tx, ty, 17.7, 47.0, 19.4, 48.3)) return false; // Market counter/front
-  if (inRect(tx, ty, 26.5, 47.0, 28.2, 48.4)) return false; // Forge door
-  if (inRect(tx, ty, 19.7, 51.2, 21.3, 52.5)) return false; // Barracks door
-  if (inRect(tx, ty, 24.1, 51.1, 26.0, 52.6)) return false; // Shrine steps
-
-  if (inRect(tx, ty, 21.2, 39.7, 26.1, 43.3)) return true;  // Crafting Hall
-  if (inRect(tx, ty, 16.4, 44.8, 20.6, 47.3)) return true;  // Market stall/shop
-  if (inRect(tx, ty, 25.4, 44.2, 29.5, 47.5)) return true;  // Forge
-  if (inRect(tx, ty, 18.8, 48.5, 22.3, 51.7)) return true;  // Barracks
-  if (inRect(tx, ty, 23.5, 48.3, 26.8, 51.2)) return true;  // Ascension Shrine altar
+  // Stronghold village buildings. Door tiles remain open.
+  if (inRect(tx, ty, 22.5, 40.0, 27.5, 43.0)) return false; // crafting hall door/path
+  if (inRect(tx, ty, 22, 39, 28, 43)) return true;          // crafting hall
+  if (inRect(tx, ty, 28, 44, 32, 48)) return true;          // forge
+  if (inRect(tx, ty, 18, 44, 22, 48)) return true;          // market
+  if (inRect(tx, ty, 19, 48, 23, 51)) return true;          // healer hut
   return false;
 }
 
@@ -417,8 +254,8 @@ function tileColor(tx, ty) {
   if (isWater(tx, ty)) return h > 0.6 ? '#207ca3' : h > 0.3 ? '#1c6f94' : '#186284';
   if (isLava(tx, ty)) return h > 0.7 ? '#c0392b' : h > 0.4 ? '#a93226' : '#8e271f';
   if (isBridge(tx, ty)) return h > 0.5 ? '#704f33' : '#61442b';
-  if (isRoad(tx, ty)) return h > 0.7 ? '#b79a72' : h > 0.3 ? '#a98961' : '#96734f';
-  if (isVillageFloor(tx, ty)) return h > 0.6 ? '#8c7559' : h > 0.2 ? '#7f684e' : '#735c43';
+  if (isRoad(tx, ty)) return h > 0.7 ? '#a68560' : h > 0.3 ? '#997a57' : '#8c6e4e';
+  if (isVillageFloor(tx, ty)) return h > 0.6 ? '#826e54' : h > 0.2 ? '#78644c' : '#6e5a43';
 
   if (ty < 32 && tx < 36) return h > 0.7 ? '#308c46' : h > 0.3 ? '#2c8040' : '#277439';
   if (ty < 34 && tx >= 36 && tx < 52) return h > 0.6 ? '#5e5a55' : '#524e4a';
@@ -458,8 +295,6 @@ function clampToWorld(x, y) {
 }
 
 function drawTree(ctx, x, y, scale = 1) {
-  if (drawV99Sprite(ctx, 'treeGreen', x, y, scale)) return;
-
   ctx.globalAlpha = 0.2;
   ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(x, y + 16*scale, 16*scale, 6*scale, 0, 0, Math.PI*2); ctx.fill();
@@ -494,9 +329,6 @@ function drawTree(ctx, x, y, scale = 1) {
 }
 
 function drawRock(ctx, x, y, scale = 1) {
-  const variant = tileHash(Math.round(x), Math.round(y)) > 0.55 ? 'rockB' : 'rockA';
-  if (drawV99Sprite(ctx, variant, x, y, scale)) return;
-
   ctx.fillStyle = '#000';
   ctx.globalAlpha = 0.25;
   ctx.beginPath(); ctx.ellipse(x+2, y+10*scale, 16*scale, 6*scale, 0, 0, Math.PI*2); ctx.fill();
@@ -585,163 +417,119 @@ function drawPortal(ctx, x, y, portal, t) {
   ctx.restore();
 }
 
-function drawSignText(ctx, text, y, color, size = 10) {
-  ctx.font = `bold ${size}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 3;
-  ctx.fillStyle = color;
-  ctx.strokeText(text, 0, y);
-  ctx.fillText(text, 0, y);
-}
-
-function drawDoor(ctx, x = 0, y = 14, w = 20, h = 28, color = '#1c1005') {
-  ctx.fillStyle = color;
-  ctx.fillRect(x - w / 2, y, w, h);
-  ctx.fillStyle = '#3d2511';
-  ctx.beginPath(); ctx.arc(x, y, w / 2, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = '#d4af37';
-  ctx.beginPath(); ctx.arc(x + w * 0.32, y + h * 0.55, 2, 0, Math.PI*2); ctx.fill();
-}
-
-function drawWoodCabin(ctx, roofColor, wallColor, label, labelColor, options = {}) {
-  const { width = 88, height = 66, roofHeight = 34, doorY = 10 } = options;
-  ctx.fillStyle = wallColor;
-  ctx.fillRect(-width/2, -28, width, height);
-  ctx.strokeStyle = '#3d2a15'; ctx.lineWidth = 1;
-  for (let i = -width/2 + 8; i <= width/2 - 8; i += 8) {
-    ctx.beginPath(); ctx.moveTo(i, -28); ctx.lineTo(i, -28 + height); ctx.stroke();
-  }
-
-  ctx.fillStyle = roofColor;
-  ctx.beginPath(); ctx.moveTo(0, -28 - roofHeight); ctx.lineTo(-width/2 - 12, -28); ctx.lineTo(width/2 + 12, -28); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2;
-  for (let i=-4; i<=4; i++) {
-    ctx.beginPath(); ctx.moveTo(i*10, -28 - roofHeight + Math.abs(i)*2); ctx.lineTo(-width/2 + (i+4)*12, -28); ctx.stroke();
-  }
-  drawDoor(ctx, 0, doorY, 20, 28);
-  drawSignText(ctx, label, doorY - 8, labelColor, label.length > 8 ? 8.5 : 10);
-}
-
-const STRONGHOLD_BUILDING_ASSETS = {
-  crafting: {
-    asset: 'v104CraftingHall', label: 'CRAFTING', color: '#73e4ff',
-    width: 142, height: 132, shadowW: 76, nameY: -70, promptY: 62,
-  },
-  forge: {
-    asset: 'v104Forge', label: 'FORGE', color: '#ff9a2e',
-    width: 136, height: 130, shadowW: 72, nameY: -70, promptY: 62,
-  },
-  market: {
-    asset: 'v104MarketStall', label: 'MARKET', color: '#ffd071',
-    width: 132, height: 108, shadowW: 70, nameY: -60, promptY: 58,
-  },
-  shrine_altar: {
-    asset: 'v104ShrineAltar', label: 'SHRINE', color: '#f1c40f',
-    width: 128, height: 120, shadowW: 70, nameY: -74, promptY: 60,
-  },
-  barracks: {
-    asset: 'v104Barracks', label: 'BARRACKS', color: '#8ee6ff',
-    width: 136, height: 130, shadowW: 72, nameY: -70, promptY: 62,
-  },
-};
-
-function drawSmallSignpost(ctx, x, y, label, color) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.strokeStyle = '#3b2512';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(0, -18);
-  ctx.lineTo(0, 10);
-  ctx.stroke();
-
-  ctx.fillStyle = '#5b3718';
-  ctx.strokeStyle = '#1b0e05';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(-18, -26, 36, 14, 3);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.font = 'bold 7px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = color;
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.strokeText(label, 0, -19);
-  ctx.fillText(label, 0, -19);
-  ctx.restore();
-}
-
 function drawBuilding(ctx, x, y, kind, t) {
   ctx.save();
   ctx.translate(x, y);
 
-  const spec = STRONGHOLD_BUILDING_ASSETS[kind];
-  if (spec) {
-    // V104: asset-based district exteriors with stronger shadows and lighter labels.
-    ctx.globalAlpha = 0.30;
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.ellipse(3, 35, spec.shadowW, 13, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    const bob = kind === 'shrine_altar' ? Math.sin(t * 2) * 1.2 : 0;
-    const drewAsset = drawV99AssetImage(ctx, spec.asset, 0, 42 + bob, spec.width, spec.height);
-    if (drewAsset) {
-      if (kind === 'forge') {
-        const glow = 0.35 + Math.sin(t * 5) * 0.10;
-        ctx.globalAlpha = glow;
-        ctx.fillStyle = '#ff6b00';
-        ctx.beginPath(); ctx.arc(-40, 16, 12, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#ffd166';
-        ctx.beginPath(); ctx.arc(-40, 16, 4.5, 0, Math.PI*2); ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-
-      if (kind === 'shrine_altar') {
-        const pulse = 0.18 + Math.sin(t * 3) * 0.06;
-        ctx.globalAlpha = pulse;
-        ctx.strokeStyle = '#f1c40f';
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(0, -26, 44, 0, Math.PI*2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(0, -26, 30, 0, Math.PI*2); ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-
-      drawHubNameplate(ctx, spec.label, spec.nameY, spec.color, spec.label.length > 7 ? 8 : 8.5);
-      ctx.restore();
-      return;
-    }
-  }
-
-  // Fallback canvas buildings. These should only display if the PNG assets fail to load.
-  ctx.globalAlpha = 0.28;
+  ctx.globalAlpha = 0.3;
   ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(2, 38, 58, 12, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
-  if (kind === 'hall' || kind === 'crafting') {
-    drawWoodCabin(ctx, '#2fa8cf', '#314a59', 'CRAFTING', '#73e4ff', { width: 88, height: 66, roofHeight: 34, doorY: 10 });
+  if (kind === 'hall') {
+    ctx.fillStyle = '#594024'; ctx.fillRect(-46, -30, 92, 70);
+    ctx.strokeStyle = '#3d2a15'; ctx.lineWidth = 1;
+    for (let i=-40; i<=40; i+=8) {
+      ctx.beginPath(); ctx.moveTo(i, -30); ctx.lineTo(i, 40); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#782315'; 
+    ctx.beginPath(); ctx.moveTo(0, -64); ctx.lineTo(-58, -30); ctx.lineTo(58, -30); ctx.closePath(); ctx.fill();
+
+    ctx.strokeStyle = '#54150a'; ctx.lineWidth = 2;
+    for (let i=-4; i<=4; i++) {
+      ctx.beginPath(); ctx.moveTo(i*10, -60 + Math.abs(i)*2.5); ctx.lineTo(-50 + (i+4)*12, -30); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#1c1005'; ctx.fillRect(-12, 12, 24, 28);
+    ctx.fillStyle = '#3d2511'; ctx.beginPath(); ctx.arc(0, 12, 12, Math.PI, 0); ctx.fill(); 
+    ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(8, 26, 2, 0, Math.PI*2); ctx.fill(); 
+
+    ctx.fillStyle = '#d4af37'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
+    ctx.strokeText('CRAFTING HALL', 0, 4);
+    ctx.fillText('CRAFTING HALL', 0, 4);
   }
 
   if (kind === 'forge') {
-    drawWoodCabin(ctx, '#aa3d1e', '#302d29', 'FORGE', '#ff9a2e', { width: 84, height: 60, roofHeight: 34, doorY: 8 });
+    ctx.fillStyle = '#423d38'; ctx.fillRect(-26, -20, 52, 44);
+    ctx.fillStyle = '#302d29'; ctx.fillRect(-20, -20, 40, 44);
+
+    ctx.fillStyle = '#262422'; ctx.fillRect(10, -50, 12, 30);
+    ctx.globalAlpha = 0.4; ctx.fillStyle = '#555';
+    ctx.beginPath(); ctx.arc(16, -58 - (t%2)*10, 8 + (t%2)*4, 0, Math.PI*2); ctx.fill(); 
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#2e2016';
+    ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(-34, -18); ctx.lineTo(34, -18); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#111'; ctx.fillRect(-12, 10, 24, 14);
+    const glow = 0.6 + Math.sin(t*6)*0.4;
+    ctx.globalAlpha = glow;
+    ctx.fillStyle = '#ff6b00'; 
+    ctx.beginPath(); ctx.arc(0, 18, 8 + Math.random()*2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffb300';
+    ctx.beginPath(); ctx.arc(0, 18, 4, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#e67e22'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
+    ctx.strokeText('FORGE', 0, -28);
+    ctx.fillText('FORGE', 0, -28);
   }
 
   if (kind === 'market') {
-    drawWoodCabin(ctx, '#c76126', '#5c4028', 'MARKET', '#ffd071', { width: 78, height: 50, roofHeight: 26, doorY: 6 });
+    ctx.fillStyle = '#5c4028'; ctx.fillRect(-26, -12, 52, 16);
+
+    ctx.fillStyle = '#8e44ad'; ctx.fillRect(-30, -32, 60, 16);
+    ctx.fillStyle = '#f1c40f'; 
+    for(let i=-26; i<=26; i+=12) {
+       ctx.fillRect(i, -32, 6, 16);
+    }
+
+    ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(-14, -14, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#3498db'; ctx.fillRect(-4, -16, 6, 6);
+    ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(10, -14, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(16, -14, 3, 0, Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = '#9b59b6'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
+    ctx.strokeText('MARKET', 0, -40);
+    ctx.fillText('MARKET', 0, -40);
   }
 
-  if (kind === 'shrine_altar' || kind === 'shrine_house') {
-    drawWoodCabin(ctx, '#e6e6df', '#545a65', 'SHRINE', '#f1c40f', { width: 84, height: 58, roofHeight: 30, doorY: 7 });
-  }
 
   if (kind === 'barracks') {
-    drawWoodCabin(ctx, '#38a9df', '#34495e', 'BARRACKS', '#8ee6ff', { width: 84, height: 54, roofHeight: 28, doorY: 8 });
+    // Main building
+    ctx.fillStyle = '#3a5228';
+    ctx.fillRect(-36, -28, 72, 54);
+    ctx.strokeStyle = '#2a3d1a'; ctx.lineWidth = 1;
+    for (let si=-30; si<=30; si+=9) {
+      ctx.beginPath(); ctx.moveTo(si, -28); ctx.lineTo(si, 26); ctx.stroke();
+    }
+    // Roof
+    ctx.fillStyle = '#21355e';
+    ctx.beginPath(); ctx.moveTo(0, -58); ctx.lineTo(-46, -26); ctx.lineTo(46, -26); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#162444'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -56); ctx.lineTo(-40, -26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -56); ctx.lineTo(40, -26); ctx.stroke();
+    // Windows
+    ctx.fillStyle = '#7bb8d8';
+    ctx.fillRect(-28, -14, 12, 10);
+    ctx.fillRect(16, -14, 12, 10);
+    ctx.strokeStyle = '#4a90b0'; ctx.lineWidth = 1;
+    ctx.strokeRect(-28, -14, 12, 10);
+    ctx.strokeRect(16, -14, 12, 10);
+    // Door
+    ctx.fillStyle = '#1a1208';
+    ctx.fillRect(-8, 4, 16, 22);
+    ctx.fillStyle = '#4a3518'; ctx.beginPath(); ctx.arc(0, 4, 8, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(4, 16, 1.5, 0, Math.PI*2); ctx.fill();
+    // Label
+    ctx.fillStyle = '#5ba0c8'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
+    ctx.strokeText('BARRACKS', 0, -36);
+    ctx.fillText('BARRACKS', 0, -36);
   }
 
   ctx.restore();
@@ -877,7 +665,6 @@ export default function WorldCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    preloadV99WorldAssets();
 
     const resize = () => {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1105,10 +892,8 @@ export default function WorldCanvas() {
       G.swordPicked = true;
     }
 
-    const strongholdTarget = getStrongholdBuildingNear(p.x, p.y);
-    if (strongholdTarget) {
-      addFloat(strongholdTarget.x, strongholdTarget.y - 42, `Entering ${strongholdTarget.label}...`, strongholdTarget.color, true);
-      setTimeout(() => store.setGamePhase('stronghold'), 250);
+    if (dist(p.x, p.y, 25*TILE, 43*TILE) <= 70) {
+      store.setGamePhase('stronghold');
       return;
     }
 
@@ -1329,21 +1114,13 @@ export default function WorldCanvas() {
       if (r.type === 'tree') drawTree(ctx, sx, sy);
       if (r.type === 'rock') drawRock(ctx, sx, sy);
       if (r.type === 'ore_node') {
-        if (!drawV99Sprite(ctx, 'oreGlow', sx, sy, 1.05)) {
-          drawRock(ctx, sx, sy, 1.05);
-          ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(sx+4, sy-4, 4, 0, Math.PI*2); ctx.fill();
-        }
+        drawRock(ctx, sx, sy, 1.05);
+        ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(sx+4, sy-4, 4, 0, Math.PI*2); ctx.fill();
       }
       if (r.type === 'fire_shard') {
-        if (!drawV99Sprite(ctx, 'oreGlow', sx, sy, 1.0)) {
-          ctx.font = '24px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('🔥', sx, sy + 6);
-        }
-        ctx.globalAlpha = 0.85;
-        ctx.fillStyle = '#f1c40f';
-        ctx.beginPath(); ctx.arc(sx + 7, sy - 7, 3, 0, Math.PI*2); ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.font = '24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔥', sx, sy + 6);
       }
       if (dist(G.player.x, G.player.y, r.x, r.y) < 48) drawLabel(ctx, `[E] ${r.res}`, sx, sy - 24, '#7ed321');
     }
@@ -1369,17 +1146,6 @@ export default function WorldCanvas() {
       if (dist(G.player.x, G.player.y, portal.x*TILE, portal.y*TILE) < 64) drawLabel(ctx, `[E] ${portal.name}`, sx, sy + 58, portal.color);
     }
 
-    // Stronghold building entry prompts. Each exterior is distinct, but this pass still opens the current Stronghold menu.
-    for (const building of STRONGHOLD_BUILDINGS) {
-      const sx = wx(building.x);
-      const sy = wy(building.y);
-      if (sx < -80 || sx > W + 80 || sy < -90 || sy > H + 90) continue;
-      if (dist(G.player.x, G.player.y, building.x, building.y) < building.radius) {
-        const spec = STRONGHOLD_BUILDING_ASSETS[building.kind];
-        drawLabel(ctx, `[E] ${building.prompt}`, sx, sy + (spec?.promptY || 56), building.color);
-      }
-    }
-
     // NPCs.
     for (const npc of G.villageNPCs) {
       const sx = wx(npc.x);
@@ -1399,8 +1165,7 @@ export default function WorldCanvas() {
       ctx.lineWidth = 2;
       ctx.strokeText(npc.name, sx, sy - 30);
       ctx.fillText(npc.name, sx, sy - 30);
-      const nearbyBuilding = getStrongholdBuildingNear(G.player.x, G.player.y, -14);
-      if (!nearbyBuilding && dist(G.player.x, G.player.y, npc.x, npc.y) < 48) drawLabel(ctx, '[E] Talk', sx, sy - 43, npc.color);
+      if (dist(G.player.x, G.player.y, npc.x, npc.y) < 54) drawLabel(ctx, '[E] Talk', sx, sy - 43, npc.color);
     }
 
     // Enemies.
@@ -1466,77 +1231,264 @@ export default function WorldCanvas() {
   }
 
   function drawMapDecor(ctx, t) {
-    const decorTrees = [
-      [18,24],[20,26],[22,24],[29,22],[31,24],[33,25],[14,54],[17,55],[11,64],[13,67],
-      [9,34],[10,36],[16,30],[29,30],[31,31],
-    ];
-    decorTrees.forEach(([tx,ty]) => drawTree(ctx, wx(tx*TILE), wy(ty*TILE), 0.9));
+  // =====================================================
+  // V105-STRONGHOLD-TOWN-POLISH-REV-001
+  // Overworld trees & rocks
+  // =====================================================
+  const decorTrees = [
+    [18,24],[20,26],[22,24],[29,22],[31,24],[33,25],
+    [14,54],[17,55],[11,64],[13,67],
+    [9,34],[10,36],[16,30],[29,30],[31,31],
+    [11,42],[12,43],[10,45], // west woods edge
+  ];
+  decorTrees.forEach(([tx,ty]) => drawTree(ctx, wx(tx*TILE), wy(ty*TILE), 0.9));
 
-    const decorRocks = [
-      [51,35],[53,37],[63,38],[65,40],[72,47],[74,48],[96,80],[99,82],[58,88],[60,90],
-      [37,31],[39,32],
-    ];
-    decorRocks.forEach(([tx,ty]) => drawRock(ctx, wx(tx*TILE), wy(ty*TILE), 0.9));
+  const decorRocks = [
+    [51,35],[53,37],[63,38],[65,40],[72,47],[74,48],[96,80],[99,82],[58,88],[60,90],
+    [37,31],[39,32],
+  ];
+  decorRocks.forEach(([tx,ty]) => drawRock(ctx, wx(tx*TILE), wy(ty*TILE), 0.9));
 
-    // V104 Stronghold Tile Village Rebuild: one coherent village scene built from the Four Seasons pack.
-    // This replaces isolated hut placement with a composed plaza, districts, and functional silhouettes.
-    drawV99AssetImage(ctx, 'v104StrongholdPlaza', wx(16*TILE), wy(38*TILE), 512, 512, { anchorX: 0, anchorY: 0 });
+  // =====================================================
+  // STRONGHOLD VILLAGE TOWN COMPOSITION
+  // =====================================================
 
-    // Soft edge dressing so the plaza sits inside the surrounding world instead of floating on top of it.
-    const drawTownShadow = (x, y, w, h, a = 0.12) => {
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.ellipse(wx(x*TILE), wy(y*TILE), w, h, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-    };
+  // --- Ground: Plaza stone center ---
+  const px = wx(24*TILE), py = wy(44*TILE);
+  const plazaW = 4*TILE, plazaH = 3*TILE;
+  ctx.fillStyle = '#8a7a65';
+  ctx.fillRect(px, py, plazaW, plazaH);
+  // Plaza stone tile pattern
+  ctx.strokeStyle = '#6e6254';
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx < plazaW; gx += 16) {
+    ctx.beginPath(); ctx.moveTo(px+gx, py); ctx.lineTo(px+gx, py+plazaH); ctx.stroke();
+  }
+  for (let gy = 0; gy < plazaH; gy += 16) {
+    ctx.beginPath(); ctx.moveTo(px, py+gy); ctx.lineTo(px+plazaW, py+gy); ctx.stroke();
+  }
+  // Plaza center well/fountain
+  const wellX = wx(26*TILE), wellY = wy(45*TILE);
+  ctx.fillStyle = '#4a3a2e';
+  ctx.beginPath(); ctx.arc(wellX, wellY, 14, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#2a6080';
+  ctx.beginPath(); ctx.arc(wellX, wellY, 10, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.5 + Math.sin(t*2)*0.2;
+  ctx.strokeStyle = '#5ab5d4';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(wellX, wellY, 6 + Math.sin(t*3)*1, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#6b5030'; ctx.lineWidth = 2;
+  ctx.strokeRect(wx(24*TILE)-2, wy(44*TILE)-2, 4*TILE+4, 3*TILE+4);
 
-    // Environmental dressing by district, before buildings for layering.
-    drawV99AssetImage(ctx, 'v104FlowerBed', wx(17.8*TILE), wy(43.8*TILE), 76, 78, { anchorX: 0.5, anchorY: 1 });
-    drawV99AssetImage(ctx, 'v104GardenBushes', wx(29.0*TILE), wy(42.7*TILE), 92, 76, { anchorX: 0.5, anchorY: 1 });
-    drawV99AssetImage(ctx, 'v104MarketTables', wx(18.35*TILE), wy(48.25*TILE), 108, 32, { anchorX: 0.5, anchorY: 1 });
-    drawV99AssetImage(ctx, 'v104ForgeProps', wx(28.9*TILE), wy(48.55*TILE), 112, 78, { anchorX: 0.5, anchorY: 1 });
-    drawV99AssetImage(ctx, 'v104TrainingProps', wx(21.9*TILE), wy(52.45*TILE), 112, 78, { anchorX: 0.5, anchorY: 1 });
+  // === VILLAGE FENCE ===
+  // Full perimeter with gate openings
+  const fenceColor = '#5c3a1a';
+  const postColor  = '#3d2510';
+  ctx.fillStyle = fenceColor;
+  ctx.lineWidth = 0;
 
-    // Shrine aura underneath the altar.
-    const shrineGlowX = wx(25.05*TILE);
-    const shrineGlowY = wy(50.85*TILE);
-    ctx.save();
-    const shrinePulse = 0.20 + Math.sin(t * 2.6) * 0.06;
-    ctx.globalAlpha = shrinePulse;
-    ctx.strokeStyle = '#f1c40f';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(shrineGlowX, shrineGlowY - 28, 64, 0, Math.PI*2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(shrineGlowX, shrineGlowY - 28, 42, 0, Math.PI*2); ctx.stroke();
-    ctx.restore();
+  function fenceH(x1t, x2t, tileY, gapStart, gapEnd) {
+    for (let tx = x1t; tx <= x2t; tx++) {
+      if (tx >= gapStart && tx <= gapEnd) continue;
+      const sx = wx(tx*TILE);
+      const sy = wy(tileY*TILE);
+      ctx.fillStyle = fenceColor;
+      ctx.fillRect(sx, sy+4, TILE, 5);
+      ctx.fillStyle = postColor;
+      ctx.fillRect(sx, sy+2, 4, 10);
+    }
+  }
+  function fenceV(y1t, y2t, tileX, gapStart, gapEnd) {
+    for (let ty = y1t; ty <= y2t; ty++) {
+      if (ty >= gapStart && ty <= gapEnd) continue;
+      const sx = wx(tileX*TILE);
+      const sy = wy(ty*TILE);
+      ctx.fillStyle = fenceColor;
+      ctx.fillRect(sx+4, sy, 5, TILE);
+      ctx.fillStyle = postColor;
+      ctx.fillRect(sx+2, sy, 10, 4);
+    }
+  }
 
-    // Draw district buildings in y-order so player/NPC overlap feels natural.
-    [...STRONGHOLD_BUILDINGS]
-      .sort((a, b) => a.y - b.y)
-      .forEach((building) => {
-        drawBuilding(ctx, wx(building.x), wy(building.y), building.kind, t);
-      });
+  // North fence — gap at main road (tx 24-28) for path in from north
+  fenceH(13, 36, 38, 24, 28);
+  // South fence — gap at shrine path (tx 24-28) and south exit
+  fenceH(13, 36, 57, 24, 28);
+  // West fence — gap at market door (ty 44-46)
+  fenceV(38, 57, 13, 44, 46);
+  // East fence — gap at forge door (ty 44-46)
+  fenceV(38, 57, 36, 44, 46);
 
-    // Smaller signs explain function without oversized labels taking over the art.
-    drawSmallSignpost(ctx, wx(23.0*TILE), wy(43.7*TILE), 'CRAFT', '#73e4ff');
-    drawSmallSignpost(ctx, wx(18.0*TILE), wy(48.25*TILE), 'SHOP', '#ffd071');
-    drawSmallSignpost(ctx, wx(28.55*TILE), wy(48.25*TILE), 'FORGE', '#ff9a2e');
-    drawSmallSignpost(ctx, wx(21.8*TILE), wy(52.35*TILE), 'TRAIN', '#8ee6ff');
-    drawSmallSignpost(ctx, wx(26.35*TILE), wy(52.3*TILE), 'ASCEND', '#f1c40f');
+  // Inner district separators (lighter low fence / hedge)
+  ctx.fillStyle = '#4a7a30';
+  // Hedge row between market and barracks district (west side)
+  for (let tx=14; tx<=21; tx++) {
+    ctx.fillRect(wx(tx*TILE)+4, wy(48*TILE)+4, TILE-8, 5);
+  }
+  // Hedge row between forge district and shrine (east side)  
+  for (let tx=28; tx<=35; tx++) {
+    ctx.fillRect(wx(tx*TILE)+4, wy(50*TILE)+4, TILE-8, 5);
+  }
+  // Small garden bushes in plaza corners
+  const bushPositions = [[14,40],[14,41],[35,40],[35,41],[14,54],[14,55],[35,54],[35,55]];
+  bushPositions.forEach(([btx, bty]) => {
+    const bx = wx(btx*TILE) + TILE/2;
+    const by = wy(bty*TILE) + TILE/2;
+    ctx.fillStyle = '#2d6e20';
+    ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#3d8c2a';
+    ctx.beginPath(); ctx.arc(bx-3, by-3, 5, 0, Math.PI*2); ctx.fill();
+  });
 
-    // Realm shrines and landmarks.
-    drawShrine(ctx, wx(25*TILE), wy(27*TILE), '#27ae60', 'SYLVARA', t);
-    drawShrine(ctx, wx(42*TILE), wy(24*TILE), '#87ceeb', 'ZEPHYROS', t);
-    drawShrine(ctx, wx(58*TILE), wy(36*TILE), '#95a5a6', 'TERRAN', t);
-    drawShrine(ctx, wx(39*TILE), wy(74*TILE), '#e74c3c', 'IGNAR', t);
+  // Flower beds along plaza edges
+  const flowerColors = ['#e74c3c','#f39c12','#3498db','#9b59b6','#e67e22'];
+  [[25,43],[26,43],[27,43],[25,47],[26,47],[27,47]].forEach(([ftx,fty],i) => {
+    const fx = wx(ftx*TILE) + TILE/2;
+    const fy = wy(fty*TILE) + TILE/2;
+    ctx.fillStyle = '#1e5c10';
+    ctx.fillRect(fx-5, fy, 10, 6);
+    ctx.fillStyle = flowerColors[i % flowerColors.length];
+    ctx.beginPath(); ctx.arc(fx, fy, 4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx-4, fy+3, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx+4, fy+3, 3, 0, Math.PI*2); ctx.fill();
+  });
 
-    // Ancient Ruins, first dungeon marker.
+  // === BUILDINGS ===
+  // Crafting Hall — central north of plaza
+  drawBuilding(ctx, wx(26*TILE), wy(40*TILE), 'hall', t);
+
+  // Forge — east district (forge fire glow effect)
+  drawBuilding(ctx, wx(32*TILE), wy(46*TILE), 'forge', t);
+  // Forge props: anvil + crates
+  {
+    const fx = wx(34*TILE), fy = wy(47*TILE);
+    // Anvil
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(fx-6, fy-4, 12, 6);
+    ctx.fillRect(fx-3, fy-8, 6, 4);
+    // Fire pit nearby
+    const fireGlow = 0.5 + Math.sin(t*4)*0.3;
+    ctx.globalAlpha = fireGlow;
+    ctx.fillStyle = '#ff6b00';
+    ctx.beginPath(); ctx.arc(fx+14, fy-2, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffb300';
+    ctx.beginPath(); ctx.arc(fx+14, fy-4, 3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Ore crate
+    ctx.fillStyle = '#5c3a1e';
+    ctx.fillRect(fx-18, fy, 10, 8);
+    ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 1;
+    ctx.strokeRect(fx-18, fy, 10, 8);
+    ctx.fillStyle = '#e67e22';
+    ctx.beginPath(); ctx.arc(fx-13, fy-3, 3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Market — west district
+  drawBuilding(ctx, wx(17*TILE), wy(44*TILE), 'market', t);
+  // Market stall tables
+  {
+    const mx = wx(20*TILE), my = wy(45*TILE);
+    // Table 1
+    ctx.fillStyle = '#7a5030';
+    ctx.fillRect(mx, my-4, 18, 3);
+    ctx.fillRect(mx+1, my-1, 3, 8);
+    ctx.fillRect(mx+14, my-1, 3, 8);
+    // Items on table
+    ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(mx+5, my-7, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(mx+10, my-7, 2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f39c12'; ctx.fillRect(mx+13, my-8, 4, 4);
+  }
+
+  // Barracks — west south district
+  drawBuilding(ctx, wx(17*TILE), wy(52*TILE), 'barracks', t);
+  // Training yard: wooden dummies + fence
+  {
+    const bx = wx(21*TILE), by = wy(51*TILE);
+    // Wooden training dummy 1
+    ctx.fillStyle = '#7a5030';
+    ctx.fillRect(bx, by-18, 4, 20); // post
+    ctx.fillRect(bx-8, by-16, 20, 4); // crossbar
+    ctx.fillStyle = '#5a3a1e';
+    ctx.beginPath(); ctx.arc(bx+2, by-20, 5, 0, Math.PI*2); ctx.fill(); // "head"
+    // Dummy 2
+    ctx.fillStyle = '#7a5030';
+    ctx.fillRect(bx+20, by-14, 4, 16);
+    ctx.fillRect(bx+12, by-12, 18, 3);
+    ctx.fillStyle = '#5a3a1e';
+    ctx.beginPath(); ctx.arc(bx+22, by-16, 4, 0, Math.PI*2); ctx.fill();
+    // Training ground dusty floor
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#a08060';
+    ctx.beginPath(); ctx.ellipse(bx+10, by+4, 28, 10, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Shrine — south-east sacred area
+  drawShrine(ctx, wx(27*TILE), wy(53*TILE), '#d4af37', 'SHRINE', t);
+  // Sacred path stone markers
+  for (let sty=50; sty<=53; sty++) {
+    const sx2 = wx(25*TILE), sy2 = wy(sty*TILE);
+    ctx.fillStyle = '#888070';
+    ctx.fillRect(sx2-4, sy2+TILE/2-2, 6, 4);
+    const sx3 = wx(29*TILE);
+    ctx.fillRect(sx3-2, sy2+TILE/2-2, 6, 4);
+  }
+
+  // Shrine rune glow on ground
+  {
+    const rx = wx(27*TILE), ry = wy(54*TILE);
+    const glowR = 0.3 + Math.sin(t*1.5)*0.12;
+    ctx.globalAlpha = glowR;
+    const rg = ctx.createRadialGradient(rx, ry, 4, rx, ry, 48);
+    rg.addColorStop(0, '#d4af37');
+    rg.addColorStop(1, 'transparent');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(rx, ry, 48, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // === BRIDGES (upgraded with planks + rails) ===
+  const bridges = [
+    [30,36,36,42],
+    [21,55,29,60],
+    [54,61,60,66],
+    [73,52,82,56],
+  ];
+  bridges.forEach(([x1,y1,x2,y2]) => {
+    const sx = wx(x1*TILE), sy = wy(y1*TILE);
+    const ww = (x2-x1+1)*TILE, hh = (y2-y1+1)*TILE;
+    // Shadow under
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(sx, sy+hh-8, ww, 16);
+    ctx.globalAlpha = 1;
+    // Plank lines
+    ctx.strokeStyle = '#3d2510';
+    ctx.lineWidth = 1;
+    const isVert = hh > ww;
+    if (isVert) {
+      for (let py=0; py<hh; py+=14) { ctx.beginPath(); ctx.moveTo(sx, sy+py); ctx.lineTo(sx+ww, sy+py); ctx.stroke(); }
+    } else {
+      for (let bpx=0; bpx<ww; bpx+=14) { ctx.beginPath(); ctx.moveTo(sx+bpx, sy); ctx.lineTo(sx+bpx, sy+hh); ctx.stroke(); }
+    }
+    // Handrails
+    ctx.fillStyle = '#59391a'; ctx.strokeStyle = '#2b1a0b'; ctx.lineWidth = 2;
+    if (isVert) {
+      ctx.fillRect(sx+1, sy-4, 5, hh+8); ctx.strokeRect(sx+1, sy-4, 5, hh+8);
+      ctx.fillRect(sx+ww-6, sy-4, 5, hh+8); ctx.strokeRect(sx+ww-6, sy-4, 5, hh+8);
+    } else {
+      ctx.fillRect(sx-4, sy+1, ww+8, 5); ctx.strokeRect(sx-4, sy+1, ww+8, 5);
+      ctx.fillRect(sx-4, sy+hh-6, ww+8, 5); ctx.strokeRect(sx-4, sy+hh-6, ww+8, 5);
+    }
+  });
+
+  // === ANCIENT RUINS ===
+  {
     const rx = wx(37*TILE), ry = wy(30*TILE);
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(rx, ry + 18, 50, 12, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(rx, ry+18, 52, 12, 0, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#4a4745'; ctx.fillRect(rx-40, ry+14, 80, 6);
     ctx.fillStyle = '#5c5855'; ctx.fillRect(rx-36, ry+10, 72, 10);
@@ -1549,7 +1501,7 @@ export default function WorldCanvas() {
       ctx.fillRect(rx+dx-2, ry-37+dy, 16, 6);
     });
     ctx.fillStyle = '#17121a';
-    ctx.beginPath(); ctx.arc(rx, ry-2, 18, Math.PI, 0); 
+    ctx.beginPath(); ctx.arc(rx, ry-2, 18, Math.PI, 0);
     ctx.lineTo(rx+18, ry+10); ctx.lineTo(rx-18, ry+10); ctx.fill();
     const glow = 0.5 + Math.sin(t*2)*0.3;
     ctx.globalAlpha = glow;
@@ -1558,50 +1510,19 @@ export default function WorldCanvas() {
     ctx.beginPath(); ctx.arc(rx+6, ry-8, 2, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
     drawLabel(ctx, 'ANCIENT RUINS', rx, ry - 48, '#c39bd3');
-    if (dist(G.player.x, G.player.y, 37*TILE, 30*TILE) < 64) drawLabel(ctx, '[E] Enter Dungeon', rx, ry + 40, '#d2b4de');
-
-    // Draw bridge rails on top of bridge tiles.
-    const bridges = [
-      [30,36,36,42],
-      [21,55,29,60],
-      [54,61,60,66],
-      [73,52,82,56],
-    ];
-    bridges.forEach(([x1,y1,x2,y2]) => {
-      const sx = wx(x1*TILE), sy = wy(y1*TILE);
-      const ww = (x2-x1+1)*TILE, hh = (y2-y1+1)*TILE;
-      ctx.globalAlpha = 0.25;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(sx, sy+hh-8, ww, 16);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#382310';
-      ctx.lineWidth = 1;
-      const isVertical = hh > ww;
-      if (isVertical) {
-        for (let py=0; py<hh; py+=16) { ctx.beginPath(); ctx.moveTo(sx, sy+py); ctx.lineTo(sx+ww, sy+py); ctx.stroke(); }
-      } else {
-         for (let px=0; px<ww; px+=16) { ctx.beginPath(); ctx.moveTo(sx+px, sy); ctx.lineTo(sx+px, sy+hh); ctx.stroke(); }
-      }
-      ctx.fillStyle = '#59391a';
-      ctx.strokeStyle = '#2b1a0b';
-      ctx.lineWidth = 2;
-      if (isVertical) {
-        ctx.fillRect(sx+2, sy-4, 6, hh+8); ctx.strokeRect(sx+2, sy-4, 6, hh+8);
-        ctx.fillRect(sx+ww-8, sy-4, 6, hh+8); ctx.strokeRect(sx+ww-8, sy-4, 6, hh+8);
-      } else {
-        ctx.fillRect(sx-4, sy+2, ww+8, 6); ctx.strokeRect(sx-4, sy+2, ww+8, 6);
-        ctx.fillRect(sx-4, sy+hh-8, ww+8, 6); ctx.strokeRect(sx-4, sy+hh-8, ww+8, 6);
-      }
-    });
-
-    for (const lm of LANDMARKS) {
-      const sx = wx(lm.x*TILE);
-      const sy = wy(lm.y*TILE);
-      if (sx < -100 || sx > G.W + 100 || sy < -100 || sy > G.H + 100) continue;
-      if (['village','bridge'].includes(lm.type)) continue;
-      drawLabel(ctx, lm.label, sx, sy - 58, '#ffffffaa');
-    }
+    if (dist(G.player.x, G.player.y, 37*TILE, 30*TILE) < 64)
+      drawLabel(ctx, '[E] Enter Dungeon', rx, ry + 40, '#d2b4de');
   }
+
+  // === LANDMARK LABELS ===
+  for (const lm of LANDMARKS) {
+    const sx = wx(lm.x*TILE);
+    const sy = wy(lm.y*TILE);
+    if (sx < -100 || sx > G.W+100 || sy < -100 || sy > G.H+100) continue;
+    if (['village','bridge','ruins'].includes(lm.type)) continue;
+    drawLabel(ctx, lm.label, sx, sy - 58, '#ffffffaa');
+  }
+}
 
   function drawPlayer(ctx, store, t) {
   const p = G.player;
