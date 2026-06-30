@@ -1,6 +1,145 @@
-// V105-STRONGHOLD-TOWN-POLISH-REV-001
+// V106-SPRITE-GRAPHICS-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
+
+// ── Sprite cache (module-level, loaded once) ─────────────────────────────────
+const SC = {};
+function loadImg(key, path) {
+  if (SC[key]) return SC[key];
+  const img = new Image();
+  img.src = path;
+  SC[key] = img;
+  return img;
+}
+// Pixel Crawler base path
+const PC = '/assets/world/pixel_crawler/';
+// Building base path
+const BD = '/assets/world/Buildings/';
+// Player sprite sheets (body_a, 64×64 frames)
+const PLAYER_SHEETS = {
+  idle_down:   PC + 'entities__characters__body_a__animations__idle_base__idle_down_sheet.png',
+  idle_side:   PC + 'entities__characters__body_a__animations__idle_base__idle_side_sheet.png',
+  walk_down:   PC + 'entities__characters__body_a__animations__walk_base__walk_down_sheet.png',
+  walk_side:   PC + 'entities__characters__body_a__animations__walk_base__walk_side_sheet.png',
+  walk_up:     PC + 'entities__characters__body_a__animations__walk_base__walk_up_sheet.png',
+  run_down:    PC + 'entities__characters__body_a__animations__run_base__run_down_sheet.png',
+  run_side:    PC + 'entities__characters__body_a__animations__run_base__run_side_sheet.png',
+  run_up:      PC + 'entities__characters__body_a__animations__run_base__run_up_sheet.png',
+  slice_down:  PC + 'entities__characters__body_a__animations__slice_base__slice_down_sheet.png',
+  slice_side:  PC + 'entities__characters__body_a__animations__slice_base__slice_side_sheet.png',
+  hit_down:    PC + 'entities__characters__body_a__animations__hit_base__hit_down_sheet.png',
+  death_down:  PC + 'entities__characters__body_a__animations__death_base__death_down_sheet.png',
+};
+// Pre-load all player sheets
+Object.entries(PLAYER_SHEETS).forEach(([k, v]) => loadImg('player_' + k, v));
+// NPC sprite sheets (NPC id → sprite key)
+const NPC_IDLE = {
+  keeper:   PC + 'entities__npcs__wizzard__idle__idle_sheet.png',   // wizzard = The Keeper
+  smith:    PC + 'entities__npcs__knight__idle__idle_sheet.png',     // knight = Aldric the smith
+  merchant: PC + 'entities__npcs__rogue__idle__idle_sheet.png',      // rogue = Mira the merchant
+};
+Object.entries(NPC_IDLE).forEach(([k, v]) => loadImg('npc_' + k, v));
+// Building PNGs
+const BUILDING_IMGS = {
+  hall:     BD + 'stronghold_crafting_hall.png',
+  forge:    BD + 'stronghold_forge.png',
+  market:   BD + 'stronghold_market.png',
+  barracks: BD + 'stronghold_barracks.png',
+  shrine:   BD + 'stronghold_shrine.png',
+};
+Object.entries(BUILDING_IMGS).forEach(([k, v]) => loadImg('bld_' + k, v));
+// Tree sprite (use model_01 size_03)
+loadImg('tree', PC + 'environment__props__static__trees__model_01__size_03.png');
+// Bonfire animated (frames 1-5 for idle loop)
+[1,2,3,4,5,6,7,8].forEach(i => loadImg('bonfire_' + i, PC + `environment__structures__stations__bonfire__bonfire_0${i}_sheet.png`));
+
+// ── Sprite draw helpers ──────────────────────────────────────────────────────
+// Draw one frame from a horizontal sprite sheet
+function drawSpriteFrame(ctx, imgKey, frame, totalFrames, frameW, frameH, dx, dy, drawW, drawH, flipX=false) {
+  const img = SC[imgKey];
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  ctx.save();
+  if (flipX) {
+    ctx.scale(-1, 1);
+    dx = -dx - drawW;
+  }
+  ctx.drawImage(img, frame * frameW, 0, frameW, frameH, dx, dy, drawW, drawH);
+  ctx.restore();
+  return true;
+}
+
+// Draw player sprite (body_a). Returns true if sprite drawn, false=fallback
+function drawPlayerSprite(ctx, px, py, t, moving, direction, attacking) {
+  const FRAME_SIZE = 64; // 64×64 source frame
+  const DRAW_SIZE  = 48; // render 48px on screen
+  const FPS_WALK   = 8;  // walk animation speed
+  const FPS_RUN    = 10;
+  const FPS_IDLE   = 4;
+
+  let sheet, totalFrames, fps, flipX = false;
+
+  if (attacking) {
+    // slice animation
+    const key = direction === 'up' ? 'slice_side' : direction === 'side_left' ? 'slice_side' : 'slice_down';
+    sheet = 'player_' + key;
+    totalFrames = 8; fps = 12;
+    flipX = direction === 'side_left';
+  } else if (moving) {
+    const speed = 1; // world canvas always walk
+    if (direction === 'up') {
+      sheet = speed ? 'player_walk_up' : 'player_walk_up'; totalFrames = 6; fps = FPS_WALK;
+    } else if (direction === 'side_right') {
+      sheet = 'player_walk_side'; totalFrames = 6; fps = FPS_WALK;
+    } else if (direction === 'side_left') {
+      sheet = 'player_walk_side'; totalFrames = 6; fps = FPS_WALK; flipX = true;
+    } else {
+      sheet = 'player_walk_down'; totalFrames = 6; fps = FPS_WALK;
+    }
+  } else {
+    const key = direction === 'up' ? 'idle_side' : direction === 'side_left' ? 'idle_side' : 'idle_down';
+    sheet = 'player_' + key;
+    totalFrames = 4; fps = FPS_IDLE;
+    flipX = direction === 'side_left';
+  }
+
+  const frame = Math.floor(t * fps) % totalFrames;
+  const drawn = drawSpriteFrame(ctx, sheet, frame, totalFrames, FRAME_SIZE, FRAME_SIZE,
+    px - DRAW_SIZE/2, py - DRAW_SIZE*0.65, DRAW_SIZE, DRAW_SIZE, flipX);
+  return drawn;
+}
+
+// Draw NPC sprite (idle sheet, 4 frames @ 32×32)
+function drawNPCSprite(ctx, npcId, px, py, t) {
+  const key = 'npc_' + npcId;
+  const img = SC[key];
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  // NPC idle sheets are 128×32 (4 frames @ 32×32)
+  const frame = Math.floor(t * 4) % 4;
+  const DRAW_SIZE = 40;
+  ctx.drawImage(img, frame * 32, 0, 32, 32, px - DRAW_SIZE/2, py - DRAW_SIZE*0.8, DRAW_SIZE, DRAW_SIZE);
+  return true;
+}
+
+// Draw building PNG centered on (x,y) at target height
+function drawBuildingSprite(ctx, kind, x, y) {
+  const img = SC['bld_' + kind];
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  const targetH = kind === 'hall' ? 140 : kind === 'barracks' ? 130 : 100;
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const targetW = targetH * aspect;
+  ctx.drawImage(img, x - targetW/2, y - targetH * 0.72, targetW, targetH);
+  return true;
+}
+
+// Draw tree sprite
+function drawTreeSprite(ctx, x, y, scale=1) {
+  const img = SC['tree'];
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  const w = img.naturalWidth * scale * 0.9;
+  const h = img.naturalHeight * scale * 0.9;
+  ctx.drawImage(img, x - w/2, y - h*0.8, w, h);
+  return true;
+}
 import { InputState }    from '../game/systems/InputState';
 import { EnemyConfig }   from '../game/config/EnemyConfig';
 import { AbilityConfig } from '../game/config/AbilityConfig';
@@ -295,6 +434,9 @@ function clampToWorld(x, y) {
 }
 
 function drawTree(ctx, x, y, scale = 1) {
+  // Try sprite first
+  if (drawTreeSprite(ctx, x, y, scale)) return;
+  // Fallback primitives
   ctx.globalAlpha = 0.2;
   ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(x, y + 16*scale, 16*scale, 6*scale, 0, 0, Math.PI*2); ctx.fill();
@@ -418,6 +560,23 @@ function drawPortal(ctx, x, y, portal, t) {
 }
 
 function drawBuilding(ctx, x, y, kind, t) {
+  // Try PNG sprite first — draws label on top regardless
+  const spriteDrawn = drawBuildingSprite(ctx, kind, x, y);
+  if (spriteDrawn) {
+    // Ground shadow
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(x+2, y+38, 58, 12, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Building label above
+    const labels = { hall:'CRAFTING HALL', forge:'FORGE', market:'MARKET', barracks:'BARRACKS', shrine:'SHRINE' };
+    const lbl = labels[kind] || kind.toUpperCase();
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+    ctx.strokeText(lbl, x, y - 68);
+    ctx.fillStyle = '#d4af37'; ctx.fillText(lbl, x, y - 68);
+    return;
+  }
   ctx.save();
   ctx.translate(x, y);
 
@@ -656,6 +815,11 @@ export default function WorldCanvas() {
     H: 844,
     lastRespawnAt: null,
     swordPicked: false,
+    playerDir: 'down',     // 'down' | 'up' | 'side_left' | 'side_right'
+    playerMoving: false,
+    playerAttacking: false,
+    playerAtkTimer: 0,
+    spriteT: 0,            // monotonic time for sprite animation
   }).current;
 
   const addFloat = (x, y, text, color = '#fff', big = false) => {
@@ -784,10 +948,20 @@ export default function WorldCanvas() {
 
     const { mx, my } = getMoveVector();
     const speed = Math.max(80, 112 + ((store.playerSPD || 5) - 5) * 2);
+    G.playerMoving = !!(mx || my);
     if (mx || my) {
       resumeAudio?.();
       tryMove(p, p.x + mx * speed * dt, p.y + my * speed * dt);
+      // Update facing direction for sprite animation
+      if (Math.abs(mx) > Math.abs(my)) {
+        G.playerDir = mx > 0 ? 'side_right' : 'side_left';
+      } else if (my < 0) {
+        G.playerDir = 'up';
+      } else {
+        G.playerDir = 'down';
+      }
     }
+    G.spriteT += dt;
 
     p.x = clampToWorld(p.x, p.y).x;
     p.y = clampToWorld(p.x, p.y).y;
@@ -810,7 +984,8 @@ export default function WorldCanvas() {
     G.prevSpace = attackNow;
     if (window.__gameAttack) window.__gameAttack = false;
     if (InputState.attack) InputState.attack = false;
-    if (attackJust && p.attackCooldown <= 0) handleAttack(store);
+    if (attackJust && p.attackCooldown <= 0) { handleAttack(store); G.playerAtkTimer = 0.4; }
+    if (G.playerAtkTimer > 0) { G.playerAtkTimer -= dt; G.playerAttacking = G.playerAtkTimer > 0; } else { G.playerAttacking = false; }
 
     const abilityNow = G.keys['KeyQ'] || window.__gameAbility || InputState.ability;
     const abilityJust = abilityNow && !G.prevAbility;
@@ -1150,22 +1325,25 @@ export default function WorldCanvas() {
     for (const npc of G.villageNPCs) {
       const sx = wx(npc.x);
       const sy = wy(npc.y);
-      ctx.fillStyle = '#000';
-      ctx.globalAlpha = 0.18;
+      // Ground shadow
+      ctx.fillStyle = '#000'; ctx.globalAlpha = 0.18;
       ctx.beginPath(); ctx.ellipse(sx, sy + 14, 11, 4, 0, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = npc.color;
-      ctx.beginPath(); ctx.arc(sx, sy - 6, 10, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#f2d7b6';
-      ctx.beginPath(); ctx.arc(sx, sy - 18, 7, 0, Math.PI*2); ctx.fill();
-      ctx.font = 'bold 9px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.strokeText(npc.name, sx, sy - 30);
-      ctx.fillText(npc.name, sx, sy - 30);
-      if (dist(G.player.x, G.player.y, npc.x, npc.y) < 54) drawLabel(ctx, '[E] Talk', sx, sy - 43, npc.color);
+      // Try NPC sprite (idle animation)
+      const npcDrawn = drawNPCSprite(ctx, npc.id, sx, sy, G.spriteT);
+      if (!npcDrawn) {
+        // Fallback: colored body+head
+        ctx.fillStyle = npc.color;
+        ctx.beginPath(); ctx.arc(sx, sy - 6, 10, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#f2d7b6';
+        ctx.beginPath(); ctx.arc(sx, sy - 18, 7, 0, Math.PI*2); ctx.fill();
+      }
+      // Name label
+      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+      ctx.strokeText(npc.name, sx, sy - 34);
+      ctx.fillText(npc.name, sx, sy - 34);
+      if (dist(G.player.x, G.player.y, npc.x, npc.y) < 54) drawLabel(ctx, '[E] Talk', sx, sy - 47, npc.color);
     }
 
     // Enemies.
@@ -1529,18 +1707,25 @@ export default function WorldCanvas() {
   const sx = wx(p.x);
   const sy = wy(p.y);
 
+  // Ground shadow
   ctx.globalAlpha = 0.3;
   ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(sx, sy + 18, 16, 6, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
+  // Invincible shield flash
   if (p.invincible) {
     ctx.globalAlpha = 0.45 + Math.sin(t*18)*0.25;
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(sx, sy, 26, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, 30, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
   }
 
+  // Try sprite. If not loaded yet fall back to primitives.
+  const spriteOk = drawPlayerSprite(ctx, sx, sy, G.spriteT, G.playerMoving, G.playerDir, G.playerAttacking);
+  if (spriteOk) return;
+
+  // ── Primitive fallback ──
   const skin = store.activeSkin;
   let bodyColor = skin === 'gods_chosen' ? '#d4af37' : skin === 'shadow_knight' ? '#28243a' : '#2d6c9e';
   let bodyHighlight = skin === 'gods_chosen' ? '#ffe270' : skin === 'shadow_knight' ? '#443d63' : '#4990c7';
