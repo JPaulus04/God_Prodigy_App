@@ -1,3 +1,4 @@
+// V106-STRONGHOLD-INTERACTION-AND-MENU-SPLIT-REV-001
 import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import LegacyArmory from './LegacyArmory';
@@ -117,7 +118,11 @@ export default function StrongholdMenu() {
     applyTrainingBonus, setGamePhase, recoverPlayer,
     playerATK, playerDEF, playerSPD, playerHP, playerMaxHP,
     bossesDefeated, legacyWeapons, prestigeLevel, fullGodPathCompleted, hasPrestigeForgeUnlocked,
+    strongholdBuilding,
   } = useGameStore();
+
+  // Which building opened the menu — drives header + tabs
+  const activeBuilding = strongholdBuilding || 'hall';
 
   const [tab,        setTab]        = useState('build');
   const [craftTab,   setCraftTab]   = useState('weapons');
@@ -281,18 +286,35 @@ export default function StrongholdMenu() {
       background: 'linear-gradient(180deg, #0d0d1a 0%, #1a1a3a 100%)',
       display: 'flex', flexDirection: 'column', color: '#fff', overflowY: 'auto',
     }}>
+      {/* Building identity config */}
+      {(() => {
+        const BLDG_META = {
+          hall:     { icon: '⚒️',  title: 'Crafting Hall', sub: 'Recipes · Materials · Create',              accent: '#d4af37', tabs: ['craft','upgrade'] },
+          forge:    { icon: '🔥',  title: 'Forge',         sub: 'Upgrade · Enhance · Refine',                accent: '#e67e22', tabs: ['upgrade','craft'] },
+          market:   { icon: '🛒',  title: 'Market',        sub: 'Buy · Sell · Daily Stock · Trader',          accent: '#3498db', tabs: ['market','build']  },
+          barracks: { icon: '⚔️',  title: 'Barracks',      sub: 'Train · Combat Mastery · Skills',            accent: '#27ae60', tabs: ['train','build']  },
+          shrine:   { icon: '✨',  title: 'Shrine',        sub: 'Ascend · Blessings · Divine Power',          accent: '#9b59b6', tabs: ['ascend','build']  },
+        };
+        // Store computed meta for use in rest of render
+        window.__SM_META = BLDG_META[activeBuilding] || BLDG_META.hall;
+        return null;
+      })()}
       {/* Header — padded below status bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         paddingTop: 'calc(env(safe-area-inset-top) + 52px)',
         paddingBottom: 14, paddingLeft: 20, paddingRight: 20,
-        borderBottom: '1px solid #d4af3733',
+        borderBottom: `1px solid ${(window.__SM_META||{accent:'#d4af37'}).accent}33`,
         background: '#0d0d1a',
         flexShrink: 0,
       }}>
         <div>
-          <h2 style={{ color: '#d4af37', fontSize: 22, margin: 0, letterSpacing: 1 }}>🏰 Stronghold</h2>
-          <p style={{ color: '#888', fontSize: 11, margin: '3px 0 0' }}>Build · Craft · Upgrade · Recover</p>
+          <h2 style={{ color: (window.__SM_META||{accent:'#d4af37'}).accent, fontSize: 22, margin: 0, letterSpacing: 1 }}>
+            {(window.__SM_META||{icon:'🏰'}).icon} {(window.__SM_META||{title:'Stronghold'}).title}
+          </h2>
+          <p style={{ color: '#888', fontSize: 11, margin: '3px 0 0' }}>
+            {(window.__SM_META||{sub:'Build · Craft · Upgrade · Recover'}).sub}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => setShowArmory(true)} style={{
@@ -367,16 +389,179 @@ export default function StrongholdMenu() {
         </div>
       </div>
 
-      {/* Main tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #222' }}>
-        {['build', 'craft', 'upgrade'].map(t => (
-          <button key={t} style={tabStyle(tab === t)} onClick={() => setTab(t)}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
+      {/* Building-specific tabs */}
+      {(() => {
+        const BLDG_TABS = {
+          hall:     [{ id:'craft',   label:'Craft'    }, { id:'upgrade', label:'Upgrade'  }, { id:'build',   label:'Upgrade Bldg' }],
+          forge:    [{ id:'upgrade', label:'Upgrade'  }, { id:'craft',   label:'Craft'    }, { id:'build',   label:'Enhance Bldg' }],
+          market:   [{ id:'market',  label:'Market'   }, { id:'build',   label:'Upgrade Bldg' }],
+          barracks: [{ id:'train',   label:'Train'    }, { id:'build',   label:'Upgrade Bldg' }],
+          shrine:   [{ id:'ascend',  label:'Ascend'   }, { id:'build',   label:'Upgrade Bldg' }],
+        };
+        const tabs = BLDG_TABS[activeBuilding] || BLDG_TABS.hall;
+        const accent = (window.__SM_META||{accent:'#d4af37'}).accent;
+        const activeFallback = tabs.some(t=>t.id===tab) ? tab : tabs[0].id;
+        if (activeFallback !== tab) setTab(activeFallback);
+        return (
+          <div style={{ display: 'flex', borderBottom: '1px solid #222' }}>
+            {tabs.map(t => (
+              <button key={t.id} style={{
+                flex:1, padding:'10px 0', border:'none', cursor:'pointer',
+                fontSize:13, fontWeight:'bold',
+                background: tab===t.id ? accent+'22' : '#1a1a2e',
+                color: tab===t.id ? accent : '#777',
+                borderBottom: `2px solid ${tab===t.id ? accent : 'transparent'}`,
+              }} onClick={() => setTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       <div style={{ padding: 16, flex: 1, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+
+        {/* ── MARKET TAB (Market building) ── */}
+        {tab === 'market' && (
+          <div>
+            <h3 style={{ color: '#3498db', margin: '0 0 14px' }}>🛒 Market</h3>
+            <div style={{ color: '#aaa', fontSize: 12, marginBottom: 14 }}>
+              Trade resources, buy consumables, and restock your supplies.
+            </div>
+            {/* Daily stock — buy health potions with ore */}
+            {[
+              { id:'potion_hp',  name:'Health Potion',  icon:'❤️', cost:{ ore:2 }, desc:'Restores 40 HP in combat' },
+              { id:'potion_str', name:'Strength Elixir', icon:'⚔️', cost:{ ore:4 }, desc:'+3 ATK for next realm run' },
+              { id:'wood_bundle',name:'Wood Bundle x5',  icon:'🪵', cost:{ ore:3 }, desc:'5 wood for building upgrades' },
+            ].map(item => {
+              const canBuy = Object.entries(item.cost).every(([r,a])=>(resources[r]??0)>=a);
+              return (
+                <div key={item.id} style={{
+                  background:'#ffffff08', border:'1px solid #3498db22',
+                  borderRadius:10, padding:12, marginBottom:10,
+                  display:'flex', justifyContent:'space-between', alignItems:'center',
+                }}>
+                  <div>
+                    <div style={{fontWeight:'bold'}}>{item.icon} {item.name}</div>
+                    <div style={{color:'#777',fontSize:11,marginTop:2}}>{item.desc}</div>
+                    <ResourceCost cost={item.cost} resources={resources} />
+                  </div>
+                  <button onClick={()=>{
+                    if(!canBuy) return;
+                    Object.entries(item.cost).forEach(([r,a])=>spendResource(r,a));
+                    if(item.id==='wood_bundle') Object.keys(resources).includes('wood') && spendResource('wood',-5);
+                  }} disabled={!canBuy} style={{
+                    background:canBuy?'#3498db':'#2a2a2a',
+                    color:canBuy?'#fff':'#555',
+                    border:'none',borderRadius:8,padding:'8px 14px',
+                    cursor:canBuy?'pointer':'not-allowed',fontWeight:'bold',fontSize:12,
+                  }}>Buy</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── TRAIN TAB (Barracks building) ── */}
+        {tab === 'train' && (
+          <div>
+            <h3 style={{ color: '#27ae60', margin: '0 0 14px' }}>⚔️ Barracks Training</h3>
+            <div style={{ color: '#aaa', fontSize: 12, marginBottom: 14 }}>
+              Sharpen your combat skills. Training bonuses are permanent.
+            </div>
+            {Object.entries(STRUCTURES).filter(([k])=>k==='trainingGrounds').map(([key, def]) => {
+              const level = stronghold[key] ?? 0;
+              const maxed = level >= def.levels.length;
+              const nextTier = def.levels[level];
+              const canAfford = !maxed && nextTier && Object.entries(nextTier.cost).every(([r,a])=>(resources[r]??0)>=a);
+              return (
+                <div key={key} style={{
+                  background:'#0a2010', border:'1px solid #27ae6033',
+                  borderRadius:10, padding:14, marginBottom:12,
+                }}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:15,fontWeight:'bold',color:'#27ae60'}}>
+                        {def.icon} {def.name}
+                        <span style={{color:'#555',fontSize:12,marginLeft:8}}>Lv {level}/{def.levels.length}</span>
+                      </div>
+                      <div style={{color:'#777',fontSize:11,marginTop:2}}>{def.description}</div>
+                      {!maxed && nextTier && <div style={{color:'#27ae60',fontSize:11,marginTop:4}}>Next: {nextTier.benefit}</div>}
+                      {maxed && <div style={{color:'#2ecc71',fontSize:11,marginTop:4}}>✓ Fully Trained</div>}
+                      {!maxed && nextTier && <ResourceCost cost={nextTier.cost} resources={resources} />}
+                    </div>
+                    {!maxed && (
+                      <button onClick={()=>handleUpgrade(key)} disabled={!canAfford} style={{
+                        marginLeft:12, padding:'10px 14px', borderRadius:8, border:'none',
+                        cursor:canAfford?'pointer':'not-allowed',
+                        background:canAfford?'#27ae60':'#2a2a2a',
+                        color:canAfford?'#fff':'#555',
+                        fontSize:13, fontWeight:'bold', flexShrink:0,
+                      }}>Train</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{background:'#ffffff08',border:'1px solid #27ae6022',borderRadius:10,padding:14}}>
+              <div style={{color:'#27ae60',fontWeight:'bold',marginBottom:6}}>⚔️ Combat Stats</div>
+              <div style={{display:'flex',gap:20}}>
+                {[{l:'ATK',v:playerATK,c:'#e74c3c'},{l:'DEF',v:playerDEF,c:'#3498db'},{l:'SPD',v:playerSPD,c:'#2ecc71'}].map(s=>(
+                  <div key={s.l} style={{textAlign:'center'}}>
+                    <div style={{color:s.c,fontSize:20,fontWeight:'bold'}}>{s.v}</div>
+                    <div style={{color:'#555',fontSize:10}}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── ASCEND TAB (Shrine building) ── */}
+        {tab === 'ascend' && (
+          <div>
+            <h3 style={{ color: '#9b59b6', margin: '0 0 14px' }}>✨ Shrine of Ascension</h3>
+            <div style={{ color: '#aaa', fontSize: 12, marginBottom: 14 }}>
+              Commune with the divine. Permanent blessings await those who have proven themselves.
+            </div>
+            <div style={{background:'#120820',border:'1px solid #9b59b633',borderRadius:10,padding:14,marginBottom:12}}>
+              <div style={{color:'#9b59b6',fontWeight:'bold',fontSize:14,marginBottom:8}}>✨ Divine Status</div>
+              <div style={{display:'flex',gap:20,marginBottom:10}}>
+                <div style={{textAlign:'center'}}>
+                  <div style={{color:'#d4af37',fontSize:20,fontWeight:'bold'}}>{(bossesDefeated||[]).length}</div>
+                  <div style={{color:'#555',fontSize:10}}>Gods Slain</div>
+                </div>
+                <div style={{textAlign:'center'}}>
+                  <div style={{color:'#9b59b6',fontSize:20,fontWeight:'bold'}}>{prestigeLevel||0}</div>
+                  <div style={{color:'#555',fontSize:10}}>Prestige</div>
+                </div>
+              </div>
+              {(prestigeLevel||0) === 0 && (bossesDefeated||[]).length < 10 && (
+                <div style={{color:'#888',fontSize:12}}>
+                  Defeat all 10 realm gods to unlock true ascension. ({(bossesDefeated||[]).length}/10 defeated)
+                </div>
+              )}
+              {(bossesDefeated||[]).length >= 10 && (prestigeLevel||0) === 0 && (
+                <div style={{color:'#d4af37',fontSize:12}}>
+                  ✦ You are ready to ascend. The path to divinity is open.
+                </div>
+              )}
+              {(prestigeLevel||0) >= 1 && (
+                <div style={{color:'#d4af37',fontSize:12}}>
+                  ✦ Ascended. The Prestige Forge is unlocked.
+                </div>
+              )}
+            </div>
+            {showArmory && <LegacyArmory onClose={()=>setShowArmory(false)} />}
+            {!showArmory && (bossesDefeated||[]).length >= 10 && (
+              <button onClick={()=>setShowArmory(true)} style={{
+                width:'100%', padding:'14px 0', background:'linear-gradient(135deg,#1a1000,#2a1500)',
+                border:'2px solid #d4af37', borderRadius:12, color:'#d4af37',
+                fontSize:15, fontWeight:'bold', cursor:'pointer',
+              }}>🔱 Open Legacy Armory</button>
+            )}
+          </div>
+        )}
 
         {/* ── BUILD TAB ── */}
         {tab === 'build' && (
