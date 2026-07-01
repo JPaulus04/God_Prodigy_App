@@ -1,4 +1,4 @@
-// V105-STRONGHOLD-SCALE-POLISH-REV-001
+// V106-STRONGHOLD-INTERACTION-AND-MENU-SPLIT-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -73,32 +73,48 @@ function drawFrame(ctx, key, frame, srcW, srcH, dx, dy, dW, dH, flipX = false) {
 
 // Draw player (Knight sprite). Draw size = 96px.
 // dir: 'down' | 'up' | 'side_right' | 'side_left'
-// ── Player draw constants (single source of truth) ──────────────────────────
-// All player states MUST use these exact destination dimensions.
-// Source aspect is always square (32×32 idle, 64×64 run) but the character
-// art only fills the inner portion of the frame, so we draw non-square to
-// get proper human proportions and consistent visual height.
-const PLAYER_DRAW_W = 42;   // destination width  (px on screen)
-const PLAYER_DRAW_H = 54;   // destination height (px on screen)
-const PLAYER_AX = 0.5;      // anchor X: 0 = left edge, 0.5 = center
-const PLAYER_AY = 1.0;      // anchor Y: 1 = bottom edge (feet on ground)
+// ── Player draw constants ────────────────────────────────────────────────────
+// SINGLE source of truth — ALL animation states use these exact values.
+// Changing PLAYER_DRAW_W / PLAYER_DRAW_H here changes every state at once.
+const PLAYER_DRAW_W = 36;   // destination width  on screen (px)
+const PLAYER_DRAW_H = 48;   // destination height on screen (px)
+
+// Tight source crops — measured from actual PNG pixel data so the character
+// art fills the destination box the same amount in every state.
+// Idle (32×32 frame): char art at srcX=5, srcY=3, w=19, h=29
+// Run  (64×64 frame): char art at srcX=21, srcY=35, w=24, h=29
+// We crop to these tight bounds so both states look the same visual size.
+const _P_IDLE_CROP = { srcX: 5,  srcY: 3,  srcW: 22, srcH: 29 }; // per 32×32 frame
+const _P_RUN_CROP  = { srcX: 21, srcY: 35, srcW: 24, srcH: 29 }; // per 64×64 frame
+
+function _drawTightFrame(ctx, key, frame, frameSize, crop, dx, dy, dW, dH, flipX) {
+  const img = _SC[key];
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  const sx = frame * frameSize + crop.srcX;
+  const sy = crop.srcY;
+  ctx.save();
+  if (flipX) { ctx.scale(-1, 1); dx = -dx - dW; }
+  ctx.drawImage(img, sx, sy, crop.srcW, crop.srcH, dx, dy, dW, dH);
+  ctx.restore();
+  return true;
+}
 
 function drawPlayerSprite(ctx, cx, cy, t, moving, dir) {
   const W = PLAYER_DRAW_W;
   const H = PLAYER_DRAW_H;
-  const flipX = (dir === 'side_left');
-  // Destination rect — bottom-center anchored
-  const dx = cx - W * PLAYER_AX;
-  const dy = cy - H * PLAYER_AY;
+  const flipX = dir === 'side_left';
+  // Bottom-center anchor: feet sit exactly at (cx, cy)
+  const dx = cx - W * 0.5;
+  const dy = cy - H;
 
   if (moving) {
-    // Knight run sheet: 384×64 → 6 frames @ 64×64
+    // Run: 384×64 → 6 frames @64×64, tight crop to char art
     const frame = Math.floor(t * 8) % 6;
-    return drawFrame(ctx, 'p_run_side', frame, 64, 64, dx, dy, W, H, flipX);
+    return _drawTightFrame(ctx, 'p_run_side', frame, 64, _P_RUN_CROP, dx, dy, W, H, flipX);
   } else {
-    // Knight idle sheet: 128×32 → 4 frames @ 32×32
+    // Idle: 128×32 → 4 frames @32×32, tight crop to char art
     const frame = Math.floor(t * 4) % 4;
-    return drawFrame(ctx, 'p_idle_side', frame, 32, 32, dx, dy, W, H, flipX);
+    return _drawTightFrame(ctx, 'p_idle_side', frame, 32, _P_IDLE_CROP, dx, dy, W, H, flipX);
   }
 }
 
@@ -117,10 +133,20 @@ function drawNPCSprite(ctx, npcId, cx, cy, t) {
 function drawBuildingSprite(ctx, kind, x, y) {
   const img = _SC['bld_' + kind];
   if (!img || !img.complete || img.naturalWidth === 0) return false;
-  // Target heights by building type
-  const H = kind === 'hall' ? 150 : kind === 'barracks' ? 140 : 110;
-  const W = H * (img.naturalWidth / img.naturalHeight);
-  ctx.drawImage(img, x - W / 2, y - H * 0.75, W, H);
+
+  // Target heights per building type
+  const H = kind === 'hall' ? 150 : kind === 'barracks' ? 130 : kind === 'shrine' ? 120 : 110;
+  // Cap width so a stray wide image doesn't overflow into neighbour buildings
+  const rawW = H * (img.naturalWidth / img.naturalHeight);
+  const W    = Math.min(rawW, 160);
+
+  // Clip to building footprint so any transparent-edge artifacts are hidden
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x - W / 2 - 4, y - H - 4, W + 8, H + 8);
+  ctx.clip();
+  ctx.drawImage(img, x - W / 2, y - H * 0.82, W, H);
+  ctx.restore();
   return true;
 }
 
@@ -1025,9 +1051,19 @@ export default function WorldCanvas() {
     }
   }
 
+  // Building interaction zones — each maps to a distinct menu view
+  const BUILDING_ZONES = [
+    { kind: 'hall',     x: 26*TILE, y: 40*TILE, r: 72,  label: 'Crafting Hall' },
+    { kind: 'forge',    x: 32*TILE, y: 46*TILE, r: 68,  label: 'Forge'         },
+    { kind: 'market',   x: 17*TILE, y: 44*TILE, r: 68,  label: 'Market'        },
+    { kind: 'barracks', x: 17*TILE, y: 52*TILE, r: 68,  label: 'Barracks'      },
+    { kind: 'shrine',   x: 25*TILE, y: 58*TILE, r: 72,  label: 'Shrine'        },
+  ];
+
   function handleInteract(store) {
     const p = G.player;
 
+    // ── 1. Resources (highest priority — no menu involved) ────────────────
     for (const r of G.resources) {
       if (r.depleted || dist(p.x, p.y, r.x, r.y) > 52) continue;
       store.addResource(r.res, r.amt);
@@ -1038,6 +1074,7 @@ export default function WorldCanvas() {
       return;
     }
 
+    // ── 2. Checkpoints ────────────────────────────────────────────────────
     for (const cp of G.checkpoints) {
       if (dist(p.x, p.y, cp.x, cp.y) > 58) continue;
       if (!cp.activated) {
@@ -1050,6 +1087,7 @@ export default function WorldCanvas() {
       return;
     }
 
+    // ── 3. Sword pickup ───────────────────────────────────────────────────
     const hasSword = store.inventory?.some(i => i.id === 'iron_sword');
     if (!G.swordPicked && !hasSword && dist(p.x, p.y, 25*TILE, 37*TILE) <= 52) {
       const item = { id: 'iron_sword', name: 'Iron Sword', slot: 'weapon', type: 'sword', tier: 'iron', rarity: 'common', atk: 6, abilityId: 'whirlwind', instanceId: `item_${Date.now()}_sword` };
@@ -1063,17 +1101,32 @@ export default function WorldCanvas() {
       G.swordPicked = true;
     }
 
-    if (dist(p.x, p.y, 25*TILE, 43*TILE) <= 70) {
+    // ── 4. NPCs — PRIORITY over buildings (fixes Keeper bug) ──────────────
+    for (const npc of G.villageNPCs) {
+      if (dist(p.x, p.y, npc.x, npc.y) > 56) continue;
+      const line = npc.lines[npc.hintIdx % npc.lines.length];
+      npc.hintIdx += 1;
+      G.npcMessage = { text: line, speaker: npc.name, speakerColor: npc.color, timer: 5.5 };
+      return;
+    }
+
+    // ── 5. Buildings — each routes to its own menu view ───────────────────
+    for (const bz of BUILDING_ZONES) {
+      if (dist(p.x, p.y, bz.x, bz.y) > bz.r) continue;
+      addFloat(p.x, p.y - 40, `Entering ${bz.label}...`, '#d4af37');
+      store.setStrongholdBuilding(bz.kind);
       store.setGamePhase('stronghold');
       return;
     }
 
+    // ── 6. Dungeon ────────────────────────────────────────────────────────
     if (dist(p.x, p.y, 37*TILE, 30*TILE) <= 64) {
       addFloat(p.x, p.y - 40, 'Entering Ancient Ruins...', '#cc88ff');
       setTimeout(() => store.setGamePhase('dungeon'), 400);
       return;
     }
 
+    // ── 7. Realm portals ──────────────────────────────────────────────────
     for (const portal of REALM_PORTALS) {
       if (dist(p.x, p.y, portal.x*TILE, portal.y*TILE) <= 62) {
         const recLv = Math.max(1, portal.skulls * 4);
@@ -1092,14 +1145,6 @@ export default function WorldCanvas() {
         setTimeout(() => { store.setCurrentRealm(portal.realm); store.setGamePhase('realm'); }, 400);
         return;
       }
-    }
-
-    for (const npc of G.villageNPCs) {
-      if (dist(p.x, p.y, npc.x, npc.y) > 56) continue;
-      const line = npc.lines[npc.hintIdx % npc.lines.length];
-      npc.hintIdx += 1;
-      G.npcMessage = { text: line, speaker: npc.name, speakerColor: npc.color, timer: 5.5 };
-      return;
     }
   }
 
@@ -1340,6 +1385,28 @@ export default function WorldCanvas() {
       ctx.strokeText(npc.name, sx, sy - 34);
       ctx.fillText(npc.name, sx, sy - 34);
       if (dist(G.player.x, G.player.y, npc.x, npc.y) < 54) drawLabel(ctx, '[E] Talk', sx, sy - 47, npc.color);
+    }
+
+    // Building E-prompts — shown above door area of each building
+    {
+      const p = G.player;
+      const BZONE_LABELS = [
+        { kind:'hall',     x:26*TILE, y:40*TILE, r:72,  label:'[E] Crafting Hall', color:'#d4af37' },
+        { kind:'forge',    x:32*TILE, y:46*TILE, r:68,  label:'[E] Forge',         color:'#e67e22' },
+        { kind:'market',   x:17*TILE, y:44*TILE, r:68,  label:'[E] Market',        color:'#3498db' },
+        { kind:'barracks', x:17*TILE, y:52*TILE, r:68,  label:'[E] Barracks',      color:'#27ae60' },
+        { kind:'shrine',   x:25*TILE, y:58*TILE, r:72,  label:'[E] Shrine',        color:'#9b59b6' },
+      ];
+      // Only show prompt if no NPC is closer than 56 (NPC takes priority)
+      const nearNPC = G.villageNPCs.some(n => dist(p.x, p.y, n.x, n.y) < 56);
+      if (!nearNPC) {
+        for (const bz of BZONE_LABELS) {
+          if (dist(p.x, p.y, bz.x, bz.y) > bz.r) continue;
+          const bsx = wx(bz.x), bsy = wy(bz.y) - 60;
+          drawLabel(ctx, bz.label, bsx, bsy, bz.color);
+          break; // only show nearest
+        }
+      }
     }
 
     // Enemies.
