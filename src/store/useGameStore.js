@@ -99,7 +99,8 @@ function normalizePrestigeWeapon(item) {
 
 const DEFAULT_STATE = {
   playerName:  '',
-  gamePhase:   'menu',
+  gamePhase:         'menu',
+  strongholdBuilding: 'hall',  // which building opened the stronghold menu
   currentRealm: null,
   tutorialStep: 0,
 
@@ -180,6 +181,7 @@ export const useGameStore = create((set, get) => ({
   ...DEFAULT_STATE,
 
   setPlayerName:   (name)  => set({ playerName: name }),
+  setStrongholdBuilding: (building) => set({ strongholdBuilding: building }),
   setGamePhase:    (phase) => set(s => ({
     gamePhase: phase,
     // Reset challenge room flag each time a new dungeon run begins
