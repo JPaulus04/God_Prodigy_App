@@ -1,4 +1,4 @@
-// V106-STRONGHOLD-INTERACTION-AND-MENU-SPLIT-REV-001
+// V107-STRONGHOLD-COLLISION-CROP-ATTACK-FIX-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -130,22 +130,26 @@ function drawNPCSprite(ctx, npcId, cx, cy, t) {
 }
 
 // Draw building PNG centered at (x,y)
+// V107: anchor = bottom-center at (x, y) so image sits ON the ground.
+// Clip matches the drawn rect exactly — no over/underclip that creates fragments.
 function drawBuildingSprite(ctx, kind, x, y) {
   const img = _SC['bld_' + kind];
   if (!img || !img.complete || img.naturalWidth === 0) return false;
 
-  // Target heights per building type
+  // Target heights per building type (unchanged from V106)
   const H = kind === 'hall' ? 150 : kind === 'barracks' ? 130 : kind === 'shrine' ? 120 : 110;
-  // Cap width so a stray wide image doesn't overflow into neighbour buildings
   const rawW = H * (img.naturalWidth / img.naturalHeight);
   const W    = Math.min(rawW, 160);
 
-  // Clip to building footprint so any transparent-edge artifacts are hidden
+  // Bottom-center anchor: image spans (x-W/2, y-H) → (x+W/2, y)
+  // Clip matches exactly so no part is cut and no fragment leaks outside.
+  const ix = x - W / 2;
+  const iy = y - H;
   ctx.save();
   ctx.beginPath();
-  ctx.rect(x - W / 2 - 4, y - H - 4, W + 8, H + 8);
+  ctx.rect(ix - 2, iy - 2, W + 4, H + 4);
   ctx.clip();
-  ctx.drawImage(img, x - W / 2, y - H * 0.82, W, H);
+  ctx.drawImage(img, ix, iy, W, H);
   ctx.restore();
   return true;
 }
@@ -383,12 +387,29 @@ function isObstacleCluster(tx, ty) {
 }
 
 function isBuildingBlocked(tx, ty) {
-  // Stronghold village buildings. Door tiles remain open.
-  if (inRect(tx, ty, 22.5, 40.0, 27.5, 43.0)) return false; // crafting hall door/path
-  if (inRect(tx, ty, 22, 39, 28, 43)) return true;          // crafting hall
-  if (inRect(tx, ty, 28, 44, 32, 48)) return true;          // forge
-  if (inRect(tx, ty, 18, 44, 22, 48)) return true;          // market
-  if (inRect(tx, ty, 19, 48, 23, 51)) return true;          // healer hut
+  // V107: Tight per-building collision — only the lower body/walls block.
+  // Roof, transparent edges, signs, shadows, decorative props do NOT block.
+  // Each box: x1,y1 = top-left tile, x2,y2 = bottom-right tile (exclusive)
+  // Door corridors are explicitly unblocked so the player can reach E prompts.
+
+  // ── Crafting Hall (draw center 26,40; visual top ~37.3, bottom ~40) ──
+  // Door path: south face, 2-tile wide gap at center
+  if (inRect(tx, ty, 24.6, 39.2, 27.4, 40.2)) return false; // hall door open
+  if (inRect(tx, ty, 23.5, 37.8, 28.5, 40.0)) return true;  // hall body
+
+  // ── Forge (draw center 32,46; visual top ~44.1, bottom ~46) ──
+  if (inRect(tx, ty, 30.5, 44.4, 33.5, 46.0)) return true;  // forge body
+
+  // ── Market (draw center 17,44; visual top ~42.1, bottom ~44) ──
+  if (inRect(tx, ty, 15.1, 42.4, 18.9, 44.0)) return true;  // market body
+
+  // ── Barracks (draw center 17,52; visual top ~49.8, bottom ~52) ──
+  if (inRect(tx, ty, 15.1, 50.2, 18.9, 51.8)) return true;  // barracks body
+
+  // ── Shrine (drawShrine at 27,53; visual top ~50.9, bottom ~53) ──
+  // Sacred path south kept open (handled by isVillageFloor road tiles)
+  if (inRect(tx, ty, 25.2, 51.2, 28.8, 52.8)) return true;  // shrine body
+
   return false;
 }
 
@@ -582,14 +603,23 @@ function drawPortal(ctx, x, y, portal, t) {
 }
 
 function drawBuilding(ctx, x, y, kind, t) {
+  // V107: foundation pad + tight contact shadow drawn BEFORE sprite so it sits under building
+  const padW = kind === 'hall' ? 148 : kind === 'barracks' ? 138 : 118;
+  const padH = 10;
+  // Foundation stone pad at base (y = base of building)
+  ctx.fillStyle = '#6a5c4a';
+  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH/2, padW, padH, 3); ctx.fill();
+  ctx.strokeStyle = '#4a3c2e'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH/2, padW, padH, 3); ctx.stroke();
+  // Contact shadow — tight ellipse right under base
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(x + 2, y + 4, padW * 0.44, 6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+
   // Try PNG sprite first — draws label on top regardless
   const spriteDrawn = drawBuildingSprite(ctx, kind, x, y);
   if (spriteDrawn) {
-    // Ground shadow
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(x+2, y+38, 58, 12, 0, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 1;
     // Building label above
     const labels = { hall:'CRAFTING HALL', forge:'FORGE', market:'MARKET', barracks:'BARRACKS', shrine:'SHRINE' };
     const lbl = labels[kind] || kind.toUpperCase();
@@ -1443,13 +1473,84 @@ export default function WorldCanvas() {
       const sx = wx(G.attackEffect.x);
       const sy = wy(G.attackEffect.y);
       const pct = G.attackEffect.timer / (G.attackEffect.ability ? 0.38 : 0.22);
-      ctx.globalAlpha = Math.max(0, pct);
-      ctx.strokeStyle = G.attackEffect.ability ? '#d4af37' : '#e74c3c';
-      ctx.lineWidth = G.attackEffect.ability ? 4 : 3;
-      ctx.beginPath();
-      ctx.arc(sx, sy, G.attackEffect.ability ? 96 * (1 - pct * 0.2) : 58, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      const alpha = Math.max(0, pct);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      if (G.attackEffect.ability) {
+        // ── Whirlwind ability: radial blade burst ──────────────────────────
+        const r = 72 + (1 - pct) * 24;   // expands outward
+        const blades = 6;
+        for (let i = 0; i < blades; i++) {
+          const angle = (i / blades) * Math.PI * 2 + (1 - pct) * Math.PI;
+          const bx = sx + Math.cos(angle) * r * 0.55;
+          const by = sy + Math.sin(angle) * r * 0.55;
+          ctx.save();
+          ctx.translate(bx, by);
+          ctx.rotate(angle + Math.PI / 4);
+          ctx.strokeStyle = '#d4af37';
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(0, -14);
+          ctx.lineTo(0, 14);
+          ctx.stroke();
+          ctx.restore();
+        }
+        // outer glow ring (subtle, not full opaque)
+        ctx.strokeStyle = 'rgba(212,175,55,0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // ── Normal attack: sword-swing arc ────────────────────────────────
+        // Direction based on player facing
+        const dir = G.playerDir || 'side_right';
+        const baseAngle =
+          dir === 'up'         ? -Math.PI / 2 :
+          dir === 'down'       ?  Math.PI / 2 :
+          dir === 'side_left'  ?  Math.PI      : 0;
+
+        // Swing arc: starts wide, sweeps 110° 
+        const swingProgress = 1 - pct;            // 0→1 over attack duration
+        const arcSpan = Math.PI * 0.65;            // 117° sweep
+        const startAngle = baseAngle - arcSpan / 2;
+        const endAngle   = startAngle + arcSpan * Math.min(1, swingProgress * 1.6);
+
+        const r = 42;  // sword reach (px)
+
+        // Blade trail (faded arc)
+        ctx.strokeStyle = G.attackEffect.hit ? '#e8d060' : '#c8c8e0';
+        ctx.lineWidth = 6;
+        ctx.lineCap  = 'round';
+        ctx.globalAlpha = alpha * 0.45;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r - 4, startAngle, endAngle);
+        ctx.stroke();
+
+        // Main sword line
+        ctx.globalAlpha = alpha;
+        const tipX = sx + Math.cos(endAngle) * r;
+        const tipY = sy + Math.sin(endAngle) * r;
+        ctx.strokeStyle = '#dce8f0';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(sx + Math.cos(endAngle) * 10, sy + Math.sin(endAngle) * 10);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        // Tip flash on hit
+        if (G.attackEffect.hit && pct > 0.5) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(tipX, tipY, 4 * pct, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
     }
 
     // Floats.
