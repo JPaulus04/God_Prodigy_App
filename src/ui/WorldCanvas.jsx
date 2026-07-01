@@ -1,4 +1,4 @@
-// V108-STRONGHOLD-PATHING-SPAWN-ATTACK-POLISH-REV-001
+// V110-CENTER-VILLAGE-BOSS-ROUTE-LAYOUT-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -180,104 +180,161 @@ const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
 const BORDER = TILE * 3;
 
+// V110: Portals placed at ends of radial routes from village center (60,60)
 const REALM_PORTALS = [
-  { realm: 'forest', name: 'Sylvara Gate', icon: '🌿', color: '#27ae60', skulls: 1, x: 25, y: 27 },
-  { realm: 'wind',   name: 'Zephyros Gate', icon: '💨', color: '#87ceeb', skulls: 1, x: 42, y: 24 },
-  { realm: 'earth',  name: 'Terran Gate',   icon: '🪨', color: '#95a5a6', skulls: 2, x: 58, y: 36 },
-  { realm: 'fire',   name: 'Ignar Gate',    icon: '🔥', color: '#e74c3c', skulls: 2, x: 39, y: 74 },
-  { realm: 'ice',    name: 'Glacius Gate',  icon: '❄️', color: '#3498db', skulls: 3, x: 66, y: 14 },
-  { realm: 'ocean',  name: 'Nepthar Gate',  icon: '🌊', color: '#1abc9c', skulls: 3, x: 21, y: 65 }, // V108: moved off lake
-  { realm: 'storm',  name: 'Vortus Gate',   icon: '⚡', color: '#9b59b6', skulls: 4, x: 76, y: 42 },
-  { realm: 'shadow', name: 'Umbris Gate',   icon: '🌑', color: '#6c3483', skulls: 4, x: 25, y: 82 },
-  { realm: 'lava',   name: 'Magmara Gate',  icon: '🌋', color: '#e67e22', skulls: 5, x: 62, y: 74 }, // V108: moved off lava
-  { realm: 'void',   name: 'Nihilus Gate',  icon: '✨', color: '#f1c40f', skulls: 5, x: 101, y: 78 },
+  { realm: 'forest', name: 'Sylvara Gate',  icon: '🌿', color: '#27ae60', skulls: 1, x:  60, y:  38 }, // N route
+  { realm: 'wind',   name: 'Zephyros Gate', icon: '💨', color: '#87ceeb', skulls: 2, x:  78, y:  42 }, // NE route
+  { realm: 'earth',  name: 'Terran Gate',   icon: '🪨', color: '#95a5a6', skulls: 2, x:  85, y:  60 }, // E route
+  { realm: 'fire',   name: 'Ignar Gate',    icon: '🔥', color: '#e74c3c', skulls: 4, x:  75, y:  76 }, // SE route
+  { realm: 'ocean',  name: 'Nepthar Gate',  icon: '🌊', color: '#1abc9c', skulls: 3, x:  60, y:  80 }, // S route
+  { realm: 'shadow', name: 'Umbris Gate',   icon: '🌑', color: '#6c3483', skulls: 4, x:  42, y:  78 }, // SW route
+  { realm: 'ice',    name: 'Glacius Gate',  icon: '❄️', color: '#3498db', skulls: 3, x:  35, y:  60 }, // W route
+  { realm: 'storm',  name: 'Vortus Gate',   icon: '⚡', color: '#9b59b6', skulls: 3, x:  40, y:  45 }, // NW route
+  { realm: 'lava',   name: 'Magmara Gate',  icon: '🌋', color: '#e67e22', skulls: 5, x:  84, y:  75 }, // SE far
+  { realm: 'void',   name: 'Nihilus Gate',  icon: '✨', color: '#f1c40f', skulls: 5, x:  90, y:  85 }, // SE void
 ];
 
+// V110: respawn points centered around village hub (60,60)
 const RESPAWN_POINTS = {
-  stronghold:   { x: 25*TILE, y: 45*TILE },
-  cp_center:    { x: 25*TILE, y: 38*TILE },
-  cp_forest:    { x: 25*TILE, y: 29*TILE },
-  cp_east:      { x: 43*TILE, y: 29*TILE },
-  cp_south:     { x: 25*TILE, y: 62*TILE },
-  cp_far_east:  { x: 70*TILE, y: 43*TILE },
-  cp_deep_east: { x: 93*TILE, y: 38*TILE },
-  cp_far_south: { x: 55*TILE, y: 91*TILE },
-  cp_void_gate: { x:101*TILE, y: 80*TILE },
+  stronghold:   { x: 60*TILE, y: 62*TILE }, // village plaza
+  cp_north:     { x: 60*TILE, y: 44*TILE }, // N route (past N river)
+  cp_ne:        { x: 74*TILE, y: 46*TILE }, // NE wind route
+  cp_east:      { x: 82*TILE, y: 60*TILE }, // E ruins approach
+  cp_se:        { x: 72*TILE, y: 72*TILE }, // SE fire approach
+  cp_south:     { x: 60*TILE, y: 76*TILE }, // S ocean approach
+  cp_sw:        { x: 46*TILE, y: 74*TILE }, // SW shadow approach
+  cp_west:      { x: 38*TILE, y: 60*TILE }, // W wildlands
+  cp_nw:        { x: 44*TILE, y: 44*TILE }, // NW ice/storm
+  cp_void:      { x: 88*TILE, y: 83*TILE }, // void approach
 };
 
+// V110: checkpoints at midpoints of each radial route
 const CHECKPOINTS = [
-  { id: 'cp_center',    x: 25*TILE, y: 38*TILE },
-  { id: 'cp_forest',    x: 25*TILE, y: 29*TILE },
-  { id: 'cp_east',      x: 43*TILE, y: 29*TILE },
-  { id: 'cp_south',     x: 25*TILE, y: 62*TILE },
-  { id: 'cp_far_east',  x: 70*TILE, y: 43*TILE },
-  { id: 'cp_deep_east', x: 93*TILE, y: 38*TILE },
-  { id: 'cp_far_south', x: 55*TILE, y: 91*TILE },
-  { id: 'cp_void_gate', x:101*TILE, y: 80*TILE },
+  { id: 'cp_north', x: 60*TILE, y: 44*TILE },  // N forest route midpoint
+  { id: 'cp_ne',    x: 74*TILE, y: 46*TILE },  // NE wind route
+  { id: 'cp_east',  x: 82*TILE, y: 60*TILE },  // E ruins approach
+  { id: 'cp_se',    x: 72*TILE, y: 72*TILE },  // SE fire route
+  { id: 'cp_south', x: 60*TILE, y: 76*TILE },  // S ocean route
+  { id: 'cp_sw',    x: 46*TILE, y: 74*TILE },  // SW shadow route
+  { id: 'cp_west',  x: 38*TILE, y: 60*TILE },  // W wildlands
+  { id: 'cp_nw',    x: 44*TILE, y: 44*TILE },  // NW ice/storm route
+  { id: 'cp_void',  x: 88*TILE, y: 83*TILE },  // void approach
 ];
 
+// V110: landmarks at route midpoints/destinations
 const LANDMARKS = [
-  { type: 'village', x: 25, y: 45, label: 'STRONGHOLD VILLAGE' },
-  { type: 'forest_shrine', x: 25, y: 27, label: 'SYLVARA SHRINE' },
-  { type: 'ruins', x: 37, y: 30, label: 'ANCIENT RUINS' },
-  { type: 'bridge', x: 33, y: 37, label: 'OLD RIVER BRIDGE' },
-  { type: 'wind_altar', x: 42, y: 24, label: 'WIND ALTAR' },
-  { type: 'stone_circle', x: 58, y: 36, label: 'STONE CIRCLE' },
-  { type: 'lake', x: 14, y: 61, label: 'SOUTHERN LAKE' },
-  { type: 'lava_vents', x: 39, y: 74, label: 'LAVA VENTS' },
-  { type: 'void_gate', x: 101, y: 78, label: 'VOID APPROACH' },
+  { type: 'village',      x:  60, y:  62, label: 'STRONGHOLD VILLAGE' },
+  { type: 'forest_shrine',x:  60, y:  38, label: 'SYLVARA SHRINE' },
+  { type: 'wind_altar',   x:  78, y:  42, label: 'WIND ALTAR' },
+  { type: 'ruins',        x:  85, y:  60, label: 'ANCIENT RUINS' },
+  { type: 'fire_peak',    x:  75, y:  76, label: 'IGNAR PEAK' },
+  { type: 'southern_lake',x:  60, y:  88, label: 'SOUTHERN OCEAN' },
+  { type: 'shadow_grove', x:  42, y:  78, label: 'SHADOW GROVE' },
+  { type: 'ice_mountain', x:  35, y:  60, label: 'GLACIUS PEAK' },
+  { type: 'storm_ridge',  x:  40, y:  45, label: 'STORM RIDGE' },
+  { type: 'void_gate',    x:  90, y:  85, label: 'VOID THRONE' },
 ];
 
+// V110: resources placed along radial routes, on walkable ground
 const RESOURCE_DEFS = [
-  { type: 'tree', res: 'wood', amt: 2, x: 18*TILE, y: 30*TILE },
-  { type: 'tree', res: 'wood', amt: 2, x: 21*TILE, y: 25*TILE },
-  { type: 'tree', res: 'wood', amt: 2, x: 28*TILE, y: 24*TILE },
-  { type: 'tree', res: 'wood', amt: 2, x: 32*TILE, y: 27*TILE },
-  { type: 'tree', res: 'wood', amt: 2, x: 15*TILE, y: 37*TILE },
-  { type: 'tree', res: 'wood', amt: 2, x: 18*TILE, y: 54*TILE },
-  { type: 'tree', res: 'wood', amt: 2, x: 12*TILE, y: 66*TILE },
-  { type: 'rock', res: 'stone', amt: 2, x: 31*TILE, y: 35*TILE },
-  { type: 'rock', res: 'stone', amt: 2, x: 38*TILE, y: 34*TILE },
-  { type: 'rock', res: 'stone', amt: 2, x: 50*TILE, y: 36*TILE },
-  { type: 'rock', res: 'stone', amt: 2, x: 62*TILE, y: 39*TILE },
-  { type: 'ore_node', res: 'ore', amt: 1, x: 55*TILE, y: 42*TILE },
-  { type: 'ore_node', res: 'ore', amt: 1, x: 67*TILE, y: 44*TILE },
-  { type: 'ore_node', res: 'ore', amt: 1, x: 77*TILE, y: 47*TILE },
-  { type: 'ore_node', res: 'ore', amt: 1, x: 52*TILE, y: 75*TILE },
-  { type: 'ore_node', res: 'ore', amt: 2, x: 59*TILE, y: 88*TILE },
-  { type: 'fire_shard', res: 'fire_shard', amt: 1, x: 40*TILE, y: 80*TILE },
-  { type: 'fire_shard', res: 'fire_shard', amt: 1, x: 50*TILE, y: 86*TILE },
+  // N forest route — wood
+  { type: 'tree', res: 'wood', amt: 2, x:  56*TILE, y:  44*TILE },
+  { type: 'tree', res: 'wood', amt: 2, x:  64*TILE, y:  44*TILE },
+  { type: 'tree', res: 'wood', amt: 2, x:  57*TILE, y:  38*TILE },
+  { type: 'tree', res: 'wood', amt: 2, x:  63*TILE, y:  38*TILE },
+  // NE wind route — rocks
+  { type: 'rock', res: 'stone', amt: 2, x:  72*TILE, y:  46*TILE },
+  { type: 'rock', res: 'stone', amt: 2, x:  76*TILE, y:  44*TILE },
+  // E ruins route — stone/ore
+  { type: 'rock',     res: 'stone', amt: 2, x:  78*TILE, y:  58*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 1, x:  82*TILE, y:  58*TILE },
+  { type: 'ore_node', res: 'ore',   amt: 1, x:  84*TILE, y:  62*TILE },
+  // SE fire route — ore/fire_shard
+  { type: 'ore_node',  res: 'ore',        amt: 1, x:  72*TILE, y:  70*TILE },
+  { type: 'fire_shard',res: 'fire_shard', amt: 1, x:  74*TILE, y:  74*TILE },
+  { type: 'fire_shard',res: 'fire_shard', amt: 1, x:  78*TILE, y:  76*TILE },
+  // W wildlands — wood/stone
+  { type: 'tree', res: 'wood',  amt: 2, x:  44*TILE, y:  60*TILE },
+  { type: 'tree', res: 'wood',  amt: 2, x:  42*TILE, y:  64*TILE },
+  { type: 'rock', res: 'stone', amt: 2, x:  38*TILE, y:  58*TILE },
+  // SW shadow route — ore
+  { type: 'ore_node', res: 'ore', amt: 1, x:  48*TILE, y:  72*TILE },
+  { type: 'ore_node', res: 'ore', amt: 2, x:  44*TILE, y:  76*TILE },
+  // NW ice route — stone
+  { type: 'rock', res: 'stone', amt: 2, x:  46*TILE, y:  48*TILE },
+  { type: 'rock', res: 'stone', amt: 2, x:  42*TILE, y:  46*TILE },
 ];
 
+// V110: enemies placed on radial routes, ring-scaled by distance from village (60,60)
+// Ring 0 = safe zone (r<8 tiles) | Ring 1 (8-14) | Ring 2 (14-22) | Ring 3 (22-30) | Ring 4 (30-40) | Ring 5 (>40)
 const ENEMY_DEFS = [
-  { type: 'goblin', x: 21*TILE, y: 31*TILE },
-  { type: 'goblin', x: 29*TILE, y: 31*TILE },
-  { type: 'goblin', x: 36*TILE, y: 30*TILE },
-  { type: 'gold_goblin', x: 41*TILE, y: 34*TILE },
-  { type: 'golem', x: 54*TILE, y: 38*TILE },
-  { type: 'golem', x: 62*TILE, y: 42*TILE },
-  { type: 'stone_guardian', x: 72*TILE, y: 45*TILE },
-  { type: 'goblin', x: 15*TILE, y: 62*TILE },
-  { type: 'goblin', x: 20*TILE, y: 66*TILE },
-  { type: 'fire_imp', x: 38*TILE, y: 76*TILE },
-  { type: 'fire_imp', x: 47*TILE, y: 81*TILE },
-  { type: 'lava_titan', x: 58*TILE, y: 89*TILE },
-  { type: 'shadow_wraith', x: 25*TILE, y: 84*TILE },
-  { type: 'shadow_wraith', x: 88*TILE, y: 70*TILE },
-  { type: 'stone_guardian', x: 100*TILE, y: 81*TILE },
+  // ── Ring 1: immediate outskirts (forest north approach) ──
+  { type: 'goblin',         x:  58*TILE, y:  51*TILE }, // NW near bridge
+  { type: 'goblin',         x:  62*TILE, y:  51*TILE }, // NE near bridge
+  { type: 'goblin',         x:  55*TILE, y:  56*TILE }, // W village fringe
+  { type: 'goblin',         x:  65*TILE, y:  56*TILE }, // E village fringe
+
+  // ── Ring 2: N forest route (past river) ──
+  { type: 'goblin',         x:  56*TILE, y:  44*TILE },
+  { type: 'goblin',         x:  64*TILE, y:  44*TILE },
+  { type: 'goblin',         x:  57*TILE, y:  40*TILE },
+  { type: 'goblin',         x:  63*TILE, y:  40*TILE },
+
+  // ── Ring 2: W wildlands ──
+  { type: 'goblin',         x:  46*TILE, y:  58*TILE },
+  { type: 'goblin',         x:  44*TILE, y:  62*TILE },
+  { type: 'gold_goblin',    x:  40*TILE, y:  60*TILE }, // ring2 E end of W route
+
+  // ── Ring 2: NE wind approach ──
+  { type: 'golem',          x:  70*TILE, y:  52*TILE },
+  { type: 'golem',          x:  72*TILE, y:  48*TILE },
+
+  // ── Ring 3: NW ice/storm route ──
+  { type: 'frost_wraith',   x:  46*TILE, y:  48*TILE },
+  { type: 'frost_wraith',   x:  43*TILE, y:  46*TILE },
+  { type: 'frost_wraith',   x:  40*TILE, y:  48*TILE },
+
+  // ── Ring 3: S ocean route ──
+  { type: 'goblin',         x:  58*TILE, y:  74*TILE },
+  { type: 'goblin',         x:  62*TILE, y:  74*TILE },
+  { type: 'golem',          x:  60*TILE, y:  77*TILE },
+
+  // ── Ring 3: E ruins ──
+  { type: 'stone_guardian', x:  80*TILE, y:  60*TILE },
+  { type: 'golem',          x:  78*TILE, y:  57*TILE },
+  { type: 'golem',          x:  78*TILE, y:  63*TILE },
+
+  // ── Ring 4: SE fire/lava ──
+  { type: 'fire_imp',       x:  70*TILE, y:  70*TILE },
+  { type: 'fire_imp',       x:  72*TILE, y:  73*TILE },
+  { type: 'fire_imp',       x:  74*TILE, y:  72*TILE },
+
+  // ── Ring 4: SW shadow ──
+  { type: 'shadow_wraith',  x:  46*TILE, y:  72*TILE },
+  { type: 'shadow_wraith',  x:  44*TILE, y:  76*TILE },
+  { type: 'shadow_wraith',  x:  42*TILE, y:  74*TILE },
+
+  // ── Ring 5: Lava zone ──
+  { type: 'lava_titan',     x:  82*TILE, y:  74*TILE },
+  { type: 'fire_imp',       x:  86*TILE, y:  72*TILE },
+
+  // ── Ring 5: Void approach ──
+  { type: 'stone_guardian', x:  88*TILE, y:  82*TILE },
+  { type: 'shadow_wraith',  x:  90*TILE, y:  80*TILE },
 ];
 
+// V110: NPCs placed in centered village (60,60)
 const NPCS = [
-  { id:'keeper', x:25*TILE, y:43*TILE, color:'#1abc9c', name:'The Keeper',
+  { id:'keeper', x:60*TILE, y:63*TILE, color:'#1abc9c', name:'The Keeper',
     lines: [
       'Many have killed a god. None have survived all ten.',
-      'The forest shrine north of the village leads to Sylvara, the first throne.',
-      'Use bridges and roads. The old world was built to guide challengers between realms.',
+      'North road leads to Sylvara. Eight more thrones lie further out.',
+      'Roads exist for a reason — follow them. The further you travel, the stronger the enemy.',
     ] },
-  { id:'smith', x:29*TILE, y:46*TILE, color:'#e67e22', name:'Aldric',
-    lines: ['Bring ore to the Forge. Better gear turns impossible fights into survivable ones.'] },
-  { id:'merchant', x:21*TILE, y:46*TILE, color:'#9b59b6', name:'Mira',
-    lines: ['The river splits the safe road from the wild road. Cross only when you are ready.'] },
+  { id:'smith', x:66*TILE, y:63*TILE, color:'#e67e22', name:'Aldric',
+    lines: ['The Forge is east of the plaza. Bring ore. Better gear turns impossible fights into survivable ones.'] },
+  { id:'merchant', x:54*TILE, y:63*TILE, color:'#9b59b6', name:'Mira',
+    lines: ['The river north of town guards the forest routes. Cross it only when you are ready.'] },
 ];
 
 function tileHash(tx, ty) {
@@ -294,139 +351,170 @@ function inRect(tx, ty, x1, y1, x2, y2) {
   return tx >= x1 && tx <= x2 && ty >= y1 && ty <= y2;
 }
 
+// V110: Radial road network from village center (60,60)
 function isRoad(tx, ty) {
-  // === OVERWORLD ROUTES ===
-  if (tx >= 22 && tx <= 28 && ty >= 26 && ty <= 38) return true;   // N village approach
-  if (tx >= 22 && tx <= 28 && ty >= 56 && ty <= 70) return true;   // S village exit
-  if (ty >= 37 && ty <= 41 && tx >= 14 && tx <= 48) return true;   // bridge road across river (N approach)
-  if (ty >= 30 && ty <= 34 && tx >= 25 && tx <= 44) return true;   // ruins-wind route
-  if (tx >= 42 && tx <= 46 && ty >= 24 && ty <= 43) return true;   // east bend
-  if (tx >= 13 && tx <= 25 && ty >= 60 && ty <= 64) return true;   // lake route
-  if (tx >= 25 && tx <= 59 && ty >= 83 && ty <= 87) return true;   // southern badlands road
-  if (tx >= 55 && tx <= 59 && ty >= 64 && ty <= 90) return true;   // lava route
-  if (ty >= 43 && ty <= 47 && tx >= 58 && tx <= 78) return true;   // east highland route
-  if (tx >= 76 && tx <= 80 && ty >= 43 && ty <= 78) return true;   // void approach road
-  if (ty >= 76 && ty <= 80 && tx >= 76 && tx <= 102) return true;  // void road
+  // ── Village internal path network ──
+  // N-S plaza spine (entry bridge → plaza → shrine south)
+  if (tx >= 58 && tx <= 62 && ty >= 50 && ty <= 72) return true;
+  // Central plaza (wider zone)
+  if (tx >= 56 && tx <= 64 && ty >= 59 && ty <= 65) return true;
+  // Hall spur: plaza N → Crafting Hall door (60,56)
+  if (tx >= 59 && tx <= 61 && ty >= 55 && ty <= 60) return true;
+  // Market branch: plaza W → Market door (54,61)
+  if (ty >= 60 && ty <= 62 && tx >= 54 && tx <= 59) return true;
+  // Forge branch: plaza E → Forge door (66,61)
+  if (ty >= 60 && ty <= 62 && tx >= 61 && tx <= 66) return true;
+  // Barracks branch: west of market → Barracks (54,67)
+  if (tx >= 53 && tx <= 55 && ty >= 61 && ty <= 67) return true;
+  // Shrine branch: spine S → Shrine (60,68)
+  if (tx >= 59 && tx <= 61 && ty >= 65 && ty <= 69) return true;
 
-  // === V108 STRONGHOLD VILLAGE DELIBERATE PATH NETWORK ===
-  // Main N-S spine: entry bridge → central plaza → south shrine exit
-  if (tx >= 24 && tx <= 28 && ty >= 38 && ty <= 57) return true;
+  // ── N route: plaza → north river → Sylvara Gate (60,38) ──
+  if (tx >= 58 && tx <= 62 && ty >= 38 && ty <= 50) return true;   // N spine
+  // River crossing handled by bridge (ty 46-49 bridged)
 
-  // Central plaza pad (the heart — 4-wide stone zone)
-  if (tx >= 24 && tx <= 28 && ty >= 43 && ty <= 47) return true;
+  // ── NE route: plaza → wind zone → Zephyros Gate (78,42) ──
+  if (ty >= 58 && ty <= 62 && tx >= 62 && tx <= 72) return true;   // E departure
+  if (tx >= 70 && tx <= 74 && ty >= 42 && ty <= 62) return true;   // NE vertical leg
+  if (ty >= 42 && ty <= 46 && tx >= 70 && tx <= 80) return true;   // NE horizontal to gate
 
-  // Branch 1 – Hall spur: plaza north → Crafting Hall door (26,40)
-  if (tx >= 25 && tx <= 27 && ty >= 40 && ty <= 43) return true;
+  // ── E route: plaza → ruins → Terran Gate (85,60) ──
+  if (ty >= 58 && ty <= 62 && tx >= 64 && tx <= 86) return true;   // main E road
 
-  // Branch 2 – Market branch: plaza W → Market door (17,44)
-  if (ty >= 43 && ty <= 45 && tx >= 17 && tx <= 25) return true;
+  // ── SE route: E road → fire → Ignar Gate (75,76) ──
+  if (tx >= 72 && tx <= 76 && ty >= 58 && ty <= 78) return true;   // SE vertical
 
-  // Branch 3 – Forge branch: plaza E → Forge door (32,46)
-  if (ty >= 44 && ty <= 46 && tx >= 27 && tx <= 33) return true;
+  // ── S route: plaza → south bridge → Nepthar Gate (60,80) ──
+  if (tx >= 58 && tx <= 62 && ty >= 69 && ty <= 82) return true;   // S spine
 
-  // Branch 4 – Barracks branch: market path south → Barracks door (17,52)
-  if (tx >= 16 && tx <= 19 && ty >= 44 && ty <= 52) return true;
+  // ── SW route: S spine → shadow → Umbris Gate (42,78) ──
+  if (ty >= 76 && ty <= 80 && tx >= 42 && tx <= 60) return true;   // SW horizontal
 
-  // Branch 5 – Shrine branch: spine south → Shrine (27,53)
-  if (tx >= 25 && tx <= 28 && ty >= 50 && ty <= 54) return true;
+  // ── W route: plaza → west wildlands → Glacius Gate (35,60) ──
+  if (ty >= 58 && ty <= 62 && tx >= 34 && tx <= 56) return true;   // W road
 
-  // Cross-connector: market side to barracks side (west wing road)
-  if (tx >= 14 && tx <= 18 && ty >= 44 && ty <= 52) return true;
+  // ── NW route: W road → storm ridge → Vortus Gate (40,45) ──
+  if (tx >= 38 && tx <= 42 && ty >= 45 && ty <= 60) return true;   // NW vertical
+
+  // ── Lava route: SE road junction → Magmara Gate (84,75) ──
+  if (tx >= 82 && tx <= 86 && ty >= 60 && ty <= 76) return true;   // lava S spur
+
+  // ── Void road: E road → Nihilus Gate (90,85) ──
+  if (tx >= 86 && tx <= 92 && ty >= 60 && ty <= 86) return true;   // void descent
 
   return false;
 }
 
+// V110: bridges connect routes over actual water, each with clear purpose
 function isBridge(tx, ty) {
-  // V108: purposeful bridges only — each connects two meaningful areas
   return (
-    inRect(tx, ty, 32, 36, 37, 41) || // 1. Stronghold entry bridge: N approach road → village (river crossing)
-    inRect(tx, ty, 22, 60, 27, 64) || // 2. South lake crossing: S village exit → ocean/shadow path
-    inRect(tx, ty, 54, 62, 59, 66) || // 3. Lava route: eastern road → lava/fire area
-    inRect(tx, ty, 74, 52, 80, 56)    // 4. East highland: east road → storm/void approach
+    // 1. N route bridge: N road (tx=58-62) over N river (ty=47-48)
+    inRect(tx, ty, 58, 46, 62, 49) ||
+    // 2. W route bridge: W road (ty=58-62) over western river arm (tx=48-49)
+    inRect(tx, ty, 47, 58, 50, 62) ||
+    // 3. SW route bridge: SW road (ty=76-80) over western river arm (tx=48-49) southern exit
+    inRect(tx, ty, 47, 76, 50, 80) ||
+    // 4. S route bridge: S spine (tx=58-62) over southern lake approach (ty=83-87)
+    inRect(tx, ty, 58, 83, 62, 87)
   );
 }
 
+// V110: water shapes the centered world — river N of village, southern ocean, ponds
 function isWater(tx, ty) {
   if (isBridge(tx, ty)) return false;
 
-  // Main river snakes vertically through the first half of the map.
-  const riverCenter = 34 + Math.sin(ty * 0.18) * 3;
-  if (ty >= 16 && ty <= 70 && Math.abs(tx - riverCenter) <= 2.8) return true;
+  // North river: horizontal band ty=47-48, running from x=34 to x=86
+  // Gaps: N road ford at tx=58-62 (bridge covers it instead)
+  if (ty >= 47 && ty <= 48 && tx >= 34 && tx <= 86) return true;
 
-  // Southern lake / ocean pocket.
-  const dxLake = tx - 13;
-  const dyLake = ty - 62;
-  if ((dxLake*dxLake)/(8*8) + (dyLake*dyLake)/(7*7) <= 1) return true;
+  // Western river arm: vertical at tx=48-49, ty=52-82
+  // This arm runs from the N river south toward the SW shadow route
+  if (tx >= 48 && tx <= 49 && ty >= 52 && ty <= 82) return true;
 
-  // Northeast cold water / mountain spring.
-  const dxPond = tx - 67;
-  const dyPond = ty - 18;
-  if ((dxPond*dxPond)/(5*5) + (dyPond*dyPond)/(4*4) <= 1) return true;
+  // Southern lake / ocean
+  const dxL = tx - 60; const dyL = ty - 88;
+  if ((dxL*dxL)/(10*10) + (dyL*dyL)/(7*7) <= 1) return true;
+
+  // NW cold pond (near storm route)
+  const dxNW = tx - 42; const dyNW = ty - 40;
+  if ((dxNW*dxNW)/(5*5) + (dyNW*dyNW)/(4*4) <= 1) return true;
+
+  // SE volcano lake (near fire/lava route)
+  const dxSE = tx - 82; const dySE = ty - 80;
+  if ((dxSE*dxSE)/(6*6) + (dySE*dySE)/(5*5) <= 1) return true;
 
   return false;
 }
 
+// V110: lava zone centered around SE fire route (75,76)
 function isLava(tx, ty) {
   if (isBridge(tx, ty)) return false;
-  const dx = tx - 49;
-  const dy = ty - 82;
-  if ((dx*dx)/(13*13) + (dy*dy)/(10*10) <= 1) return true;
-  if (ty >= 72 && ty <= 92 && tx >= 39 && tx <= 59 && tileHash(tx, ty) > 0.78) return true;
+  // Lava pool near fire/lava gate (75,76)
+  const dx = tx - 78; const dy = ty - 78;
+  if ((dx*dx)/(8*8) + (dy*dy)/(6*6) <= 1) return true;
+  // Scattered lava vents along SE route
+  if (ty >= 72 && ty <= 82 && tx >= 72 && tx <= 85 && tileHash(tx, ty) > 0.82) return true;
   return false;
 }
 
+// V110: village floor centered at (60,60)
 function isVillageFloor(tx, ty) {
-  // Central plaza + all district lots
-  if (inRect(tx, ty, 18, 40, 32, 56)) return true;  // main village area
-  if (inRect(tx, ty, 14, 42, 20, 56)) return true;  // market/barracks west wing
-  if (inRect(tx, ty, 28, 43, 36, 54)) return true;  // forge east wing
+  // Main plaza and surrounding district lots
+  if (inRect(tx, ty, 56, 54, 64, 70)) return true;  // central N-S spine + plaza
+  if (inRect(tx, ty, 50, 59, 56, 70)) return true;  // market/barracks west district
+  if (inRect(tx, ty, 64, 59, 70, 70)) return true;  // forge east district
   return false;
 }
 
+// V110: obstacle clusters placed to frame routes without blocking them
 function isObstacleCluster(tx, ty) {
   const clusters = [
-    { type:'trees', cx:18, cy:24, r:3.4 },
-    { type:'trees', cx:31, cy:23, r:3.0 },
-    { type:'trees', cx:17, cy:54, r:2.5 },
-    { type:'trees', cx:10, cy:66, r:3.2 },
-    { type:'rocks', cx:52, cy:35, r:3.0 },
-    { type:'rocks', cx:64, cy:38, r:3.0 },
-    { type:'rocks', cx:73, cy:47, r:2.4 },
-    { type:'rocks', cx:97, cy:80, r:4.0 },
-    { type:'rocks', cx:58, cy:88, r:2.5 },
+    // N of river — forest flanking the N road
+    { cx: 55, cy: 42, r: 2.5 },
+    { cx: 65, cy: 42, r: 2.5 },
+    { cx: 55, cy: 38, r: 2.0 },
+    { cx: 65, cy: 38, r: 2.0 },
+    // NW approach — rocky terrain near storm route
+    { cx: 43, cy: 44, r: 2.2 },
+    { cx: 37, cy: 58, r: 2.0 },
+    // E ruins flanking
+    { cx: 80, cy: 56, r: 2.0 },
+    { cx: 80, cy: 64, r: 2.0 },
+    // SE lava field rocks
+    { cx: 76, cy: 70, r: 2.0 },
+    // Void throne approach
+    { cx: 90, cy: 82, r: 3.0 },
+    // S ocean flanking
+    { cx: 55, cy: 80, r: 2.0 },
+    { cx: 65, cy: 80, r: 2.0 },
   ];
 
   for (const c of clusters) {
-    const dx = tx - c.cx;
-    const dy = ty - c.cy;
-    if (dx*dx + dy*dy < (c.r * 0.68) * (c.r * 0.68)) return true;
+    const dx = tx - c.cx; const dy = ty - c.cy;
+    if (dx*dx + dy*dy < (c.r * 0.65) * (c.r * 0.65)) return true;
   }
   return false;
 }
 
+// V110: Tight per-building collision for centered village buildings
+// Village center (60,60). Building draw centers moved to new tile positions:
+//   Hall (60,56) | Market (54,61) | Forge (66,61) | Barracks (54,67) | Shrine (60,68)
 function isBuildingBlocked(tx, ty) {
-  // V107: Tight per-building collision — only the lower body/walls block.
-  // Roof, transparent edges, signs, shadows, decorative props do NOT block.
-  // Each box: x1,y1 = top-left tile, x2,y2 = bottom-right tile (exclusive)
-  // Door corridors are explicitly unblocked so the player can reach E prompts.
+  // ── Crafting Hall (draw center 60,56; body top ~53.4, bottom ~56) ──
+  if (inRect(tx, ty, 58.6, 55.2, 61.4, 56.2)) return false; // hall door open
+  if (inRect(tx, ty, 57.5, 53.8, 62.5, 56.0)) return true;  // hall body
 
-  // ── Crafting Hall (draw center 26,40; visual top ~37.3, bottom ~40) ──
-  // Door path: south face, 2-tile wide gap at center
-  if (inRect(tx, ty, 24.6, 39.2, 27.4, 40.2)) return false; // hall door open
-  if (inRect(tx, ty, 23.5, 37.8, 28.5, 40.0)) return true;  // hall body
+  // ── Market (draw center 54,61; body top ~59.1, bottom ~61) ──
+  if (inRect(tx, ty, 52.1, 59.4, 55.9, 61.0)) return true;  // market body
 
-  // ── Forge (draw center 32,46; visual top ~44.1, bottom ~46) ──
-  if (inRect(tx, ty, 30.5, 44.4, 33.5, 46.0)) return true;  // forge body
+  // ── Forge (draw center 66,61; body top ~59.1, bottom ~61) ──
+  if (inRect(tx, ty, 64.1, 59.4, 67.9, 61.0)) return true;  // forge body
 
-  // ── Market (draw center 17,44; visual top ~42.1, bottom ~44) ──
-  if (inRect(tx, ty, 15.1, 42.4, 18.9, 44.0)) return true;  // market body
+  // ── Barracks (draw center 54,67; body top ~64.8, bottom ~67) ──
+  if (inRect(tx, ty, 52.1, 65.2, 55.9, 66.8)) return true;  // barracks body
 
-  // ── Barracks (draw center 17,52; visual top ~49.8, bottom ~52) ──
-  if (inRect(tx, ty, 15.1, 50.2, 18.9, 51.8)) return true;  // barracks body
-
-  // ── Shrine (drawShrine at 27,53; visual top ~50.9, bottom ~53) ──
-  // Sacred path south kept open (handled by isVillageFloor road tiles)
-  if (inRect(tx, ty, 25.2, 51.2, 28.8, 52.8)) return true;  // shrine body
+  // ── Shrine (draw center 60,68; body top ~65.9, bottom ~68) ──
+  if (inRect(tx, ty, 58.2, 66.2, 61.8, 67.8)) return true;  // shrine body
 
   return false;
 }
@@ -459,25 +547,38 @@ function isWalkableWorldPoint(worldX, worldY) {
   return true;
 }
 
+// V110: biome-based tile coloring centered on village (60,60)
 function tileColor(tx, ty) {
   const h = tileHash(tx, ty);
+  const dxV = tx - 60; const dyV = ty - 60;
+  const distV = Math.sqrt(dxV*dxV + dyV*dyV);
 
   if (tx < 2 || tx >= MAP_W-2 || ty < 2 || ty >= MAP_H-2) return '#175d8c';
   if (isWater(tx, ty)) return h > 0.6 ? '#207ca3' : h > 0.3 ? '#1c6f94' : '#186284';
   if (isLava(tx, ty)) return h > 0.7 ? '#c0392b' : h > 0.4 ? '#a93226' : '#8e271f';
-  if (isBridge(tx, ty)) return h > 0.5 ? '#704f33' : '#61442b';
+  if (isBridge(tx, ty)) return h > 0.5 ? '#7a5a35' : '#6a4c2c';
   if (isRoad(tx, ty)) return h > 0.7 ? '#a68560' : h > 0.3 ? '#997a57' : '#8c6e4e';
   if (isVillageFloor(tx, ty)) return h > 0.6 ? '#826e54' : h > 0.2 ? '#78644c' : '#6e5a43';
 
-  if (ty < 32 && tx < 36) return h > 0.7 ? '#308c46' : h > 0.3 ? '#2c8040' : '#277439';
-  if (ty < 34 && tx >= 36 && tx < 52) return h > 0.6 ? '#5e5a55' : '#524e4a';
-  if (ty < 28 && tx >= 52 && tx < 78) return h > 0.6 ? '#8b9aab' : '#778696';
-  if (tx >= 52 && tx < 82 && ty >= 28 && ty < 55) return h > 0.6 ? '#5c574f' : '#4d4841';
-  if (tx < 24 && ty >= 54 && ty < 72) return h > 0.6 ? '#226848' : '#1d5a3e';
-  if (ty >= 70 && tx < 64) return h > 0.6 ? '#4f2b1a' : '#402315';
-  if (tx >= 76 && ty >= 55) return h > 0.6 ? '#281c36' : '#1e1529';
-  if (tx >= 82 && ty < 55) return h > 0.6 ? '#534b66' : '#474057';
+  // ── Biome regions keyed to centered village ──
+  // N region: forest (north of river, ty < 47)
+  if (ty < 47 && tx >= 52 && tx <= 68) return h > 0.7 ? '#308c46' : h > 0.3 ? '#2c8040' : '#277439';
+  // NW region: ice/storm tundra
+  if (tx < 52 && ty < 56) return h > 0.7 ? '#7a9aab' : h > 0.3 ? '#6a8898' : '#5a7886';
+  // NE region: wind highlands
+  if (tx > 68 && ty < 56) return h > 0.6 ? '#8b9aab' : '#778696';
+  // E region: ancient ruins (stone)
+  if (tx >= 68 && ty >= 56 && ty <= 65) return h > 0.6 ? '#5c574f' : '#4d4841';
+  // SE region: fire/lava terrain
+  if (tx > 68 && ty > 65) return h > 0.6 ? '#5c3a2a' : '#4a2f20';
+  // S region: tropical/ocean shore
+  if (ty > 68 && tx >= 52 && tx <= 68) return h > 0.6 ? '#226848' : '#1d5a3e';
+  // SW region: shadow/dark forest
+  if (tx < 52 && ty > 65) return h > 0.6 ? '#281c36' : '#1e1529';
+  // W region: green wildlands
+  if (tx < 52 && ty >= 56 && ty <= 65) return h > 0.7 ? '#308c46' : h > 0.3 ? '#2c8040' : '#277439';
 
+  // Default: mid-range grass
   return h > 0.75 ? '#36944e' : h > 0.25 ? '#308546' : '#2b783f';
 }
 
@@ -900,8 +1001,8 @@ export default function WorldCanvas() {
   const lastTimeRef = useRef(0);
 
   const G = useRef({
-    player: { x: 25*TILE, y: 45*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
-    camera: { x: 25*TILE, y: 45*TILE },
+    player: { x: 60*TILE, y: 62*TILE, attackCooldown: 0, invincible: false, invTimer: 0 },
+    camera: { x: 60*TILE, y: 62*TILE },
     enemies: ENEMY_DEFS.map(makeEnemy),
     resources: RESOURCE_DEFS.map(r => ({ ...r, depleted: false, respawnAt: 0 })),
     checkpoints: CHECKPOINTS.map(c => ({ ...c, activated: false })),
@@ -1134,10 +1235,10 @@ export default function WorldCanvas() {
 
   // Building interaction zones — each maps to a distinct menu view
   const BUILDING_ZONES = [
-    { kind: 'hall',     x: 26*TILE, y: 40*TILE, r: 72,  label: 'Crafting Hall' },
-    { kind: 'forge',    x: 32*TILE, y: 46*TILE, r: 68,  label: 'Forge'         },
-    { kind: 'market',   x: 17*TILE, y: 44*TILE, r: 68,  label: 'Market'        },
-    { kind: 'barracks', x: 17*TILE, y: 52*TILE, r: 68,  label: 'Barracks'      },
+    { kind: 'hall',     x: 60*TILE, y: 56*TILE, r: 72,  label: 'Crafting Hall' }, // V110
+    { kind: 'forge',    x: 66*TILE, y: 61*TILE, r: 68,  label: 'Forge'         }, // V110
+    { kind: 'market',   x: 54*TILE, y: 61*TILE, r: 68,  label: 'Market'        }, // V110
+    { kind: 'barracks', x: 54*TILE, y: 67*TILE, r: 68,  label: 'Barracks'      }, // V110
     { kind: 'shrine',   x: 25*TILE, y: 58*TILE, r: 72,  label: 'Shrine'        },
   ];
 
@@ -1475,10 +1576,10 @@ export default function WorldCanvas() {
     {
       const p = G.player;
       const BZONE_LABELS = [
-        { kind:'hall',     x:26*TILE, y:40*TILE, r:72,  label:'[E] Crafting Hall', color:'#d4af37' },
-        { kind:'forge',    x:32*TILE, y:46*TILE, r:68,  label:'[E] Forge',         color:'#e67e22' },
-        { kind:'market',   x:17*TILE, y:44*TILE, r:68,  label:'[E] Market',        color:'#3498db' },
-        { kind:'barracks', x:17*TILE, y:52*TILE, r:68,  label:'[E] Barracks',      color:'#27ae60' },
+        { kind:'hall',     x:60*TILE, y:56*TILE, r:72,  label:'[E] Crafting Hall', color:'#d4af37' },
+        { kind:'forge',    x:66*TILE, y:61*TILE, r:68,  label:'[E] Forge',         color:'#e67e22' },
+        { kind:'market',   x:54*TILE, y:61*TILE, r:68,  label:'[E] Market',        color:'#3498db' },
+        { kind:'barracks', x:54*TILE, y:67*TILE, r:68,  label:'[E] Barracks',      color:'#27ae60' },
         { kind:'shrine',   x:25*TILE, y:58*TILE, r:72,  label:'[E] Shrine',        color:'#9b59b6' },
       ];
       // Only show prompt if no NPC is closer than 56 (NPC takes priority)
@@ -1774,56 +1875,58 @@ export default function WorldCanvas() {
       ctx.globalAlpha = 1;
     }
 
-    // North outer edge — above fence line (ty=37-38), outside village
-    for (let gx = 12; gx <= 37; gx++) {
-      if (gx >= 23 && gx <= 29) continue; // skip main road gap
-      if (isWater(gx, 37) || isRoad(gx, 37)) continue;
-      grassTuft(ctx, gx, 37, 1);
+    // V110: Grass edge overlays framing centered village (60,60) and route exits
+    // North outer edge — above village (ty=53-54), below N river bridge
+    for (let gx = 52; gx <= 68; gx++) {
+      if (gx >= 57 && gx <= 63) continue; // skip N road gap
+      if (isWater(gx, 53) || isRoad(gx, 53)) continue;
+      grassTuft(ctx, gx, 53, 1);
     }
-    // South outer edge — below fence line (ty=57-59)
-    for (let gx = 12; gx <= 37; gx++) {
-      if (gx >= 23 && gx <= 29) continue;
-      if (isWater(gx, 58) || isRoad(gx, 58)) continue;
-      grassTuft(ctx, gx, 58, 3);
+    // South outer edge — below shrine (ty=70-71)
+    for (let gx = 52; gx <= 68; gx++) {
+      if (gx >= 57 && gx <= 63) continue;
+      if (isWater(gx, 71) || isRoad(gx, 71)) continue;
+      grassTuft(ctx, gx, 71, 3);
     }
     // West outer edge
-    for (let gy = 39; gy <= 56; gy++) {
-      if (gy >= 43 && gy <= 46) continue; // market gate gap
-      if (isWater(12, gy) || isRoad(12, gy)) continue;
-      grassTuft(ctx, 12, gy, 5);
-      grassTuft(ctx, 13, gy, 7);
+    for (let gy = 55; gy <= 70; gy++) {
+      if (gy >= 59 && gy <= 63) continue; // market/W road gap
+      if (isWater(51, gy) || isRoad(51, gy)) continue;
+      grassTuft(ctx, 51, gy, 5);
+      grassTuft(ctx, 52, gy, 7);
     }
     // East outer edge
-    for (let gy = 39; gy <= 56; gy++) {
-      if (gy >= 43 && gy <= 46) continue; // forge gate gap
-      if (isWater(37, gy) || isRoad(37, gy)) continue;
-      grassTuft(ctx, 37, gy, 9);
+    for (let gy = 55; gy <= 70; gy++) {
+      if (gy >= 59 && gy <= 63) continue; // forge/E road gap
+      if (isWater(69, gy) || isRoad(69, gy)) continue;
+      grassTuft(ctx, 69, gy, 9);
     }
 
-    // Inner corner grass patches — soften the dirt-to-path transition
-    // SW corner near market/barracks
-    [[13,42],[13,43],[14,41],[13,53],[13,54],[14,53]].forEach(([gx,gy]) => {
+    // Inner corner grass patches — soften transitions
+    [[52,55],[52,56],[53,54],[52,69],[52,70],[53,70]].forEach(([gx,gy]) => {
       if (isVillageFloor(gx,gy) || isRoad(gx,gy) || isWater(gx,gy)) return;
       grassTuft(ctx, gx, gy, 11);
     });
-    // SE corner near forge/shrine
-    [[36,43],[36,44],[35,42],[36,52],[36,53],[35,53]].forEach(([gx,gy]) => {
+    [[69,55],[69,56],[68,54],[69,69],[69,70],[68,70]].forEach(([gx,gy]) => {
       if (isVillageFloor(gx,gy) || isRoad(gx,gy) || isWater(gx,gy)) return;
       grassTuft(ctx, gx, gy, 13);
     });
-    // NW/NE corners
-    [[13,39],[13,40],[36,39],[36,40]].forEach(([gx,gy]) => {
-      if (isVillageFloor(gx,gy) || isRoad(gx,gy) || isWater(gx,gy)) return;
-      grassTuft(ctx, gx, gy, 15);
-    });
+
+    // Route-edge grass tufts along main outbound roads
+    // N route grass fringe (ty=44-50, flanking tx=57-63)
+    for (let gy=44; gy<=50; gy++) {
+      if (isWater(55,gy) || isRoad(55,gy)) continue;
+      grassTuft(ctx, 55, gy, 17);
+      if (!isWater(65,gy) && !isRoad(65,gy)) grassTuft(ctx, 65, gy, 19);
+    }
   }
 
   // === BUILDINGS ===
   // Crafting Hall — central north of plaza
-  drawBuilding(ctx, wx(26*TILE), wy(40*TILE), 'hall', t);
+  drawBuilding(ctx, wx(60*TILE), wy(56*TILE), 'hall', t); // V110
 
   // Forge — east district (forge fire glow effect)
-  drawBuilding(ctx, wx(32*TILE), wy(46*TILE), 'forge', t);
+  drawBuilding(ctx, wx(66*TILE), wy(61*TILE), 'forge', t); // V110
   // Forge props: anvil + crates
   {
     const fx = wx(34*TILE), fy = wy(47*TILE);
@@ -1849,10 +1952,10 @@ export default function WorldCanvas() {
   }
 
   // Market — west district
-  drawBuilding(ctx, wx(17*TILE), wy(44*TILE), 'market', t);
+  drawBuilding(ctx, wx(54*TILE), wy(61*TILE), 'market', t); // V110
   // Market stall tables
   {
-    const mx = wx(20*TILE), my = wy(45*TILE);
+    const mx = wx(54*TILE), my = wy(60*TILE) // V110: market interior;
     // Table 1
     ctx.fillStyle = '#7a5030';
     ctx.fillRect(mx, my-4, 18, 3);
@@ -1865,10 +1968,10 @@ export default function WorldCanvas() {
   }
 
   // Barracks — west south district
-  drawBuilding(ctx, wx(17*TILE), wy(52*TILE), 'barracks', t);
+  drawBuilding(ctx, wx(54*TILE), wy(67*TILE), 'barracks', t); // V110
   // Training yard: wooden dummies + fence
   {
-    const bx = wx(21*TILE), by = wy(51*TILE);
+    const bx = wx(58*TILE), by = wy(66*TILE); // V110: moved to match barracks
     // Wooden training dummy 1
     ctx.fillStyle = '#7a5030';
     ctx.fillRect(bx, by-18, 4, 20); // post
@@ -1889,19 +1992,19 @@ export default function WorldCanvas() {
   }
 
   // Shrine — south-east sacred area
-  drawShrine(ctx, wx(27*TILE), wy(53*TILE), '#d4af37', 'SHRINE', t);
-  // Sacred path stone markers
-  for (let sty=50; sty<=53; sty++) {
-    const sx2 = wx(25*TILE), sy2 = wy(sty*TILE);
+  drawShrine(ctx, wx(60*TILE), wy(68*TILE), '#d4af37', 'SHRINE', t); // V110
+  // V110: Sacred path stone markers (shrine at 60,68 — spine 59-61, ty 65-68)
+  for (let sty=65; sty<=68; sty++) {
+    const sx2 = wx(58*TILE), sy2 = wy(sty*TILE);
     ctx.fillStyle = '#888070';
     ctx.fillRect(sx2-4, sy2+TILE/2-2, 6, 4);
-    const sx3 = wx(29*TILE);
+    const sx3 = wx(62*TILE);
     ctx.fillRect(sx3-2, sy2+TILE/2-2, 6, 4);
   }
 
-  // Shrine rune glow on ground
+  // V110: Shrine rune glow on ground
   {
-    const rx = wx(27*TILE), ry = wy(54*TILE);
+    const rx = wx(60*TILE), ry = wy(69*TILE);
     const glowR = 0.3 + Math.sin(t*1.5)*0.12;
     ctx.globalAlpha = glowR;
     const rg = ctx.createRadialGradient(rx, ry, 4, rx, ry, 48);
@@ -1912,13 +2015,12 @@ export default function WorldCanvas() {
     ctx.globalAlpha = 1;
   }
 
-  // === BRIDGES (upgraded with planks + rails) ===
-  // V108: purposeful bridge draw positions matching isBridge()
+  // === V110 BRIDGES — matching isBridge() purposeful placements ===
   const bridges = [
-    [32,36,37,41],  // 1. Stronghold entry (river crossing, N approach)
-    [22,60,27,64],  // 2. South lake crossing (S exit → ocean path)
-    [54,62,59,66],  // 3. Lava route crossing
-    [74,52,80,56],  // 4. East highland crossing (→ storm/void)
+    [58, 46, 62, 49],  // 1. N route: N road over N river
+    [47, 58, 50, 62],  // 2. W route: W road over western river arm
+    [47, 76, 50, 80],  // 3. SW route: SW road over western river arm (south)
+    [58, 83, 62, 87],  // 4. S route: S spine over southern lake approach
   ];
   bridges.forEach(([x1,y1,x2,y2]) => {
     const sx = wx(x1*TILE), sy = wy(y1*TILE);
