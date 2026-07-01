@@ -1,4 +1,4 @@
-// V107-STRONGHOLD-COLLISION-CROP-ATTACK-FIX-REV-001
+// V108-STRONGHOLD-PATHING-SPAWN-ATTACK-POLISH-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -55,7 +55,7 @@ _img('tree4', PC + 'environment__props__static__trees__model_01__size_04.png');
 _img('bld_hall',     BD + 'stronghold_crafting_hall.png');
 _img('bld_forge',    BD + 'stronghold_forge.png');
 _img('bld_market',   BD + 'stronghold_market.png');
-_img('bld_barracks', BD + 'stronghold_barracks.png');
+_img('bld_barracks', 'assets/world/v108_stronghold/v108_barracks_clean.png');
 _img('bld_shrine',   BD + 'stronghold_shrine.png');
 
 // ── Sprite draw helpers ───────────────────────────────────────────────────────
@@ -186,10 +186,10 @@ const REALM_PORTALS = [
   { realm: 'earth',  name: 'Terran Gate',   icon: '🪨', color: '#95a5a6', skulls: 2, x: 58, y: 36 },
   { realm: 'fire',   name: 'Ignar Gate',    icon: '🔥', color: '#e74c3c', skulls: 2, x: 39, y: 74 },
   { realm: 'ice',    name: 'Glacius Gate',  icon: '❄️', color: '#3498db', skulls: 3, x: 66, y: 14 },
-  { realm: 'ocean',  name: 'Nepthar Gate',  icon: '🌊', color: '#1abc9c', skulls: 3, x: 13, y: 62 },
+  { realm: 'ocean',  name: 'Nepthar Gate',  icon: '🌊', color: '#1abc9c', skulls: 3, x: 21, y: 65 }, // V108: moved off lake
   { realm: 'storm',  name: 'Vortus Gate',   icon: '⚡', color: '#9b59b6', skulls: 4, x: 76, y: 42 },
   { realm: 'shadow', name: 'Umbris Gate',   icon: '🌑', color: '#6c3483', skulls: 4, x: 25, y: 82 },
-  { realm: 'lava',   name: 'Magmara Gate',  icon: '🌋', color: '#e67e22', skulls: 5, x: 58, y: 86 },
+  { realm: 'lava',   name: 'Magmara Gate',  icon: '🌋', color: '#e67e22', skulls: 5, x: 62, y: 74 }, // V108: moved off lava
   { realm: 'void',   name: 'Nihilus Gate',  icon: '✨', color: '#f1c40f', skulls: 5, x: 101, y: 78 },
 ];
 
@@ -298,7 +298,7 @@ function isRoad(tx, ty) {
   // === OVERWORLD ROUTES ===
   if (tx >= 22 && tx <= 28 && ty >= 26 && ty <= 38) return true;   // N village approach
   if (tx >= 22 && tx <= 28 && ty >= 56 && ty <= 70) return true;   // S village exit
-  if (ty >= 37 && ty <= 41 && tx >= 14 && tx <= 48) return true;   // bridge road across river
+  if (ty >= 37 && ty <= 41 && tx >= 14 && tx <= 48) return true;   // bridge road across river (N approach)
   if (ty >= 30 && ty <= 34 && tx >= 25 && tx <= 44) return true;   // ruins-wind route
   if (tx >= 42 && tx <= 46 && ty >= 24 && ty <= 43) return true;   // east bend
   if (tx >= 13 && tx <= 25 && ty >= 60 && ty <= 64) return true;   // lake route
@@ -308,23 +308,41 @@ function isRoad(tx, ty) {
   if (tx >= 76 && tx <= 80 && ty >= 43 && ty <= 78) return true;   // void approach road
   if (ty >= 76 && ty <= 80 && tx >= 76 && tx <= 102) return true;  // void road
 
-  // === STRONGHOLD VILLAGE INTERNAL PATHS ===
-  if (tx >= 24 && tx <= 28 && ty >= 38 && ty <= 57) return true;   // main N-S spine / plaza
-  if (ty >= 44 && ty <= 46 && tx >= 14 && tx <= 36) return true;   // E-W plaza cross
-  if (tx >= 14 && tx <= 24 && ty >= 42 && ty <= 48) return true;   // market district path
-  if (tx >= 26 && tx <= 36 && ty >= 43 && ty <= 49) return true;   // forge district path
-  if (tx >= 14 && tx <= 24 && ty >= 48 && ty <= 52) return true;   // barracks path
-  if (tx >= 24 && tx <= 30 && ty >= 50 && ty <= 58) return true;   // shrine sacred path
+  // === V108 STRONGHOLD VILLAGE DELIBERATE PATH NETWORK ===
+  // Main N-S spine: entry bridge → central plaza → south shrine exit
+  if (tx >= 24 && tx <= 28 && ty >= 38 && ty <= 57) return true;
+
+  // Central plaza pad (the heart — 4-wide stone zone)
+  if (tx >= 24 && tx <= 28 && ty >= 43 && ty <= 47) return true;
+
+  // Branch 1 – Hall spur: plaza north → Crafting Hall door (26,40)
+  if (tx >= 25 && tx <= 27 && ty >= 40 && ty <= 43) return true;
+
+  // Branch 2 – Market branch: plaza W → Market door (17,44)
+  if (ty >= 43 && ty <= 45 && tx >= 17 && tx <= 25) return true;
+
+  // Branch 3 – Forge branch: plaza E → Forge door (32,46)
+  if (ty >= 44 && ty <= 46 && tx >= 27 && tx <= 33) return true;
+
+  // Branch 4 – Barracks branch: market path south → Barracks door (17,52)
+  if (tx >= 16 && tx <= 19 && ty >= 44 && ty <= 52) return true;
+
+  // Branch 5 – Shrine branch: spine south → Shrine (27,53)
+  if (tx >= 25 && tx <= 28 && ty >= 50 && ty <= 54) return true;
+
+  // Cross-connector: market side to barracks side (west wing road)
+  if (tx >= 14 && tx <= 18 && ty >= 44 && ty <= 52) return true;
 
   return false;
 }
 
 function isBridge(tx, ty) {
+  // V108: purposeful bridges only — each connects two meaningful areas
   return (
-    inRect(tx, ty, 30, 36, 36, 42) || // main river bridge
-    inRect(tx, ty, 21, 55, 29, 60) || // village/lake bridge
-    inRect(tx, ty, 54, 61, 60, 66) || // lava route bridge
-    inRect(tx, ty, 73, 52, 82, 56)    // east bridge
+    inRect(tx, ty, 32, 36, 37, 41) || // 1. Stronghold entry bridge: N approach road → village (river crossing)
+    inRect(tx, ty, 22, 60, 27, 64) || // 2. South lake crossing: S village exit → ocean/shadow path
+    inRect(tx, ty, 54, 62, 59, 66) || // 3. Lava route: eastern road → lava/fire area
+    inRect(tx, ty, 74, 52, 80, 56)    // 4. East highland: east road → storm/void approach
   );
 }
 
@@ -427,6 +445,18 @@ function isBlocked(wx, wy) {
 
   if (isObstacleCluster(tx, ty)) return true;
   return false;
+}
+
+// V108: walkability guard for spawn/placement validation
+function isWalkableWorldPoint(worldX, worldY) {
+  const tx = worldX / TILE;
+  const ty = worldY / TILE;
+  if (tx < 3 || tx > MAP_W - 3 || ty < 3 || ty > MAP_H - 3) return false;
+  if (isWater(tx, ty)) return false;
+  if (isLava(tx, ty)) return false;
+  if (isBuildingBlocked(tx, ty)) return false;
+  if (isObstacleCluster(tx, ty)) return false;
+  return true;
 }
 
 function tileColor(tx, ty) {
@@ -603,19 +633,40 @@ function drawPortal(ctx, x, y, portal, t) {
 }
 
 function drawBuilding(ctx, x, y, kind, t) {
-  // V107: foundation pad + tight contact shadow drawn BEFORE sprite so it sits under building
-  const padW = kind === 'hall' ? 148 : kind === 'barracks' ? 138 : 118;
-  const padH = 10;
-  // Foundation stone pad at base (y = base of building)
-  ctx.fillStyle = '#6a5c4a';
-  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH/2, padW, padH, 3); ctx.fill();
-  ctx.strokeStyle = '#4a3c2e'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH/2, padW, padH, 3); ctx.stroke();
-  // Contact shadow — tight ellipse right under base
-  ctx.globalAlpha = 0.28;
+  // V108: per-building pad dimensions matched to actual sprite widths
+  // hall PNG: 159px → drawn ~150px; forge/market: ~110px; barracks PNG: 128px → drawn ~120px; shrine: 100px
+  const padDefs = {
+    hall:     { padW: 154, doorW: 28, doorH: 12 },
+    forge:    { padW: 114, doorW: 20, doorH: 10 },
+    market:   { padW: 114, doorW: 24, doorH: 10 },
+    barracks: { padW: 120, doorW: 24, doorH: 10 },
+    shrine:   { padW: 96,  doorW: 18, doorH: 10 },
+  };
+  const { padW, doorW, doorH } = padDefs[kind] || padDefs.forge;
+  const padH = 8;
+
+  // Contact shadow under pad (drawn first, behind everything)
+  ctx.globalAlpha = 0.30;
   ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.ellipse(x + 2, y + 4, padW * 0.44, 6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 2, y + 5, padW * 0.46, 5, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
+
+  // Foundation stone pad — sits at the building's base line
+  ctx.fillStyle = '#7a6c57';
+  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH, padW, padH, 2); ctx.fill();
+  ctx.fillStyle = '#5c4f3a';
+  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH, padW, 2, 0); ctx.fill(); // top edge dark line
+  ctx.strokeStyle = '#4a3c2e'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x - padW/2, y - padH, padW, padH, 2); ctx.stroke();
+
+  // Doorstep: small raised stone step at door center bottom
+  ctx.fillStyle = '#8a7860';
+  ctx.beginPath(); ctx.roundRect(x - doorW/2, y, doorW, doorH, 2); ctx.fill();
+  ctx.strokeStyle = '#4a3c2e'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x - doorW/2, y, doorW, doorH, 2); ctx.stroke();
+  // Path connection: thin strip leading south from doorstep
+  ctx.fillStyle = '#997a57';
+  ctx.fillRect(x - doorW*0.3, y + doorH, doorW*0.6, TILE * 0.8);
 
   // Try PNG sprite first — draws label on top regardless
   const spriteDrawn = drawBuildingSprite(ctx, kind, x, y);
@@ -1197,7 +1248,8 @@ export default function WorldCanvas() {
       if (e.hp <= 0) killEnemy(e, store);
     }
 
-    G.attackEffect = { x: p.x, y: p.y, timer: 0.22, hit: hitCount > 0 };
+    // V108: store centerOffsetY so render lifts effect to torso/weapon area
+    G.attackEffect = { x: p.x, y: p.y, centerOffsetY: PLAYER_DRAW_H * 0.55, timer: 0.22, hit: hitCount > 0 };
   }
 
   function handleAbility(store) {
@@ -1220,7 +1272,7 @@ export default function WorldCanvas() {
       if (e.hp <= 0) killEnemy(e, store);
     }
 
-    G.attackEffect = { x: p.x, y: p.y, timer: 0.38, ability: true, hit: hitCount > 0 };
+    G.attackEffect = { x: p.x, y: p.y, centerOffsetY: PLAYER_DRAW_H * 0.55, timer: 0.38, ability: true, hit: hitCount > 0 };
   }
 
   function killEnemy(e, store) {
@@ -1354,6 +1406,8 @@ export default function WorldCanvas() {
     // Resources.
     for (const r of G.resources) {
       if (r.depleted) continue;
+      // V108: skip resources that landed in water/lava/blocked terrain
+      if (!isWalkableWorldPoint(r.x, r.y)) continue;
       const sx = wx(r.x);
       const sy = wy(r.y);
       if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) continue;
@@ -1471,7 +1525,8 @@ export default function WorldCanvas() {
 
     if (G.attackEffect) {
       const sx = wx(G.attackEffect.x);
-      const sy = wy(G.attackEffect.y);
+      // V108: lift origin to center mass / weapon hand (not feet)
+      const sy = wy(G.attackEffect.y) - (G.attackEffect.centerOffsetY || 0);
       const pct = G.attackEffect.timer / (G.attackEffect.ability ? 0.38 : 0.22);
       const alpha = Math.max(0, pct);
       ctx.save();
@@ -1696,6 +1751,73 @@ export default function WorldCanvas() {
     ctx.beginPath(); ctx.arc(fx+4, fy+3, 3, 0, Math.PI*2); ctx.fill();
   });
 
+  // === V108 GRASS EDGE OVERLAYS ===
+  // Grass patches frame the village boundary — outer fence edge → dirt field transition
+  // Uses tileColor green variants to paint soft grass edges without PNG dependency
+  {
+    const grassColor1 = '#2a7e3a';
+    const grassColor2 = '#238033';
+    const grassColor3 = '#1d6a2b';
+
+    // Helper: draw a tufty grass cluster at a tile position
+    function grassTuft(ctx, gx, gy, seed) {
+      const bx = wx(gx * TILE) + TILE / 2;
+      const by = wy(gy * TILE) + TILE / 2;
+      const h = tileHash(gx + seed, gy + seed);
+      const col = h > 0.6 ? grassColor1 : h > 0.3 ? grassColor2 : grassColor3;
+      ctx.fillStyle = col;
+      // 3 short vertical blades
+      ctx.globalAlpha = 0.85;
+      [[-4, 0], [0, -2], [4, 1]].forEach(([dx, dy]) => {
+        ctx.fillRect(bx + dx, by + dy - 9, 2, 9 + dy);
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    // North outer edge — above fence line (ty=37-38), outside village
+    for (let gx = 12; gx <= 37; gx++) {
+      if (gx >= 23 && gx <= 29) continue; // skip main road gap
+      if (isWater(gx, 37) || isRoad(gx, 37)) continue;
+      grassTuft(ctx, gx, 37, 1);
+    }
+    // South outer edge — below fence line (ty=57-59)
+    for (let gx = 12; gx <= 37; gx++) {
+      if (gx >= 23 && gx <= 29) continue;
+      if (isWater(gx, 58) || isRoad(gx, 58)) continue;
+      grassTuft(ctx, gx, 58, 3);
+    }
+    // West outer edge
+    for (let gy = 39; gy <= 56; gy++) {
+      if (gy >= 43 && gy <= 46) continue; // market gate gap
+      if (isWater(12, gy) || isRoad(12, gy)) continue;
+      grassTuft(ctx, 12, gy, 5);
+      grassTuft(ctx, 13, gy, 7);
+    }
+    // East outer edge
+    for (let gy = 39; gy <= 56; gy++) {
+      if (gy >= 43 && gy <= 46) continue; // forge gate gap
+      if (isWater(37, gy) || isRoad(37, gy)) continue;
+      grassTuft(ctx, 37, gy, 9);
+    }
+
+    // Inner corner grass patches — soften the dirt-to-path transition
+    // SW corner near market/barracks
+    [[13,42],[13,43],[14,41],[13,53],[13,54],[14,53]].forEach(([gx,gy]) => {
+      if (isVillageFloor(gx,gy) || isRoad(gx,gy) || isWater(gx,gy)) return;
+      grassTuft(ctx, gx, gy, 11);
+    });
+    // SE corner near forge/shrine
+    [[36,43],[36,44],[35,42],[36,52],[36,53],[35,53]].forEach(([gx,gy]) => {
+      if (isVillageFloor(gx,gy) || isRoad(gx,gy) || isWater(gx,gy)) return;
+      grassTuft(ctx, gx, gy, 13);
+    });
+    // NW/NE corners
+    [[13,39],[13,40],[36,39],[36,40]].forEach(([gx,gy]) => {
+      if (isVillageFloor(gx,gy) || isRoad(gx,gy) || isWater(gx,gy)) return;
+      grassTuft(ctx, gx, gy, 15);
+    });
+  }
+
   // === BUILDINGS ===
   // Crafting Hall — central north of plaza
   drawBuilding(ctx, wx(26*TILE), wy(40*TILE), 'hall', t);
@@ -1791,11 +1913,12 @@ export default function WorldCanvas() {
   }
 
   // === BRIDGES (upgraded with planks + rails) ===
+  // V108: purposeful bridge draw positions matching isBridge()
   const bridges = [
-    [30,36,36,42],
-    [21,55,29,60],
-    [54,61,60,66],
-    [73,52,82,56],
+    [32,36,37,41],  // 1. Stronghold entry (river crossing, N approach)
+    [22,60,27,64],  // 2. South lake crossing (S exit → ocean path)
+    [54,62,59,66],  // 3. Lava route crossing
+    [74,52,80,56],  // 4. East highland crossing (→ storm/void)
   ];
   bridges.forEach(([x1,y1,x2,y2]) => {
     const sx = wx(x1*TILE), sy = wy(y1*TILE);
