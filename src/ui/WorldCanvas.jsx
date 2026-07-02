@@ -1,4 +1,4 @@
-// V110-CENTER-VILLAGE-BOSS-ROUTE-LAYOUT-REV-001
+// V115-TERRAIN-TILE-LAYER-POLISH-REV-001
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -57,6 +57,15 @@ _img('bld_forge',    BD + 'stronghold_forge.png');
 _img('bld_market',   BD + 'stronghold_market.png');
 _img('bld_barracks', 'assets/world/v108_stronghold/v108_barracks_clean.png');
 _img('bld_shrine',   BD + 'stronghold_shrine.png');
+
+// V115: Terrain tilesets
+const V104 = '/assets/world/v104_stronghold/';
+_img('ts_floor',  PC + 'environment__tilesets__floors_tiles.png');   // 400x416, 16px tiles: grass(0-4,0-11), dirt(5-14,0-11), stone(15-24,0-11)
+_img('ts_water',  PC + 'environment__tilesets__water_tiles.png');    // 400x400, 16px tiles: water variants
+_img('ts_veg',    PC + 'environment__props__static__vegetation.png'); // 400x432, 16px tiles: grass tufts, bushes
+_img('ts_rocks',  PC + 'environment__props__static__rocks.png');      // 208x304, 16px tiles: rock props
+_img('ts_shadow', PC + 'environment__props__static__shadows.png');    // 400x400, 16px tiles: soft shadows
+_img('ts_plaza',  V104 + 'v104_stronghold_plaza_base.png');           // 512x512 plaza base texture
 
 // ── Sprite draw helpers ───────────────────────────────────────────────────────
 // Draw one frame from a horizontal sheet.
@@ -545,6 +554,336 @@ function isWalkableWorldPoint(worldX, worldY) {
   if (isBuildingBlocked(tx, ty)) return false;
   if (isObstacleCluster(tx, ty)) return false;
   return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// V115: TERRAIN TILE DRAW SYSTEM
+// All draw functions use the pixel_crawler tilesets discovered at 16px/tile.
+// Floor tileset (ts_floor) layout:
+//   Grass variants:  srcX=0-64,   srcY=0-176  (cols 0-4, rows 0-10)
+//   Dirt variants:   srcX=80-224, srcY=0-176  (cols 5-14, rows 0-10)
+//   Stone/path:      srcX=240-384,srcY=0-176  (cols 15-24, rows 0-10)
+// Water tileset (ts_water): srcX=0-384, srcY=0-384 (cols 0-24, rows 0-24)
+// Vegetation (ts_veg): grass tufts at rows 0-3
+// ═══════════════════════════════════════════════════════════════════════
+
+const _TS_TILE = 16; // pixel_crawler tile size in source image
+
+// drawTile: draws one tile from a tileset image onto the canvas world position
+function drawTile(ctx, imgKey, srcX, srcY, wx_, wy_) {
+  const img = _SC[imgKey];
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  ctx.drawImage(img, srcX, srcY, _TS_TILE, _TS_TILE, wx_, wy_, TILE, TILE);
+}
+
+// Grass tile variants — 5 tiles in cols 0-4, rows 0-10 (we use rows 0-3 = 20 variants)
+const GRASS_VARIANTS = [
+  [16,0],[32,0],[48,0],    // row 0: main grass
+  [0,16],[64,16],           // row 1: edge grass
+  [0,32],[64,32],           // row 2: detail grass
+  [16,64],[32,64],[48,64],  // row 4: light variant
+  [16,80],[32,80],[48,80],  // row 5: darker
+];
+
+// Dirt/path tile variants — cols 5-14, rows 0-10
+const DIRT_VARIANTS = [
+  [96,0],[112,0],[128,0],   // row 0: mid dirt
+  [80,16],[144,16],          // row 1: edges
+  [96,16],[128,16],          // row 1: filled
+  [96,32],[112,32],[128,32], // row 2: detail
+  [192,0],[208,0],           // row 0: darker brown
+  [176,16],[192,16],         // row 1: darker brown
+];
+
+// Stone tile variants — cols 15-24, rows 0-10
+const STONE_VARIANTS = [
+  [256,0],[272,0],[288,0],  // row 0
+  [240,16],[256,16],[272,16],[288,16],[304,16], // row 1
+  [256,32],[272,32],        // row 2: slight variation
+];
+
+// Water tile variants (deep water, blue) — from ts_water
+const WATER_VARIANTS = [
+  [0,0],[64,0],[80,0],[96,0],   // row 0: main deep
+  [0,16],[64,16],[80,16],        // row 1: lighter
+  [0,32],[64,32],                // row 2
+];
+
+// Shoreline tiles — edges where water meets land
+// ts_water has shore/transition tiles in rows 0-3
+const SHORE_VARIANTS = [
+  [16,0],[48,0],   // water edge NW/NE
+  [16,16],[48,16], // water edge SW/SE
+];
+
+// drawTerrainTile: draw a tile at world tile position (tx, ty)
+// pixel_crawler 16px source tiles are scaled to fill one world TILE (32px)
+function drawTerrainTile(ctx, imgKey, variants, tx, ty) {
+  const h = tileHash(tx, ty);
+  const vi = Math.floor(h * variants.length) % variants.length;
+  const [srcX, srcY] = variants[vi];
+  const screenX = wx(tx * TILE);
+  const screenY = wy(ty * TILE);
+  const img = _SC[imgKey];
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  ctx.drawImage(img, srcX, srcY, _TS_TILE, _TS_TILE, screenX, screenY, TILE, TILE);
+}
+
+// drawGrassTuft: draw a small vegetation overlay on a tile
+function drawGrassTuft(ctx, tx, ty) {
+  const img = _SC['ts_veg'];
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  const h = tileHash(tx + 7, ty + 3);
+  if (h > 0.65) return; // sparse — only 35% of tiles get a tuft
+  const tufts = [[0,0],[16,0],[48,0],[64,0],[0,16],[16,16],[48,16],[64,16]];
+  const vi = Math.floor(h * tufts.length) % tufts.length;
+  const [srcX, srcY] = tufts[vi];
+  const screenX = wx(tx * TILE);
+  const screenY = wy(ty * TILE);
+  ctx.globalAlpha = 0.75;
+  ctx.drawImage(img, srcX, srcY, _TS_TILE, _TS_TILE, screenX, screenY, TILE, TILE);
+  ctx.globalAlpha = 1;
+}
+
+// drawRockProp: draw a rock prop at world tile position
+function drawRockProp(ctx, tx, ty) {
+  const img = _SC['ts_rocks'];
+  if (!img || !img.complete || img.naturalWidth === 0) return;
+  const h = tileHash(tx + 13, ty + 5);
+  const rocks_src = [[0,0],[16,0],[32,0],[0,16],[16,16],[32,16],[48,16]];
+  const vi = Math.floor(h * rocks_src.length) % rocks_src.length;
+  const [srcX, srcY] = rocks_src[vi];
+  const screenX = wx(tx * TILE) + TILE * 0.1;
+  const screenY = wy(ty * TILE) + TILE * 0.1;
+  const sz = TILE * 0.8;
+  ctx.globalAlpha = 0.9;
+  ctx.drawImage(img, srcX, srcY, _TS_TILE, _TS_TILE, screenX, screenY, sz, sz);
+  ctx.globalAlpha = 1;
+}
+
+// isRockTile: sparse rocks on certain terrain for visual variation
+function isRockTile(tx, ty) {
+  const h = tileHash(tx * 3, ty * 7);
+  // Only put rocks in rugged terrain zones, not village/roads/water
+  if (isVillageFloor(tx, ty) || isRoad(tx, ty) || isWater(tx, ty) || isLava(tx, ty)) return false;
+  // E ruins zone: more rocks
+  if (tx >= 70 && ty >= 55 && ty <= 66) return h > 0.82;
+  // NW ice zone: more rocks
+  if (tx < 52 && ty < 54) return h > 0.84;
+  // General wilderness: sparse
+  return h > 0.93;
+}
+
+// ─── DRAW TERRAIN LAYER ──────────────────────────────────────────────────────
+// Called from render loop to draw the base terrain tile layer before props/buildings.
+// Replaces the plain tileColor rectangle system for visible tiles only.
+function drawTerrainLayer(ctx, visX1, visX2, visY1, visY2) {
+  for (let ty = visY1; ty <= visY2; ty++) {
+    for (let tx = visX1; tx <= visX2; tx++) {
+      if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) continue;
+
+      const screenX = wx(tx * TILE);
+      const screenY = wy(ty * TILE);
+      const sz = TILE;
+
+      // ── Water ──────────────────────────────────────────────────────────
+      if (isWater(tx, ty)) {
+        drawTerrainTile(ctx, 'ts_water', WATER_VARIANTS, tx, ty);
+        continue;
+      }
+
+      // ── Lava ────────────────────────────────────────────────────────────
+      if (isLava(tx, ty)) {
+        // Lava rendered by tileColor as fallback (orange), just ensure base
+        const h = tileHash(tx, ty);
+        ctx.fillStyle = h > 0.7 ? '#c0392b' : h > 0.4 ? '#a93226' : '#8e271f';
+        ctx.fillRect(screenX, screenY, sz, sz);
+        // overlay red-orange noise
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = h > 0.5 ? '#e67e22' : '#d35400';
+        ctx.fillRect(screenX + sz*0.15, screenY + sz*0.15, sz*0.7, sz*0.7);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+
+      // ── Bridge ─────────────────────────────────────────────────────────
+      if (isBridge(tx, ty)) {
+        // Use stone/dirt tiles for bridge planks
+        drawTerrainTile(ctx, 'ts_floor', STONE_VARIANTS, tx, ty);
+        // Plank grain overlay
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#7a5a35';
+        ctx.fillRect(screenX + sz*0.1, screenY + sz*0.08, sz*0.8, sz*0.12);
+        ctx.fillRect(screenX + sz*0.1, screenY + sz*0.38, sz*0.8, sz*0.12);
+        ctx.fillRect(screenX + sz*0.1, screenY + sz*0.68, sz*0.8, sz*0.12);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+
+      // ── Village floor (plaza/lots) ─────────────────────────────────────
+      if (isVillageFloor(tx, ty)) {
+        drawTerrainTile(ctx, 'ts_floor', DIRT_VARIANTS, tx, ty);
+        continue;
+      }
+
+      // ── Roads / paths ──────────────────────────────────────────────────
+      if (isRoad(tx, ty)) {
+        // Use stone variants for main plaza, dirt for routes
+        const dxV = tx - 60; const dyV = ty - 60;
+        const inPlaza = Math.abs(dxV) < 6 && Math.abs(dyV) < 8;
+        if (inPlaza) {
+          drawTerrainTile(ctx, 'ts_floor', STONE_VARIANTS, tx, ty);
+        } else {
+          drawTerrainTile(ctx, 'ts_floor', DIRT_VARIANTS, tx, ty);
+        }
+        continue;
+      }
+
+      // ── Biome terrain ──────────────────────────────────────────────────
+      const dxV = tx - 60; const dyV = ty - 60;
+
+      // N forest (north of river)
+      if (ty < 47 && tx >= 50 && tx <= 70) {
+        drawTerrainTile(ctx, 'ts_floor', GRASS_VARIANTS, tx, ty);
+        drawGrassTuft(ctx, tx, ty);
+        continue;
+      }
+      // NW tundra/storm
+      if (tx < 52 && ty < 56) {
+        // Mix grass + stone for icy/rocky feel
+        const h = tileHash(tx, ty);
+        if (h > 0.45) drawTerrainTile(ctx, 'ts_floor', STONE_VARIANTS, tx, ty);
+        else drawTerrainTile(ctx, 'ts_floor', GRASS_VARIANTS, tx, ty);
+        if (isRockTile(tx, ty)) drawRockProp(ctx, tx, ty);
+        continue;
+      }
+      // NE wind highlands
+      if (tx > 68 && ty < 56) {
+        const h = tileHash(tx, ty);
+        if (h > 0.5) drawTerrainTile(ctx, 'ts_floor', STONE_VARIANTS, tx, ty);
+        else drawTerrainTile(ctx, 'ts_floor', GRASS_VARIANTS, tx, ty);
+        if (isRockTile(tx, ty)) drawRockProp(ctx, tx, ty);
+        continue;
+      }
+      // E ruins (stone heavy)
+      if (tx >= 68 && ty >= 55 && ty <= 66) {
+        const h = tileHash(tx, ty);
+        drawTerrainTile(ctx, 'ts_floor', h > 0.35 ? STONE_VARIANTS : DIRT_VARIANTS, tx, ty);
+        if (isRockTile(tx, ty)) drawRockProp(ctx, tx, ty);
+        continue;
+      }
+      // SE fire terrain
+      if (tx > 68 && ty > 65) {
+        const h = tileHash(tx, ty);
+        // Use dirt with red tint overlay
+        drawTerrainTile(ctx, 'ts_floor', DIRT_VARIANTS, tx, ty);
+        ctx.globalAlpha = 0.18 * h;
+        ctx.fillStyle = '#8b2200';
+        ctx.fillRect(screenX, screenY, sz, sz);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      // S ocean shore / tropical
+      if (ty > 68 && tx >= 50 && tx <= 70) {
+        drawTerrainTile(ctx, 'ts_floor', GRASS_VARIANTS, tx, ty);
+        continue;
+      }
+      // SW shadow
+      if (tx < 52 && ty > 65) {
+        const h = tileHash(tx, ty);
+        // Dark soil — dirt + dark overlay
+        drawTerrainTile(ctx, 'ts_floor', DIRT_VARIANTS, tx, ty);
+        ctx.globalAlpha = 0.30 * h;
+        ctx.fillStyle = '#1a0a2e';
+        ctx.fillRect(screenX, screenY, sz, sz);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      // W wildlands (green)
+      if (tx < 52 && ty >= 56 && ty <= 65) {
+        drawTerrainTile(ctx, 'ts_floor', GRASS_VARIANTS, tx, ty);
+        drawGrassTuft(ctx, tx, ty);
+        continue;
+      }
+      // Village inner area
+      if (tx >= 52 && tx <= 68 && ty >= 54 && ty <= 70) {
+        drawTerrainTile(ctx, 'ts_floor', DIRT_VARIANTS, tx, ty);
+        continue;
+      }
+
+      // ── Default: base grass for open areas ────────────────────────────
+      drawTerrainTile(ctx, 'ts_floor', GRASS_VARIANTS, tx, ty);
+      // Sparse detail tufts
+      if (tileHash(tx * 2, ty * 2) > 0.72) {
+        drawGrassTuft(ctx, tx, ty);
+      }
+    }
+  }
+}
+
+// ─── SHORELINE TRANSITIONS ───────────────────────────────────────────────────
+// Draw shore-edge overlays on grass tiles adjacent to water (visual only, no collision)
+function drawShorelineLayer(ctx, visX1, visX2, visY1, visY2) {
+  for (let ty = visY1; ty <= visY2; ty++) {
+    for (let tx = visX1; tx <= visX2; tx++) {
+      if (isWater(tx, ty) || isBridge(tx, ty)) continue;
+      // Check if any adjacent tile is water
+      const adjWater =
+        isWater(tx, ty-1) || isWater(tx, ty+1) ||
+        isWater(tx-1, ty) || isWater(tx+1, ty);
+      if (!adjWater) continue;
+
+      const screenX = wx(tx * TILE);
+      const screenY = wy(ty * TILE);
+      const sz = TILE;
+
+      // Draw sand/shore transition
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#c8a86a';
+      ctx.fillRect(screenX, screenY, sz, sz);
+      ctx.globalAlpha = 1;
+
+      // Draw slight water-edge noise texture
+      ctx.globalAlpha = 0.25;
+      const h = tileHash(tx, ty);
+      ctx.fillStyle = h > 0.5 ? '#a0c8d0' : '#8ab8c8';
+      const edge = sz * 0.18;
+      if (isWater(tx, ty-1)) ctx.fillRect(screenX, screenY, sz, edge); // N shore
+      if (isWater(tx, ty+1)) ctx.fillRect(screenX, screenY + sz - edge, sz, edge); // S shore
+      if (isWater(tx-1, ty)) ctx.fillRect(screenX, screenY, edge, sz); // W shore
+      if (isWater(tx+1, ty)) ctx.fillRect(screenX + sz - edge, screenY, edge, sz); // E shore
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ─── ROAD EDGE TRANSITIONS ──────────────────────────────────────────────────
+// Soft dirt fringe on grass tiles adjacent to road tiles
+function drawRoadEdgeLayer(ctx, visX1, visX2, visY1, visY2) {
+  for (let ty = visY1; ty <= visY2; ty++) {
+    for (let tx = visX1; tx <= visX2; tx++) {
+      if (isRoad(tx, ty) || isVillageFloor(tx, ty) || isWater(tx, ty)) continue;
+      const adjRoad =
+        isRoad(tx, ty-1) || isRoad(tx, ty+1) ||
+        isRoad(tx-1, ty) || isRoad(tx+1, ty) ||
+        isVillageFloor(tx, ty-1) || isVillageFloor(tx, ty+1) ||
+        isVillageFloor(tx-1, ty) || isVillageFloor(tx+1, ty);
+      if (!adjRoad) continue;
+
+      const screenX = wx(tx * TILE);
+      const screenY = wy(ty * TILE);
+      const sz = TILE;
+      const edge = sz * 0.22;
+
+      ctx.globalAlpha = 0.40;
+      ctx.fillStyle = '#9a7c55';
+      if (isRoad(tx, ty-1) || isVillageFloor(tx, ty-1)) ctx.fillRect(screenX, screenY, sz, edge);
+      if (isRoad(tx, ty+1) || isVillageFloor(tx, ty+1)) ctx.fillRect(screenX, screenY + sz - edge, sz, edge);
+      if (isRoad(tx-1, ty) || isVillageFloor(tx-1, ty)) ctx.fillRect(screenX, screenY, edge, sz);
+      if (isRoad(tx+1, ty) || isVillageFloor(tx+1, ty)) ctx.fillRect(screenX + sz - edge, screenY, edge, sz);
+      ctx.globalAlpha = 1;
+    }
+  }
 }
 
 // V110: biome-based tile coloring centered on village (60,60)
@@ -1457,36 +1796,55 @@ export default function WorldCanvas() {
     const startTy = Math.max(0, Math.floor((G.camera.y - H/2) / TILE) - 1);
     const endTy = Math.min(MAP_H, Math.ceil((G.camera.y + H/2) / TILE) + 1);
 
+    // V115: Terrain tile system — 3-pass render
+    // Fallback color fill first (handles any tile the system misses)
     for (let ty = startTy; ty <= endTy; ty++) {
       for (let tx = startTx; tx <= endTx; tx++) {
         const sx = wx(tx * TILE);
         const sy = wy(ty * TILE);
         ctx.fillStyle = tileColor(tx, ty);
         ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
+      }
+    }
+    // Pass 1: Pixel-art terrain tiles
+    drawTerrainLayer(ctx, startTx, endTx, startTy, endTy);
+    // Pass 2: Road edge soft dirt fringe
+    drawRoadEdgeLayer(ctx, startTx, endTx, startTy, endTy);
+    // Pass 3: Shoreline sand strip
+    drawShorelineLayer(ctx, startTx, endTx, startTy, endTy);
 
+    // Animated water ripples on top
+    for (let ty = startTy; ty <= endTy; ty++) {
+      for (let tx = startTx; tx <= endTx; tx++) {
+        if (!isWater(tx, ty)) continue;
+        const sx = wx(tx * TILE);
+        const sy = wy(ty * TILE);
         const h = tileHash(tx, ty);
-        if (!isRoad(tx, ty) && !isWater(tx, ty) && !isLava(tx, ty) && h > 0.88) {
-          ctx.globalAlpha = 0.15;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(sx + 8, sy + 12, 14, 2);
-          ctx.globalAlpha = 1;
-        }
-
-        if (isWater(tx, ty) && h > 0.74) {
-          ctx.globalAlpha = 0.24;
+        if (h > 0.74) {
+          ctx.globalAlpha = 0.22;
           ctx.strokeStyle = '#bdefff';
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.moveTo(sx + 5, sy + 12 + Math.sin(t + tx) * 2);
-          ctx.lineTo(sx + 24, sy + 12 + Math.sin(t + tx + 1) * 2);
+          ctx.moveTo(sx + 5, sy + 10 + Math.sin(t + tx) * 2);
+          ctx.lineTo(sx + TILE * 0.75, sy + 10 + Math.sin(t + tx + 1) * 2);
           ctx.stroke();
           ctx.globalAlpha = 1;
         }
+      }
+    }
 
-        if (isLava(tx, ty) && h > 0.72) {
+    // Animated lava glow
+    for (let ty = startTy; ty <= endTy; ty++) {
+      for (let tx = startTx; tx <= endTx; tx++) {
+        if (!isLava(tx, ty)) continue;
+        const sx = wx(tx * TILE);
+        const sy = wy(ty * TILE);
+        const h = tileHash(tx, ty);
+        if (h > 0.72) {
           ctx.globalAlpha = 0.35 + Math.sin(t*3 + h*10) * 0.12;
           ctx.fillStyle = '#f1c40f';
-          ctx.beginPath(); ctx.arc(sx + 16, sy + 16, 3, 0, Math.PI*2); ctx.fill();
+          const r = TILE * 0.12;
+          ctx.beginPath(); ctx.arc(sx + TILE * 0.5, sy + TILE * 0.5, r, 0, Math.PI*2); ctx.fill();
           ctx.globalAlpha = 1;
         }
       }
@@ -1496,12 +1854,12 @@ export default function WorldCanvas() {
 
     // Sword pickup.
     if (!G.swordPicked && !store.inventory?.some(i => i.id === 'iron_sword')) {
-      const sx = wx(25*TILE);
-      const sy = wy(37*TILE);
+      const sx = wx(60*TILE);
+      const sy = wy(52*TILE); // V115: sword on N road, just outside village
       ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('⚔️', sx, sy);
-      if (dist(G.player.x, G.player.y, 25*TILE, 37*TILE) < 52) drawLabel(ctx, '[E] Take Iron Sword', sx, sy - 24, '#d4af37');
+      if (dist(G.player.x, G.player.y, 60*TILE, 52*TILE) < 52) drawLabel(ctx, '[E] Take Iron Sword', sx, sy - 24, '#d4af37');
     }
 
     // Resources.
