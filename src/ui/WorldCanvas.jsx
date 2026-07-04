@@ -1,4 +1,4 @@
-// V116-WORLD-RENDER-RECOVERY-REV-001
+// V116-WORLD-MOVEMENT-RECOVERY-REV-002
 import React, { useEffect, useRef } from 'react';
 import { useGameStore }  from '../store/useGameStore';
 
@@ -207,6 +207,19 @@ const RESPAWN_POINTS = {
   cp_nw:        { x: 44*TILE, y: 44*TILE }, // NW ice/storm
   cp_void:      { x: 88*TILE, y: 83*TILE }, // void approach
 };
+
+// V116: safe spawn constant — V110 village plaza center
+const SAFE_STRONGHOLD_SPAWN = { x: 60 * TILE, y: 62 * TILE };
+
+// V116: world bounds for position validation (V110 reachable area)
+// Any saved position outside [MIN_VALID_X..MAX_VALID_X] is considered stale
+const MIN_VALID_X = 10 * TILE; // tile 10 — well inside map
+const MIN_VALID_Y = 10 * TILE;
+const MAX_VALID_X = (MAP_W - 10) * TILE;
+const MAX_VALID_Y = (MAP_H - 10) * TILE;
+// V110 village is centered at tile (60,60); old pre-V110 saves used coords near (800,960) = tile (25,30)
+// We validate by checking if the loaded position is actually walkable in V110 layout.
+// If not, we snap to SAFE_STRONGHOLD_SPAWN.
 
 // V110: checkpoints at midpoints of each radial route
 const CHECKPOINTS = [
@@ -545,6 +558,26 @@ function isWalkableWorldPoint(worldX, worldY) {
   if (isBuildingBlocked(tx, ty)) return false;
   if (isObstacleCluster(tx, ty)) return false;
   return true;
+}
+
+// V116: find nearest walkable world point within a spiral search radius
+// Returns SAFE_STRONGHOLD_SPAWN if nothing found within maxRadius tiles
+function findNearestWalkable(worldX, worldY, maxRadius = 15) {
+  if (isWalkableWorldPoint(worldX, worldY)) return { x: worldX, y: worldY };
+  // Spiral outward in tile steps
+  for (let r = 1; r <= maxRadius; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue; // only check ring perimeter
+        const wx = worldX + dx * TILE;
+        const wy = worldY + dy * TILE;
+        if (isWalkableWorldPoint(wx, wy)) return { x: wx, y: wy };
+      }
+    }
+  }
+  // Absolute fallback
+  console.warn('[V116] findNearestWalkable: no walkable tile within', maxRadius, 'tiles of', worldX, worldY, '— snapping to stronghold spawn');
+  return { ...SAFE_STRONGHOLD_SPAWN };
 }
 
 // V110: biome-based tile coloring centered on village (60,60)
@@ -1056,13 +1089,55 @@ export default function WorldCanvas() {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
-    const saved = useGameStore.getState().position;
+    // V116: Priority 1 — validate spawn position
+    // Old saves carry pre-V110 coords (e.g. x=800,y=960 = tile 25,30) which are nowhere near
+    // the V110 village hub. Always verify the saved position is actually walkable in the
+    // current map layout; if not, snap to SAFE_STRONGHOLD_SPAWN.
+    const savedStore = useGameStore.getState();
+    const saved = savedStore.position;
+    let spawnX = SAFE_STRONGHOLD_SPAWN.x;
+    let spawnY = SAFE_STRONGHOLD_SPAWN.y;
+
     if (saved?.zone === 'world' && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-      G.player.x = saved.x;
-      G.player.y = saved.y;
-      G.camera.x = saved.x;
-      G.camera.y = saved.y;
+      if (isWalkableWorldPoint(saved.x, saved.y)) {
+        // Saved position is valid in current map layout — use it
+        spawnX = saved.x;
+        spawnY = saved.y;
+      } else {
+        // Saved position is blocked/stale (pre-V110 coords or inside water/building)
+        console.warn('[V116] Saved position', saved.x, saved.y, 'is not walkable in V110 layout — snapping to stronghold spawn');
+        // Try to find nearest walkable point first (handles minor drift from map updates)
+        const nearest = findNearestWalkable(saved.x, saved.y, 8);
+        // Only use nearest if it's reasonably close (within 8 tiles)
+        const distTiles = Math.sqrt(Math.pow((nearest.x - saved.x)/TILE, 2) + Math.pow((nearest.y - saved.y)/TILE, 2));
+        if (distTiles <= 8 && isWalkableWorldPoint(nearest.x, nearest.y)) {
+          spawnX = nearest.x;
+          spawnY = nearest.y;
+        } else {
+          spawnX = SAFE_STRONGHOLD_SPAWN.x;
+          spawnY = SAFE_STRONGHOLD_SPAWN.y;
+        }
+        // Persist corrected position so next load is immediate
+        useGameStore.setState({ position: { zone: 'world', x: spawnX, y: spawnY } });
+      }
     }
+
+    // V116: Priority 1b — clear dead-state flags that prevent update() from running movement
+    // If playerHP was saved as 0 or showDeathModal was true, the player can never move.
+    // Heal to 1 HP min so the movement guard passes; the HUD will still show low HP.
+    const storeNow = useGameStore.getState();
+    if (storeNow.playerHP <= 0) {
+      console.warn('[V116] Player spawned with HP=0 — restoring to 1 HP to unblock movement');
+      useGameStore.setState({ playerHP: 1, showDeathModal: false });
+    }
+    if (storeNow.showDeathModal) {
+      useGameStore.setState({ showDeathModal: false });
+    }
+
+    G.player.x = spawnX;
+    G.player.y = spawnY;
+    G.camera.x = spawnX;
+    G.camera.y = spawnY;
 
     let stopped = false;
     const frame = (ts) => {
@@ -1133,8 +1208,10 @@ export default function WorldCanvas() {
     // Respawn/flee support.
     if (store.respawnAt && G.lastRespawnAt !== store.respawnAt) {
       const rp = RESPAWN_POINTS[store.respawnAt] || RESPAWN_POINTS.stronghold;
-      p.x = rp.x;
-      p.y = rp.y;
+      // V116: validate respawn point is walkable; fall back to stronghold if not
+      const rpValid = isWalkableWorldPoint(rp.x, rp.y) ? rp : SAFE_STRONGHOLD_SPAWN;
+      p.x = rpValid.x;
+      p.y = rpValid.y;
       G.camera.x = p.x;
       G.camera.y = p.y;
       G.lastRespawnAt = store.respawnAt;
@@ -1150,12 +1227,42 @@ export default function WorldCanvas() {
     if (p.attackCooldown > 0) p.attackCooldown -= dt;
     if (p.invincible) { p.invTimer -= dt; if (p.invTimer <= 0) p.invincible = false; }
 
+    // V116: Priority 5 — ensure player is on valid tile before movement runs
+    // This catches any case where the player ends up on blocked terrain mid-session
+    if (!isWalkableWorldPoint(p.x, p.y)) {
+      const safe = findNearestWalkable(p.x, p.y, 10);
+      console.warn('[V116] Player at non-walkable world point', p.x, p.y, '— snapping to', safe.x, safe.y);
+      p.x = safe.x;
+      p.y = safe.y;
+      G.camera.x = p.x;
+      G.camera.y = p.y;
+    }
+
     const { mx, my } = getMoveVector();
     const speed = Math.max(80, 112 + ((store.playerSPD || 5) - 5) * 2);
     G.playerMoving = !!(mx || my);
     if (mx || my) {
       resumeAudio?.();
+      const prevX = p.x;
+      const prevY = p.y;
       tryMove(p, p.x + mx * speed * dt, p.y + my * speed * dt);
+      // V116: Priority 4 — unstuck detection
+      // Track how long the player has been trying to move but staying in place
+      if (p.x === prevX && p.y === prevY) {
+        G._stuckTimer = (G._stuckTimer || 0) + dt;
+        if (G._stuckTimer >= 1.2) {
+          // Blocked for >1.2s while inputs are held — find nearest walkable
+          console.warn('[V116] Player stuck at', p.x, p.y, '— running unstuck snap');
+          const unstuck = findNearestWalkable(p.x, p.y, 12);
+          p.x = unstuck.x;
+          p.y = unstuck.y;
+          G.camera.x = p.x;
+          G.camera.y = p.y;
+          G._stuckTimer = 0;
+        }
+      } else {
+        G._stuckTimer = 0;
+      }
       // Update facing direction for sprite animation
       if (Math.abs(mx) > Math.abs(my)) {
         G.playerDir = mx > 0 ? 'side_right' : 'side_left';
@@ -1164,11 +1271,15 @@ export default function WorldCanvas() {
       } else {
         G.playerDir = 'down';
       }
+    } else {
+      G._stuckTimer = 0;
     }
     G.spriteT += dt;
 
-    p.x = clampToWorld(p.x, p.y).x;
-    p.y = clampToWorld(p.x, p.y).y;
+    // Fix: clamp both axes independently to avoid using already-mutated coordinate
+    const clamped = clampToWorld(p.x, p.y);
+    p.x = clamped.x;
+    p.y = clamped.y;
 
     const camEase = 0.12;
     G.camera.x += (p.x - G.camera.x) * camEase;
