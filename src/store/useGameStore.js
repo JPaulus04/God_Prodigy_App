@@ -125,7 +125,7 @@ const DEFAULT_STATE = {
   abilityFiredAt:     null,   // timestamp (ms) when ability last fired
   abilityCooldownMs:  0,      // total cooldown duration in ms
 
-  position:      { zone: 'world', x: 800, y: 960 },
+  position:      { zone: 'world', x: 1920, y: 1984 },
   activeZone:    'world',
   respawnAt:     null,
 
@@ -673,7 +673,7 @@ export const useGameStore = create((set, get) => ({
       level:              1,   xp: 0, xpToNextLevel: 100, statPoints: 0,
       trainingATKBonus:   0,   trainingDEFBonus: 0,
       equippedAbilityId:  null,
-      position:           { zone: 'world', x: 800, y: 960 },
+      position:           { zone: 'world', x: 1920, y: 1984 },
       activeZone:         'world',
       respawnAt:          null,
       gear:               { weapon: null, armor: null, accessory: null },
